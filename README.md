@@ -45,7 +45,7 @@ Updating the CAN library:
     - "esp_intr_alloc.h"
 
 Downloading the SD card library:
-1. download zip for the [micro-sd card library](<"https://github.com/nhatuan84/esp32-micro-sdcard">)
+1. download zip for the [micro-sd card library]("https://github.com/nhatuan84/esp32-micro-sdcard")
 
 2. unzip contents into the libraries folder in the directory:
     - Users/yourName/AppData/local/Arduino15/libraries
