@@ -21,7 +21,7 @@ allow for more efficent debugging of the car.
 
 ## ESP32 CAN bus data logger
  - ESP32 Wroom 32D
- - CAN transceiver (SN65HVD230)
+ - CAN transceiver (SN65HVD232)
  - SD card
 
 ## Installation
