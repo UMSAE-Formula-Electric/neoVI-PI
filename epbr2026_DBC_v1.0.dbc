@@ -45,6 +45,47 @@ VAL_TABLE_ DriveState 0 "DriveDisabled" ;
 BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
  SG_ MC_PARAM_COMMAND : 0|8@1- (1,0) [0|0] "" Vector__XXX
 
+BO_ 1549 CAN_ENERGY_METER_TEMPERATURE: 8 Vector__XXX
+
+BO_ 1037 CAN_ENERGY_METER_STATUS: 6 Vector__XXX
+ SG_ EnergyMeterEnergy : 16|32@1+ (1,0) [0|4294967295] "Whr" Vector__XXX
+ SG_ EnergyMeterLogging : 1|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ EnergyMeterViolation : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 269 CAN_ENERGY_METER_MEASUREMENT_MSG: 8 Vector__XXX
+ SG_ EnergyMeterVoltage : 39|32@0- (1,0) [-2147483648|2147483647] "V" Vector__XXX
+ SG_ EnergyMeterCurrent : 7|32@0- (1,0) [-2147483648|2147483647] "A" Vector__XXX
+
+BO_ 598 CAN_FLOW_METER: 2 Vector__XXX
+ SG_ FlowRate : 0|16@1+ (0.01,0) [0|655.35] "L/s" Vector__XXX
+
+BO_ 597 CAN_COOLING_LOOP_TEMPERATURE: 8 Vector__XXX
+ SG_ TempSensor4 : 48|16@1- (0.01,0) [-327.68|327.67] "degC" Vector__XXX
+ SG_ TempSensor3 : 32|16@1- (0.01,0) [-327.68|327.67] "degC" Vector__XXX
+ SG_ TempSensor2 : 16|16@1- (0.01,0) [-327.68|327.67] "degC" Vector__XXX
+ SG_ TempSensor1 : 0|16@1- (0.01,0) [-327.68|327.67] "degC" Vector__XXX
+
+BO_ 596 CAN_SHOCK_POTENTIOMETERS: 8 Vector__XXX
+ SG_ BackRightShockPotentiometer : 48|16@1+ (0.01,0) [0|655.35] "mm" Vector__XXX
+ SG_ BackLeftShockPotentiometer : 32|16@1+ (0.01,0) [0|655.35] "mm" Vector__XXX
+ SG_ FrontRightShockPotentiometer : 16|16@1+ (0.01,0) [0|655.35] "mm" Vector__XXX
+ SG_ FrontLeftShockPotentiometer : 0|16@1+ (0.01,0) [0|655.35] "mm" Vector__XXX
+
+BO_ 595 CAN_LV_BATTERY_DATA: 8 Vector__XXX
+ SG_ LVBatteryPower : 48|16@1+ (0.01,0) [0|655.35] "W" Vector__XXX
+ SG_ LVBatteryCurrent : 32|16@1- (0.01,0) [-327.68|327.67] "A" Vector__XXX
+ SG_ LVBatteryVoltage : 16|16@1- (0.01,0) [-327.68|327.67] "V" Vector__XXX
+ SG_ LVBatterySOC : 0|16@1+ (0.01,0) [0|655.35] "%" Vector__XXX
+
+BO_ 594 CAN_WHEEL_SPEED: 8 Vector__XXX
+ SG_ BackRightWheelSpeed : 48|16@1- (0.01,0) [-327.68|327.67] "kph" Vector__XXX
+ SG_ BackLeftWheelSpeed : 32|16@1- (0.01,0) [-327.68|327.67] "kph" Vector__XXX
+ SG_ FrontLeftWheelSpeed : 16|16@1- (0.01,0) [-327.68|327.67] "kph" Vector__XXX
+ SG_ FrontRightWheelSpeed : 0|16@1- (0.01,0) [-327.68|327.67] "kph" Vector__XXX
+
+BO_ 593 CAN_VEHICLE_SPEED: 2 Vector__XXX
+ SG_ Vehicle_Speed : 0|16@1- (0.01,0) [-327.68|327.67] "kph" Vector__XXX
+
 BO_ 168 CAN_MC_RX_FLUX_INFO: 8 MOTOR_CONTROLLER
  SG_ Iq_FEEDBACK : 48|16@1- (0.1,48) [-3276.8|3276.7] "AMPS" Vector__XXX
  SG_ Id_FEEDBACK : 32|16@1- (0.1,32) [-3276.8|3276.7] "AMPS" Vector__XXX
