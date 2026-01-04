@@ -6,11 +6,12 @@ from datetime import datetime
 from pathlib import Path
 
 TESTING_MODE = False
-output_path = Path(__file__).parent.parent / "logs" / str(datetime.now().strftime("log_%Y%m%d_%H%M%S.vsb"))
+output_path = str(Path(__file__).parent.parent / "logs")
+output_file = str(datetime.now().strftime("log_%Y\\%m\\%d_%H:%M:%S.vsb"))
 hardware_sn = 'icsneo **1' # connects to the first available device
 channel_name = 'HSCAN' # channel to log from
 
-frame_count = 0
+# frame_count = 0
 
 
 if(TESTING_MODE):
@@ -19,16 +20,36 @@ if(TESTING_MODE):
     print(hardware_sn)
 
 def ensure_output_path(out:str=output_path) -> str:
+    out = out if out != None else output_path
     try:
         Path(out).mkdir(parents=True, exist_ok=True)
     except Exception as e:
         print(f"Error creating output directory: {e}")
-    return out
+    return out + '/' + output_file
 
 def init_neo_VI_logger() -> "vspyx.Core.Application":
     app = vspyx.Core.Application.New()
     app.Initialize(loadAllModules=True)
     return app
+
+def list_discovery_channels(app, prefix=None):
+    r = app.Resolver
+    root = r.Root
+    stack = [root]
+    found = []
+    while stack:
+        obj = stack.pop()
+        try:
+            uri = obj.URITo()
+        except Exception:
+            uri = r.ShortestURITo(obj)
+        if(uri.endswith("Discovery Channel") and (prefix is not None or uri.startswith(prefix))):
+            found.append(uri)
+        for child in getattr(obj,"Children",[]):
+            stack.append(child)
+    for u in sorted(found):
+        print(u) 
+
 
 def attach_controllers(app:"vspyx.Core.Application",
                        hardware_sn:str,
@@ -41,10 +62,17 @@ def attach_controllers(app:"vspyx.Core.Application",
             f"Make sure you're passing a real hardware selector (e.g. 'icsneo **1') "
             f"and that the device is connected/visible on this machine."
         )
+
+    list_discovery_channels(app,prefix=f"{device.Source.Identifier} ")
+
     attatched = []
-    
+
     for ch_name in channels:
         resolver_key = f"{device.Source.Identifier} {ch_name} Discovery Channel"
+
+        print(resolver_key)
+        print(app.Resolver)
+
         channel = app.Resolver[resolver_key]
         assert isinstance(channel, vspyx.Communication.Channel)
 
@@ -59,7 +87,7 @@ def main():
                    help="Hardware serial selector (Intrepid wildcard works, e.g. 'icsneo **1').")
     p.add_argument("--channels", nargs="+", required=True,
                    help="Vehicle Spy channel names to attach (e.g. HSCAN, HSCAN2, MSCAN).")
-    p.add_argument("--out", required=True,
+    p.add_argument("--out", required=False,
                    help="Output .vsb file path OR directory (directory => timestamped file is created).")
     p.add_argument("--listen-only", action="store_true",
                    help="Attach controllers with listenOnly=True.")
@@ -151,6 +179,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-app = init_neo_VI_logger()
-out = ensure_output_path()
-controllers = attach_controllers(app, hardware_sn, [channel_name], listen_only=True)
+# app = init_neo_VI_logger()
+# out = ensure_output_path()
+# controllers = attach_controllers(app, hardware_sn, [channel_name], listen_only=True)
