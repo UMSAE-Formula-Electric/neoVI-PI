@@ -1,0 +1,118 @@
+VERSION ""
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: INERTIAL_MEASUREMENT_UNIT SENSOR_CONTROL_UNIT VEHICLE_CONTORL_UNIT ACCUMULATOR_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS
+VAL_TABLE_ SWITCH_TOGGLE 1 "TRUE/ON" 0 "FALSE/OFF" ;
+VAL_TABLE_ MC_BUS_STATE 1 "CHARGED" 0 "DISCHARGED'" ;
+VAL_TABLE_ SET_INVERTER_DISCHARGE 1 "ENABLED" 0 "DISABLED" ;
+VAL_TABLE_ SET_INVERTER_ENABLE 1 "ENABLED" 0 "DISABLED" ;
+VAL_TABLE_ SET_MC_DIRECTION 1 "FORWARD" 0 "REVERSE" ;
+VAL_TABLE_ DriveState 0 "DriveDisabled" ;
+
+BO_ 3 CAN_VCU_TO_ACU_ID: 8 VEHICLE_CONTORL_UNIT
+
+BO_ 1 CAN_VCU_SET_ACB_STATE_ID: 8 VEHICLE_CONTORL_UNIT
+
+BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
+ SG_ MC_PARAM_COMMAND : 0|8@1- (1,0) [0|0] "" Vector__XXX
+
+BO_ 193 MC_PARAM_COMMAND_MSG: 8 VEHICLE_CONTORL_UNIT
+
+BO_ 192 MC_COMMAND_MSG: 2 VEHICLE_CONTORL_UNIT
+ SG_ TORQUE_REQUEST : 0|16@1- (0.1,0) [-3276.8|3276.7] "Nm"  MOTOR_CONTROLLER
+
+BO_ 568 Login_Set_Password_Std: 8 VEHICLE_CONTORL_UNIT
+ SG_ Character_0 : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ Character_1 : 15|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ Character_2 : 23|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ Character_3 : 31|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ Character_4 : 39|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ Character_5 : 47|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ Character_6 : 55|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ Character_7 : 63|8@0+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 2578777088 Configuration_Parameters_Ext: 8 EMUS_BMS
+ SG_ ConfigParams_DataMSB : 31|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ ConfigParams_DataLSB : 55|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ ConfigParams_Data3rdByte : 39|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ ConfigParams_Data2ndByte : 47|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ ConfigParams_ParameterID : 7|16@0+ (1,0) [0|65535] "" Vector__XXX
+ SG_ ConfigParams_ParameterSize : 23|8@0+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 2578777089 Contactor_Control_Ext: 8 VEHICLE_CONTORL_UNIT
+ SG_ ContactorControl_ContactorState : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 565 Configuration_Parameters_Std: 8 EMUS_BMS
+ SG_ ConfigParams_DataMSB : 31|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ ConfigParams_DataLSB : 55|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ ConfigParams_Data3rdByte : 39|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ ConfigParams_Data2ndByte : 47|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ ConfigParams_ParameterSize : 23|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ ConfigParams_ParameterID : 7|16@0+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 566 Contactor_Control_Std: 8 VEHICLE_CONTORL_UNIT
+ SG_ ContactorControl_ContactorState : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 2578777091 Login_Set_Password_Status_Ext: 8 VEHICLE_CONTORL_UNIT
+ SG_ LoginSetPasswordStatus : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 572 ChargingStation_Std: 8 VEHICLE_CONTORL_UNIT
+ SG_ ChargingStation_DCCurrentLim : 7|16@0+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ ChargingStation_ACCurrentLim : 23|16@0+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ ChargingStation_ACVoltage : 39|16@0+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ ChargingStation_PowerLimit : 55|16@0+ (10,0) [0|65535] "W" Vector__XXX
+
+BO_ 2578777095 ChargingStation_Ext: 8 VEHICLE_CONTORL_UNIT
+ SG_ ChargingStation_PowerLimit : 55|16@0+ (10,0) [0|65535] "W" Vector__XXX
+ SG_ ChargingStation_ACVoltage : 39|16@0+ (0.1,0) [0|6553.5] "V" Vector__XXX
+ SG_ ChargingStation_ACCurrentLim : 23|16@0+ (0.1,0) [0|6553.5] "A" Vector__XXX
+ SG_ ChargingStation_DCCurrentLim : 7|16@0+ (0.1,0) [0|6553.5] "A" Vector__XXX
+
+BO_TX_BU_ 2578777088 : VEHICLE_CONTORL_UNIT,EMUS_BMS;
+BO_TX_BU_ 565 : VEHICLE_CONTORL_UNIT,EMUS_BMS;
+
+
+CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
+CM_ BO_ 2578777088 "Configuration Parameters Extended";
+CM_ BO_ 2578777089 "Contactor Control Extended";
+CM_ BO_ 566 "Contactor Control Standard";
+BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_DEF_  "MultiplexExtEnabled" "No";
+BA_DEF_DEF_  "BusType" "CAN";
+BA_ "BusType" "CAN";
+VAL_ 2578777089 ContactorControl_ContactorState 0 "OPEN" 1 "CLOSE" ;
+VAL_ 566 ContactorControl_ContactorState 0 "OPEN" 1 "CLOSE" ;
+
