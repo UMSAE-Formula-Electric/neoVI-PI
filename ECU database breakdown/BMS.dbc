@@ -33,9 +33,9 @@ NS_ :
 
 BS_:
 
-BU_: INERTIAL_MEASUREMENT_UNIT SENSOR_CONTROL_UNIT VEHICLE_CONTORL_UNIT ACCUMULATOR_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS
+BU_:  VEHICLE_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS U2C
 VAL_TABLE_ SWITCH_TOGGLE 1 "TRUE/ON" 0 "FALSE/OFF" ;
-VAL_TABLE_ MC_BUS_STATE 1 "CHARGED" 0 "DISCHARGED'" ;
+VAL_TABLE_ MC_BUS_STATE 1 "CHARGED" 0 "DISCHARGED" ;
 VAL_TABLE_ SET_INVERTER_DISCHARGE 1 "ENABLED" 0 "DISABLED" ;
 VAL_TABLE_ SET_INVERTER_ENABLE 1 "ENABLED" 0 "DISABLED" ;
 VAL_TABLE_ SET_MC_DIRECTION 1 "FORWARD" 0 "REVERSE" ;
@@ -43,7 +43,25 @@ VAL_TABLE_ DriveState 0 "DriveDisabled" ;
 
 
 BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
- SG_ MC_PARAM_COMMAND : 0|8@1- (1,0) [0|0] "" Vector__XXX
+ SG_ New_Signal_655 : 0|8@1+ (1,0) [0|0] "" Vector__XXX
+
+BO_ 514 BMS_Current_Limit: 8 EMUS_BMS
+ SG_ INV_Max_Discharge_Current : 0|16@1+ (1,0) [0|1000] "current:A" Vector__XXX
+ SG_ INV_Max_Charge_Current : 16|16@1+ (1,0) [0|1000] "current:A" Vector__XXX
+
+BO_ 2550588916 Bms_Transmits_Cgh_Receive_Msgs: 8 EMUS_BMS
+ SG_ Bms_MaxAllowedChrgVolt : 7|16@0+ (0.1,0) [0|65535.01] "V" Vector__XXX
+ SG_ Bms_MaxAllowedChrgCurr : 23|16@0+ (0.1,0) [0|65535.01] "A" Vector__XXX
+ SG_ Bms_Control : 39|8@0+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 438 Battery_Volt_1_Overall_Param_Std: 8 EMUS_BMS
+ SG_ VoltOverallParams_TotalVolt_MSB : 47|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ VoltOverallParams_TotalVolt_LSB : 39|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ VoltOverallParams_TotalVolt_3rd : 55|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ VoltOverallParams_TotalVolt_2nd : 31|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ VoltOverallParam_MinCellVoltage : 7|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ VoltOverallParam_MaxCellVoltage : 15|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ VoltOverallParam_AvrgCellVoltage : 23|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
 
 BO_ 2578776065 Battery_Volt_1_Overall_Param_Ext: 8 EMUS_BMS
  SG_ VoltOverallParams_TotalVolt_MSB : 47|8@0+ (1,0) [0|255] "" Vector__XXX
@@ -490,11 +508,18 @@ BO_ 1328 Neuro4_BimData: 8 EMUS_BMS
  SG_ Neuro4_CellTemperatureValid : 24|8@1+ (1,0) [0|255] "" Vector__XXX
  SG_ Neuro4_ChargingStatus : 8|8@1+ (1,0) [0|255] "" Vector__XXX
 
-BO_TX_BU_ 2578777088 : VEHICLE_CONTORL_UNIT,EMUS_BMS;
-BO_TX_BU_ 565 : VEHICLE_CONTORL_UNIT,EMUS_BMS;
+BO_TX_BU_ 2578777088 : VEHICLE_CONTROL_UNIT,EMUS_BMS;
+BO_TX_BU_ 565 : VEHICLE_CONTROL_UNIT,EMUS_BMS;
 
 
+CM_ BU_ VEHICLE_CONTROL_UNIT "The system vehicle control unit";
+CM_ BU_ MOTOR_CONTROLLER "The Cascadia Motion inverter";
+CM_ BU_ EMUS_BMS "BMS Master";
+CM_ BU_ U2C "Delphi DC/DC Converter";
 CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
+CM_ BO_ 514 "Message sent by BMS for inverter DC current limiting.";
+CM_ SG_ 514 INV_Max_Discharge_Current "Maximum discharge current from BMS";
+CM_ SG_ 514 INV_Max_Charge_Current "Maximum charge current from BMS";
 CM_ BO_ 2578776070 "Energy Parameters Extended";
 CM_ BO_ 2578776073 "Battery Voltage Overall Parameters Extended";
 CM_ BO_ 2578776064 "Overall Parameters Extended";
@@ -543,11 +568,14 @@ CM_ BO_ 694 "Individual Cell Temperature Standard Option B";
 CM_ SG_ 694 IndividualCellTemp_Data_8 "Individual Cells Group Value for CAN Option B";
 CM_ SG_ 1328 Neuro4_Discharge_Control "Contactor State";
 CM_ SG_ 1328 Neuro4_Regeneration_Control "if max cell voltage is less than fully charge minus balancing range, then allow regeneration";
+BA_DEF_ BO_  "GenMsgCycleTime" INT 0 100000;
 BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
 BA_DEF_  "BusType" STRING ;
+BA_DEF_DEF_  "GenMsgCycleTime" 0;
 BA_DEF_DEF_  "MultiplexExtEnabled" "No";
 BA_DEF_DEF_  "BusType" "CAN";
 BA_ "BusType" "CAN";
+VAL_ 2550588916 Bms_Control 1 "Stop Charging" 0 "Start Charging" ;
 VAL_ 2578776064 OverallParams_IgnitionKey 0 "OFF" 1 "ON" ;
 VAL_ 2578776064 OverallParams_ChargerMains 0 "OFF" 1 "ON" ;
 VAL_ 2578776064 OverallParams_FastCharge 0 "OFF" 1 "ON" ;

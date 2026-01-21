@@ -33,9 +33,9 @@ NS_ :
 
 BS_:
 
-BU_: INERTIAL_MEASUREMENT_UNIT SENSOR_CONTROL_UNIT VEHICLE_CONTORL_UNIT ACCUMULATOR_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS
+BU_: SENSOR_CONTROL_UNIT VEHICLE_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS U2C
 VAL_TABLE_ SWITCH_TOGGLE 1 "TRUE/ON" 0 "FALSE/OFF" ;
-VAL_TABLE_ MC_BUS_STATE 1 "CHARGED" 0 "DISCHARGED'" ;
+VAL_TABLE_ MC_BUS_STATE 1 "CHARGED" 0 "DISCHARGED" ;
 VAL_TABLE_ SET_INVERTER_DISCHARGE 1 "ENABLED" 0 "DISABLED" ;
 VAL_TABLE_ SET_INVERTER_ENABLE 1 "ENABLED" 0 "DISABLED" ;
 VAL_TABLE_ SET_MC_DIRECTION 1 "FORWARD" 0 "REVERSE" ;
@@ -43,18 +43,52 @@ VAL_TABLE_ DriveState 0 "DriveDisabled" ;
 
 
 BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
- SG_ MC_PARAM_COMMAND : 0|8@1- (1,0) [0|0] "" Vector__XXX
+ SG_ New_Signal_655 : 0|8@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ Team_Signal_4 : 0|32@0- (1,0) [-2147483648|2147483647] "" Vector__XXX
+ SG_ Team_Signal_3 : 0|32@0- (1,0) [-2147483648|2147483647] "" Vector__XXX
+ SG_ Team_Signal_2 : 0|32@0- (1,0) [-2147483648|2147483647] "" Vector__XXX
+ SG_ Team_Signal_1 : 0|32@0- (1,0) [-2147483648|2147483647] "" Vector__XXX
 
-BO_ 1549 CAN_ENERGY_METER_TEMPERATURE: 8 SENSOR_CONTROL_UNIT
+BO_ 613 BRAKE_TEMPS: 8 SENSOR_CONTROL_UNIT
+ SG_ BackRightBrakeTemp : 48|16@1- (0.01,0) [-327.68|327.67] "degC" Vector__XXX
+ SG_ BackLeftBrakeTemp : 32|16@1- (0.01,0) [-327.68|327.67] "degC" Vector__XXX
+ SG_ FrontRightBrakeTemp : 16|16@1- (0.01,0) [-327.68|327.67] "degC" Vector__XXX
+ SG_ FrontLeftBrakeTemp : 0|16@1- (0.01,0) [-327.68|327.67] "degC" Vector__XXX
 
-BO_ 1037 CAN_ENERGY_METER_STATUS: 6 SENSOR_CONTROL_UNIT
- SG_ EnergyMeterEnergy : 16|32@1+ (1,0) [0|4294967295] "Whr" Vector__XXX
- SG_ EnergyMeterLogging : 1|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ EnergyMeterViolation : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+BO_ 599 TWO_FOOT_RULE: 8 SENSOR_CONTROL_UNIT
+ SG_ HTL_CH_ID_TWO_FOOT_RULE : 0|8@1+ (1,0) [0|1] "" Vector__XXX
 
-BO_ 269 CAN_ENERGY_METER_MEASUREMENT_MSG: 8 SENSOR_CONTROL_UNIT
- SG_ EnergyMeterVoltage : 39|32@0- (1,0) [-2147483648|2147483647] "V" Vector__XXX
- SG_ EnergyMeterCurrent : 7|32@0- (1,0) [-2147483648|2147483647] "A" Vector__XXX
+BO_ 585 HTL_CH_ID_WARNING_0: 8 SENSOR_CONTROL_UNIT
+ SG_ HTL_CH_ID_WARNING_0_BYTE_0 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_0_BYTE_1 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_0_BYTE_2 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_0_BYTE_3 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_0_BYTE_4 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_0_BYTE_5 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_0_BYTE_6 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_0_BYTE_7 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 592 HTL_CH_ID_WARNING_1: 8 SENSOR_CONTROL_UNIT
+ SG_ HTL_CH_ID_WARNING_1_BYTE_0 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_1_BYTE_1 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_1_BYTE_2 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_1_BYTE_3 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_1_BYTE_4 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_1_BYTE_5 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_1_BYTE_6 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ HTL_CH_ID_WARNING_1_BYTE_7 : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 544 HTL_CH_ID_APPS_TO_TORQUE_REQUEST: 8 SENSOR_CONTROL_UNIT
+ SG_ HTL_CH_ID_APPS_TO_TORQUE_REQUEST : 0|16@1+ (0.1,0) [0|2400] "Nm" Vector__XXX
+
+BO_ 537 HTL_CH_ID_BRAKE_PRESSED: 8 SENSOR_CONTROL_UNIT
+ SG_ HTL_CH_ID_BRAKE_PRESSED : 0|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 536 HTL_CH_ID_APPS_PRESSED: 8 SENSOR_CONTROL_UNIT
+ SG_ HTL_CH_ID_APPS_PRESSED : 0|8@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 535 HTL_CH_ID_SAFETY_LOOP_STATUS: 8 SENSOR_CONTROL_UNIT
+ SG_ HTL_CH_ID_SAFETY_LOOP_STATUS : 0|8@1+ (1,0) [0|1] "" Vector__XXX
 
 BO_ 598 CAN_FLOW_METER: 2 SENSOR_CONTROL_UNIT
  SG_ FlowRate : 0|16@1+ (0.01,0) [0|655.35] "L/s" Vector__XXX
@@ -86,152 +120,18 @@ BO_ 594 CAN_WHEEL_SPEED: 8 SENSOR_CONTROL_UNIT
 BO_ 593 CAN_VEHICLE_SPEED: 2 SENSOR_CONTROL_UNIT
  SG_ Vehicle_Speed : 0|16@1- (0.01,0) [-327.68|327.67] "kph" Vector__XXX
 
-BO_ 573 Charger_Control_Std: 1 SENSOR_CONTROL_UNIT
- SG_ Charger_Control : 7|8@0- (1,0) [0|2] "" Vector__XXX
-
-BO_ 2578777096 Charger_Control_Ext: 1 SENSOR_CONTROL_UNIT
- SG_ Charger_Control : 7|8@0- (1,0) [0|2] "" Vector__XXX
-
-BO_ 453 State_Of_Charge_Health_Param_Std: 8 SENSOR_CONTROL_UNIT
- SG_ SOCSOHParams_USER_SOC : 39|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
- SG_ SOCSOHParams_SOH : 55|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
- SG_ SOCSOHParams_SOC : 23|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
-
-BO_ 2578776080 State_Of_Charge_Health_Param_Ext: 8 SENSOR_CONTROL_UNIT
- SG_ SOCSOHParams_USER_SOC : 39|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
- SG_ SOCSOHParams_SOH : 55|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
- SG_ SOCSOHParams_SOC : 23|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
-
-BO_ 2566869221 Bms_Receive_Chg_Trans_Msgs: 8 SENSOR_CONTROL_UNIT
- SG_ Charger_StartingState : 35|1@0+ (1,0) [0|1] "" Vector__XXX
- SG_ Charger_InputVoltageProtection : 34|1@0+ (1,0) [0|1] "" Vector__XXX
- SG_ Charger_HighTempProtection : 33|1@0+ (1,0) [0|1] "" Vector__XXX
- SG_ Charger_HardwareFailure : 32|1@0+ (1,0) [0|1] "" Vector__XXX
- SG_ Charger_CommunicationState : 36|1@0+ (1,0) [0|1] "" Vector__XXX
- SG_ Charger_OutputCurrent : 23|16@0+ (0.1,0) [0|65535.01] "A" Vector__XXX
- SG_ Charger_OutputVoltage : 7|16@0+ (0.1,0) [0|65535.01] "V" Vector__XXX
-
-BO_ 2550588916 Bms_Transmits_Cgh_Receive_Msgs: 8 SENSOR_CONTROL_UNIT
- SG_ Bms_MaxAllowedChrgVolt : 7|16@0+ (0.1,0) [0|65535.01] "V" Vector__XXX
- SG_ Bms_MaxAllowedChrgCurr : 23|16@0+ (0.1,0) [0|65535.01] "A" Vector__XXX
- SG_ Bms_Control : 39|8@0+ (1,0) [0|1] "" Vector__XXX
-
-BO_ 450 Individual_Cell_Bal_Rate_Std_B: 8 SENSOR_CONTROL_UNIT
- SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ IndividualCellBalancRate_Data_7 : 63|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_6 : 55|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_5 : 47|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_4 : 39|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_3 : 31|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_2 : 23|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_1 : 15|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
-
-BO_ 2578776077 Indiv_Cell_Balancing_Ext_Extd_B: 8 SENSOR_CONTROL_UNIT
- SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ IndividualCellBalancRate_Data_1 : 15|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_2 : 23|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_3 : 31|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_4 : 39|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_5 : 47|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_6 : 55|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
- SG_ IndividualCellBalancRate_Data_7 : 63|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
-
-BO_ 451 Individual_Cell_Temp_Std_B: 8 SENSOR_CONTROL_UNIT
- SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ IndividualCellTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
-
-BO_ 2578776078 Individual_Cell_Temp_Ext_B: 8 SENSOR_CONTROL_UNIT
- SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ IndividualCellTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
-
-BO_ 449 Individual_Cell_Mod_Temp_Std_B: 8 SENSOR_CONTROL_UNIT
- SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ IndividualCellModTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
-
-BO_ 2578776576 Indiv_Cell_Mod_Temp_Inter_Ext_A1: 8 SENSOR_CONTROL_UNIT
- SG_ IndividualCellModTemp_Data_0 : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
-
-BO_ 448 Individual_Cells_Volt_Std_B: 8 SENSOR_CONTROL_UNIT
- SG_ IndividualCellVoltage_Data_7 : 63|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_6 : 55|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_5 : 47|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_4 : 39|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_3 : 31|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_2 : 23|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_1 : 15|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
-
-BO_ 2578776075 Individual_Cells_Volt_Ext_B: 8 SENSOR_CONTROL_UNIT
- SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ IndividualCellVoltage_Data_1 : 15|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_2 : 23|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_3 : 31|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_4 : 39|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_5 : 47|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_6 : 55|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ IndividualCellVoltage_Data_7 : 63|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
-
-BO_ 438 Battery_Volt_1_Overall_Param_Std: 8 SENSOR_CONTROL_UNIT
- SG_ VoltOverallParams_TotalVolt_MSB : 47|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ VoltOverallParams_TotalVolt_LSB : 39|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ VoltOverallParams_TotalVolt_3rd : 55|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ VoltOverallParams_TotalVolt_2nd : 31|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ VoltOverallParam_MinCellVoltage : 7|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ VoltOverallParam_MaxCellVoltage : 15|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
- SG_ VoltOverallParam_AvrgCellVoltage : 23|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
-
-BO_ 441 Overall_Parameters2_Std: 8 SENSOR_CONTROL_UNIT
- SG_ OverallParams2_NumberOfCells : 7|16@0+ (1,0) [0|65535] "" Vector__XXX
-
-BO_ 2578776068 Overall_Parameters2_Ext: 8 SENSOR_CONTROL_UNIT
- SG_ OverallParams2_NumberOfCells : 7|16@0+ (1,0) [0|65535] "" Vector__XXX
 
 
-
+CM_ BU_ VEHICLE_CONTROL_UNIT "The system vehicle control unit";
+CM_ BU_ MOTOR_CONTROLLER "The Cascadia Motion inverter";
+CM_ BU_ EMUS_BMS "BMS Master";
+CM_ BU_ U2C "Delphi DC/DC Converter";
 CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
-CM_ BO_ 450 "Individual Cell Balancing Rates Standard Option A";
-CM_ BO_ 2578776077 "Individual Cell Balancing Rate Extended Option A";
-CM_ BO_ 451 "Individual Cell Temperatures Standard Option A";
-CM_ BO_ 2578776078 "Individual Cell Temperatures Extended Option A";
-CM_ BO_ 449 "Individual Cell Module Temperature Standard Option A";
-CM_ BO_ 2578776576 "Individual Cell Module Temperatures Extended Option A";
-CM_ BO_ 2578776075 "Individual Cells Voltages Extended Option A";
+BA_DEF_ BO_  "GenMsgCycleTime" INT 0 100000;
 BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
 BA_DEF_  "BusType" STRING ;
+BA_DEF_DEF_  "GenMsgCycleTime" 0;
 BA_DEF_DEF_  "MultiplexExtEnabled" "No";
 BA_DEF_DEF_  "BusType" "CAN";
 BA_ "BusType" "CAN";
-VAL_ 573 Charger_Control 2 "REQUEST_FOR_STATE" 1 "CHARGING_ENABLED" 0 "CHARGING_DISABLED" ;
-VAL_ 2578777096 Charger_Control 2 "REQUEST_FOR_STATE" 1 "CHARGING_ENABLED" 0 "CHARGING_DISABLED" ;
-VAL_ 2566869221 Charger_StartingState 1 "Bat Disconnecting Or Reverse" 0 "Normal" ;
-VAL_ 2566869221 Charger_InputVoltageProtection 1 "Incrrt Input V/Chrg Stop Working" 0 "Normal" ;
-VAL_ 2566869221 Charger_HighTempProtection 1 "Over Temperature Protection" 0 "Normal" ;
-VAL_ 2566869221 Charger_HardwareFailure 1 "Hardware Failure" 0 "Normal" ;
-VAL_ 2566869221 Charger_CommunicationState 1 "Comm Receiving Time-out" 0 "Normal" ;
-VAL_ 2550588916 Bms_Control 1 "Stop Charging" 0 "Start Charging" ;
 

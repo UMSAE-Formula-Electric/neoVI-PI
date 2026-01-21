@@ -33,27 +33,34 @@ NS_ :
 
 BS_:
 
-BU_: INERTIAL_MEASUREMENT_UNIT SENSOR_CONTROL_UNIT VEHICLE_CONTORL_UNIT ACCUMULATOR_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS
+BU_: VEHICLE_CONTROL_UNIT ACCUMULATOR_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS U2C
 VAL_TABLE_ SWITCH_TOGGLE 1 "TRUE/ON" 0 "FALSE/OFF" ;
-VAL_TABLE_ MC_BUS_STATE 1 "CHARGED" 0 "DISCHARGED'" ;
+VAL_TABLE_ MC_BUS_STATE 1 "CHARGED" 0 "DISCHARGED" ;
 VAL_TABLE_ SET_INVERTER_DISCHARGE 1 "ENABLED" 0 "DISABLED" ;
 VAL_TABLE_ SET_INVERTER_ENABLE 1 "ENABLED" 0 "DISABLED" ;
 VAL_TABLE_ SET_MC_DIRECTION 1 "FORWARD" 0 "REVERSE" ;
 VAL_TABLE_ DriveState 0 "DriveDisabled" ;
 
-BO_ 3 CAN_VCU_TO_ACU_ID: 8 VEHICLE_CONTORL_UNIT
-
-BO_ 1 CAN_VCU_SET_ACB_STATE_ID: 8 VEHICLE_CONTORL_UNIT
 
 BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
- SG_ MC_PARAM_COMMAND : 0|8@1- (1,0) [0|0] "" Vector__XXX
+ SG_ New_Signal_655 : 0|8@1+ (1,0) [0|0] "" Vector__XXX
 
-BO_ 193 MC_PARAM_COMMAND_MSG: 8 VEHICLE_CONTORL_UNIT
+BO_ 193 M193_Read_Write_Param_Command: 8 VEHICLE_CONTROL_UNIT
+ SG_ VCU_INV_Data_Command : 32|16@1- (1,0) [-32768|32767] "" Vector__XXX
+ SG_ VCU_INV_Read_Write_Command : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ VCU_INV_Parameter_Address_Comman : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
 
-BO_ 192 MC_COMMAND_MSG: 2 VEHICLE_CONTORL_UNIT
- SG_ TORQUE_REQUEST : 0|16@1- (0.1,0) [-3276.8|3276.7] "Nm"  MOTOR_CONTROLLER
+BO_ 192 M192_Command_Message: 8 VEHICLE_CONTROL_UNIT
+ SG_ VCU_INV_Inverter_Enable : 40|1@1+ (1,0) [0|1] "Bit"  MOTOR_CONTROLLER
+ SG_ VCU_INV_Direction_Command : 32|1@1+ (1,0) [0|1] "Bit"  MOTOR_CONTROLLER
+ SG_ VCU_INV_Speed_Command : 16|16@1- (1,0) [-32768|32767] "rpm"  MOTOR_CONTROLLER
+ SG_ VCU_INV_Torque_Command : 0|16@1- (0.1,0) [-3276.8|3276.7] "torque:N.m"  MOTOR_CONTROLLER
+ SG_ VCU_INV_Inverter_Discharge : 41|1@1+ (1,0) [0|1] ""  MOTOR_CONTROLLER
+ SG_ VCU_INV_Torque_Limit_Command : 48|16@1- (0.1,0) [-3276.8|3276.7] "torque:N.m"  MOTOR_CONTROLLER
+ SG_ VCU_INV_Speed_Mode_Enable : 42|1@1+ (1,0) [0|1] ""  MOTOR_CONTROLLER
+ SG_ VCU_INV_RollingCounter : 44|4@1+ (1,0) [0|15] ""  MOTOR_CONTROLLER
 
-BO_ 568 Login_Set_Password_Std: 8 VEHICLE_CONTORL_UNIT
+BO_ 568 Login_Set_Password_Std: 8 VEHICLE_CONTROL_UNIT
  SG_ Character_0 : 7|8@0+ (1,0) [0|255] "" Vector__XXX
  SG_ Character_1 : 15|8@0+ (1,0) [0|255] "" Vector__XXX
  SG_ Character_2 : 23|8@0+ (1,0) [0|255] "" Vector__XXX
@@ -71,7 +78,7 @@ BO_ 2578777088 Configuration_Parameters_Ext: 8 EMUS_BMS
  SG_ ConfigParams_ParameterID : 7|16@0+ (1,0) [0|65535] "" Vector__XXX
  SG_ ConfigParams_ParameterSize : 23|8@0+ (1,0) [0|255] "" Vector__XXX
 
-BO_ 2578777089 Contactor_Control_Ext: 8 VEHICLE_CONTORL_UNIT
+BO_ 2578777089 Contactor_Control_Ext: 8 VEHICLE_CONTROL_UNIT
  SG_ ContactorControl_ContactorState : 7|8@0+ (1,0) [0|255] "" Vector__XXX
 
 BO_ 565 Configuration_Parameters_Std: 8 EMUS_BMS
@@ -82,37 +89,57 @@ BO_ 565 Configuration_Parameters_Std: 8 EMUS_BMS
  SG_ ConfigParams_ParameterSize : 23|8@0+ (1,0) [0|255] "" Vector__XXX
  SG_ ConfigParams_ParameterID : 7|16@0+ (1,0) [0|65535] "" Vector__XXX
 
-BO_ 566 Contactor_Control_Std: 8 VEHICLE_CONTORL_UNIT
+BO_ 566 Contactor_Control_Std: 8 VEHICLE_CONTROL_UNIT
  SG_ ContactorControl_ContactorState : 7|8@0+ (1,0) [0|255] "" Vector__XXX
 
-BO_ 2578777091 Login_Set_Password_Status_Ext: 8 VEHICLE_CONTORL_UNIT
+BO_ 2578777091 Login_Set_Password_Status_Ext: 8 VEHICLE_CONTROL_UNIT
  SG_ LoginSetPasswordStatus : 7|8@0+ (1,0) [0|255] "" Vector__XXX
 
-BO_ 572 ChargingStation_Std: 8 VEHICLE_CONTORL_UNIT
+BO_ 572 ChargingStation_Std: 8 VEHICLE_CONTROL_UNIT
  SG_ ChargingStation_DCCurrentLim : 7|16@0+ (0.1,0) [0|6553.5] "A" Vector__XXX
  SG_ ChargingStation_ACCurrentLim : 23|16@0+ (0.1,0) [0|6553.5] "A" Vector__XXX
  SG_ ChargingStation_ACVoltage : 39|16@0+ (0.1,0) [0|6553.5] "V" Vector__XXX
  SG_ ChargingStation_PowerLimit : 55|16@0+ (10,0) [0|65535] "W" Vector__XXX
 
-BO_ 2578777095 ChargingStation_Ext: 8 VEHICLE_CONTORL_UNIT
+BO_ 2578777095 ChargingStation_Ext: 8 VEHICLE_CONTROL_UNIT
  SG_ ChargingStation_PowerLimit : 55|16@0+ (10,0) [0|65535] "W" Vector__XXX
  SG_ ChargingStation_ACVoltage : 39|16@0+ (0.1,0) [0|6553.5] "V" Vector__XXX
  SG_ ChargingStation_ACCurrentLim : 23|16@0+ (0.1,0) [0|6553.5] "A" Vector__XXX
  SG_ ChargingStation_DCCurrentLim : 7|16@0+ (0.1,0) [0|6553.5] "A" Vector__XXX
 
-BO_TX_BU_ 2578777088 : VEHICLE_CONTORL_UNIT,EMUS_BMS;
-BO_TX_BU_ 565 : VEHICLE_CONTORL_UNIT,EMUS_BMS;
+BO_ 3 CAN_VCU_TO_ACU_ID: 8 MOTOR_CONTROLLER
+ SG_ HTL_CH_ID_VCU_TO_ACU_HEARTBEAT : 0|8@1+ (1,0) [0|255] ""  ACCUMULATOR_CONTROL_UNIT
+
+BO_ 1 CAN_VCU_SET_ACB_STATE_ID: 8 VEHICLE_CONTROL_UNIT
+ SG_ HTL_CH_ID_CAR_STATE : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+
+BO_TX_BU_ 2578777088 : VEHICLE_CONTROL_UNIT,EMUS_BMS;
+BO_TX_BU_ 565 : VEHICLE_CONTROL_UNIT,EMUS_BMS;
+BO_TX_BU_ 3 : VEHICLE_CONTROL_UNIT,MOTOR_CONTROLLER;
 
 
+CM_ BU_ VEHICLE_CONTROL_UNIT "The system vehicle control unit";
+CM_ BU_ MOTOR_CONTROLLER "The Cascadia Motion inverter";
+CM_ BU_ EMUS_BMS "BMS Master";
+CM_ BU_ U2C "Delphi DC/DC Converter";
 CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
+CM_ BO_ 193 "Parameter Message sent as needed by VCU to request info, change EEPROM, or command a function.";
+CM_ BO_ 192 "The command message is used to transmit data to the controller. This message is sent from a user supplied external controller to the PMxxx controller.";
 CM_ BO_ 2578777088 "Configuration Parameters Extended";
 CM_ BO_ 2578777089 "Contactor Control Extended";
 CM_ BO_ 566 "Contactor Control Standard";
+BA_DEF_ BO_  "GenMsgCycleTime" INT 0 100000;
 BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
 BA_DEF_  "BusType" STRING ;
+BA_DEF_ SG_  "SystemSignalLongSymbol" STRING ;
+BA_DEF_DEF_  "GenMsgCycleTime" 0;
 BA_DEF_DEF_  "MultiplexExtEnabled" "No";
 BA_DEF_DEF_  "BusType" "CAN";
+BA_DEF_DEF_  "SystemSignalLongSymbol" "";
 BA_ "BusType" "CAN";
+BA_ "GenMsgCycleTime" BO_ 193 0;
+BA_ "GenMsgCycleTime" BO_ 192 5;
+BA_ "SystemSignalLongSymbol" SG_ 193 VCU_INV_Parameter_Address_Comman "VCU_INV_Parameter_Address_Command";
 VAL_ 2578777089 ContactorControl_ContactorState 0 "OPEN" 1 "CLOSE" ;
 VAL_ 566 ContactorControl_ContactorState 0 "OPEN" 1 "CLOSE" ;
 
