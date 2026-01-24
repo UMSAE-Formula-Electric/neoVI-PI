@@ -1224,4 +1224,3 @@ VAL_ 1328 Neuro4_ChargingStatus 0 "NOT CHARGING" 1 "CHARGING IN PROGRESS" 2 "CHA
 SIG_VALTYPE_ 1037 EnergyMeterEnergy : 1;
 SIG_VALTYPE_ 269 EnergyMeterVoltage : 1;
 SIG_VALTYPE_ 269 EnergyMeterCurrent : 1;
-
