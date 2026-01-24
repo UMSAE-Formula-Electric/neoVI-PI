@@ -7,7 +7,7 @@ from pathlib import Path
 
 TESTING_MODE = False
 output_path = str(Path(__file__).parent.parent / "logs")
-output_file = str(datetime.now().strftime("log_%Y\\%m\\%d_%H:%M:%S.vsb"))
+output_file = str(datetime.now().strftime("log_%Y-%m-%d_%H-%M-%S.vsb"))
 hardware_sn = 'icsneo **1' # connects to the first available device
 channel_name = 'HSCAN' # channel to log from
 
@@ -54,7 +54,7 @@ def list_discovery_channels(app, prefix=None):
 def attach_controllers(app:"vspyx.Core.Application",
                        hardware_sn:str,
                        channels: List[str],
-                       listen_only:bool=True) -> None:
+                       listen_only:bool=True):
     device = app.VehicleSpy.AddSource(hardware_sn)
     if device is None or getattr(device, "Source", None) is None:
         raise RuntimeError(
@@ -68,10 +68,8 @@ def attach_controllers(app:"vspyx.Core.Application",
     attatched = []
 
     for ch_name in channels:
+        print(ch_name)
         resolver_key = f"{device.Source.Identifier} {ch_name} Discovery Channel"
-
-        print(resolver_key)
-        print(app.Resolver)
 
         channel = app.Resolver[resolver_key]
         assert isinstance(channel, vspyx.Communication.Channel)
@@ -86,7 +84,7 @@ def main():
     p.add_argument("--sn", default="icsneo **1",
                    help="Hardware serial selector (Intrepid wildcard works, e.g. 'icsneo **1').")
     p.add_argument("--channels", nargs="+", required=True,
-                   help="Vehicle Spy channel names to attach (e.g. HSCAN, HSCAN2, MSCAN).")
+                   help="Vehicle Spy channel names to attach (e.g. DW CAN 01, DW CAN 02, neoVI).")
     p.add_argument("--out", required=False,
                    help="Output .vsb file path OR directory (directory => timestamped file is created).")
     p.add_argument("--listen-only", action="store_true",
@@ -107,7 +105,7 @@ def main():
         if not app.Frames.CanWriteBuffer(out_path):
             raise RuntimeError(f"Frames module reports it cannot write this buffer path: {out_path}")
 
-    writable = app.Frames.OpenWritableBuffer(out_path)  # :contentReference[oaicite:5]{index=5}
+    writable = app.Frames.OpenWritableBuffer(out_path) 
     print(f"Logging to: {out_path}")
 
     # Attach the hardware channels/controllers
@@ -124,18 +122,18 @@ def main():
         if not isinstance(point, vspyx.Communication.DataLinkPDUPoint):
             return
 
-        # Optional filter: only keep frames from requested channels
-        # (This is also a safety net if your setup produces extra points.)
-        try:
-            ch_name = point.GetAttribute("ChannelName")
-            if ch_name not in args.channels:
-                return
-        except Exception:
-            pass
+        # # Optional filter: only keep frames from requested channels
+        # # (This is also a safety net if your setup produces extra points.)
+        # try:
+        #     ch_name = point.GetAttribute("ChannelName")
+        #     if ch_name not in args.channels:
+        #         return
+        # except Exception:
+        #     pass
 
-        # DataLinkPDUPoint exposes the raw Frame :contentReference[oaicite:6]{index=6}
+        # DataLinkPDUPoint exposes the raw Frame 
         frame = point.Frame
-        writable.Append(frame)  # :contentReference[oaicite:7]{index=7}
+        writable.Append(frame)  
         frame_count += 1
 
         if args.stats:
@@ -144,10 +142,10 @@ def main():
                 print(f"{frame_count} frames total")
                 last_stats_t = now
 
-    observer = app.VehicleSpy.PrepareForStart(analysisMode=False)  # :contentReference[oaicite:8]{index=8}
-    observer.OnPoint.Add(on_point)                                 # :contentReference[oaicite:9]{index=9}
+    observer = app.VehicleSpy.PrepareForStart(analysisMode=False)  
+    observer.OnPoint.Add(on_point)                                 
 
-    app.VehicleSpy.Start()                                         # :contentReference[oaicite:10]{index=10}
+    app.VehicleSpy.Start()                                         
     print("Online. Press Ctrl+C to stop.")
 
     start_t = time.monotonic()
@@ -172,13 +170,17 @@ def main():
                 app.Free()
             except Exception:
                 pass
+            
+        # try:
+        #     if writable:
+        #         writable.Close()
+        # except Exception:
+        #     pass
+        
+        
 
     print(f"Stopped. Wrote {frame_count} frames to {out_path}")
 
 
 if __name__ == "__main__":
     main()
-
-# app = init_neo_VI_logger()
-# out = ensure_output_path()
-# controllers = attach_controllers(app, hardware_sn, [channel_name], listen_only=True)
