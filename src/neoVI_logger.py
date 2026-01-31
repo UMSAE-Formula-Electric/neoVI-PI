@@ -1,6 +1,7 @@
 import vspyx
 import argparse
 import time
+import can
 from typing import List,Tuple,Optional
 from datetime import datetime
 from pathlib import Path
