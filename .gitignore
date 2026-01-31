@@ -1,2 +1,3 @@
-*.vsb
+src/Vehicle CAN.vsb
 /logs*
+/testing*
