@@ -2,6 +2,7 @@ import vspyx
 import argparse
 import time
 import can
+import cantools
 from typing import List,Tuple,Optional
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,12 @@ output_path = str(Path(__file__).parent.parent / "logs")
 output_file = str(datetime.now().strftime("log_%Y-%m-%d_%H-%M-%S.vsb"))
 hardware_sn = 'icsneo **1' # connects to the first available device
 channel_name = 'HSCAN' # channel to log from
+                       # CAN BUSSES
+                       # neoVI
+                       # DW CAN 01
+                       # DW CAN 02
 
+db = cantools.database.load_file("epbr2026_DBC_v1.0.dbc")
 # frame_count = 0
 
 
@@ -134,7 +140,10 @@ def main():
 
         # DataLinkPDUPoint exposes the raw Frame 
         frame = point.Frame
+        #frame = db.decode_message(frame)
         writable.Append(frame)  
+        print("logging message!!!") 
+
         frame_count += 1
 
         if args.stats:
