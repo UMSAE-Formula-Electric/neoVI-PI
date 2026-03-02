@@ -1,0 +1,53 @@
+VERSION ""
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: U2C
+
+BO_ 188 M188_U2C_Message_Rxd: 8 U2C
+ SG_ INV_HV_Input_Current_Sensor_Vali : 4|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ INV_14V_Master_Fault : 7|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ INV_HV_Input_Current : 8|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ INV_DTC_Status : 16|3@1+ (1,0) [0|7] "" Vector__XXX
+ SG_ INV_DTC_Index : 19|5@1+ (1,0) [0|31] "" Vector__XXX
+ SG_ INV_14V_Monitor : 24|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ INV_14V_Conditional : 39|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ INV_14V_Current_Monitor : 48|7@1+ (1,0) [0|127] "" Vector__XXX
+
+CM_ BU_ U2C "Delphi DC/DC Converter";
+CM_ BO_ 188 "Response from Delphi DC/DC converter.";
+
+BA_DEF_ SG_  "SystemSignalLongSymbol" STRING ;
+BA_DEF_DEF_  "SystemSignalLongSymbol" "";
+
+BA_ "SystemSignalLongSymbol" SG_ 188 INV_HV_Input_Current_Sensor_Vali "INV_HV_Input_Current_Sensor_Validity";

@@ -1,6 +1,5 @@
 VERSION ""
 
-
 NS_ : 
 	NS_DESC_
 	CM_
@@ -33,14 +32,9 @@ NS_ :
 
 BS_:
 
-BU_:  VEHICLE_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS U2C
-VAL_TABLE_ SWITCH_TOGGLE 1 "TRUE/ON" 0 "FALSE/OFF" ;
-VAL_TABLE_ MC_BUS_STATE 1 "CHARGED" 0 "DISCHARGED" ;
-VAL_TABLE_ SET_INVERTER_DISCHARGE 1 "ENABLED" 0 "DISABLED" ;
-VAL_TABLE_ SET_INVERTER_ENABLE 1 "ENABLED" 0 "DISABLED" ;
-VAL_TABLE_ SET_MC_DIRECTION 1 "FORWARD" 0 "REVERSE" ;
-VAL_TABLE_ DriveState 0 "DriveDisabled" ;
+BU_: ENERGY_METER INERTIAL_MEASUREMENT_UNIT SENSOR_CONTROL_UNIT VEHICLE_CONTROL_UNIT ACCUMULATOR_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS U2C
 
+VAL_TABLE_ SWITCH_TOGGLE 1 "TRUE/ON" 0 "FALSE/OFF" ;
 
 BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
  SG_ New_Signal_655 : 0|8@1+ (1,0) [0|0] "" Vector__XXX
@@ -160,14 +154,14 @@ BO_ 2578776071 Diagnostic_Codes_Ext: 8 EMUS_BMS
  SG_ DiagnosticCodes_MSCommCANErr : 9|1@0+ (1,0) [0|1] "" Vector__XXX
 
 BO_ 2578776066 Cell_Mod_Temp_Overall_Param_Ext: 8 EMUS_BMS
- SG_ CellModOverallPar_MinCellModTemp : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ CellModOverallPar_MaxCellModTemp : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ CellModOverallPar_AvgCellModTemp : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ CellModOverallPar_MinCellModTemp : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ CellModOverallPar_MaxCellModTemp : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ CellModOverallPar_AvgCellModTemp : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 2578776072 Cell_Temp_Overall_Params_Ext: 8 EMUS_BMS
- SG_ CellOverallPar_AvgCellTemp : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ CellOverallPar_MaxCellTemp : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ CellOverallPar_MinCellTemp : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ CellOverallPar_AvgCellTemp : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ CellOverallPar_MaxCellTemp : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ CellOverallPar_MinCellTemp : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 2578776067 Cell_Balanc_Rate_Overall_Par_Ext: 8 EMUS_BMS
  SG_ CellBalancPar_MinCellBalancRate : 7|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
@@ -225,23 +219,23 @@ BO_ 2578776320 Individual_Cells_Volt_Ext_A1: 8 EMUS_BMS
 
 BO_ 2578776076 Indiv_Cell_Mod_Temp_Inter_Ext_B: 8 EMUS_BMS
  SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
- SG_ IndividualCellModTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 2578778112 Individual_Cell_Temp_Ext_A1: 8 EMUS_BMS
- SG_ IndividualCellTemp_Data_0 : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ IndividualCellTemp_Data_0 : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 534 Individual_Cell_Bal_Rate_Std_A2: 8 EMUS_BMS
  SG_ IndividualCellBalancRate_Data_8 : 7|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
@@ -317,14 +311,14 @@ BO_ 446 Battery_Volt_2_Overall_Param_Std: 8 EMUS_BMS
  SG_ VoltOverallParam_MinCellVoltage : 7|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
 
 BO_ 439 Cell_Mod_Temp_Overall_Param_Std: 8 EMUS_BMS
- SG_ CellModOverallPar_AvgCellModTemp : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ CellModOverallPar_MaxCellModTemp : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ CellModOverallPar_MinCellModTemp : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ CellModOverallPar_AvgCellModTemp : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ CellModOverallPar_MaxCellModTemp : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ CellModOverallPar_MinCellModTemp : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 445 Cell_Temp_Overall_Param_Std: 8 EMUS_BMS
- SG_ CellOverallPar_MinCellTemp : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ CellOverallPar_MaxCellTemp : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ CellOverallPar_AvgCellTemp : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ CellOverallPar_MinCellTemp : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ CellOverallPar_MaxCellTemp : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ CellOverallPar_AvgCellTemp : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 440 Cell_Balanc_Rate_Overall_Par_Std: 8 EMUS_BMS
  SG_ CellBalancPar_AvgCellBalancRate : 23|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
@@ -342,14 +336,14 @@ BO_ 469 Individual_Cells_Voltages_Std_A1: 8 EMUS_BMS
  SG_ IndividualCellVoltage_Data_0 : 7|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
 
 BO_ 501 Individual_Cell_Mod_Temp_Std_A1: 8 EMUS_BMS
- SG_ IndividualCellModTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_0 : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_0 : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 565 Configuration_Parameters_Std: 8 EMUS_BMS
  SG_ ConfigParams_DataMSB : 31|8@0+ (1,0) [0|255] "" Vector__XXX
@@ -360,14 +354,14 @@ BO_ 565 Configuration_Parameters_Std: 8 EMUS_BMS
  SG_ ConfigParams_ParameterID : 7|16@0+ (1,0) [0|65535] "" Vector__XXX
 
 BO_ 693 Individual_Cell_Temp_Std_A1: 8 EMUS_BMS
- SG_ IndividualCellTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_0 : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ IndividualCellTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_0 : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 533 Individual_Cell_Bal_Rate_Std_A1: 8 EMUS_BMS
  SG_ IndividualCellBalancRate_Data_7 : 63|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
@@ -451,44 +445,44 @@ BO_ 2578776832 Indiv_Cell_Balancing_Ext_Extd_A1: 8 EMUS_BMS
  SG_ IndividualCellBalancRate_Data_7 : 63|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
 
 BO_ 2578776577 Indiv_Cell_Mod_Temp_Inter_Ext_A2: 8 EMUS_BMS
- SG_ IndividualCellModTemp_Data_15 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_14 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_13 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_12 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_11 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_10 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_9 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_8 : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_15 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_14 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_13 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_12 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_11 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_10 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_9 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_8 : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 502 Individual_Cell_Mod_Temp_Std_A2: 8 EMUS_BMS
- SG_ IndividualCellModTemp_Data_15 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_14 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_13 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_12 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_11 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_10 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_9 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellModTemp_Data_8 : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_15 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_14 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_13 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_12 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_11 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_10 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_9 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_8 : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 2578778113 Individual_Cell_Temp_Ext_A2: 8 EMUS_BMS
- SG_ IndividualCellTemp_Data_15 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_14 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_13 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_12 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_11 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_10 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_9 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_8 : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ IndividualCellTemp_Data_15 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_14 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_13 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_12 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_11 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_10 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_9 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_8 : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 694 Individual_Cell_Temp_Std_A2: 8 EMUS_BMS
- SG_ IndividualCellTemp_Data_15 : 63|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_14 : 55|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_13 : 47|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_12 : 39|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_11 : 31|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_10 : 23|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_9 : 15|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
- SG_ IndividualCellTemp_Data_8 : 7|8@0+ (1,-100) [-100|155] "�C" Vector__XXX
+ SG_ IndividualCellTemp_Data_15 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_14 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_13 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_12 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_11 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_10 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_9 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_8 : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
 
 BO_ 1313 Neuro1_Battery_Data: 8 EMUS_BMS
  SG_ Neuro1_DepthOfDischarge : 24|16@1+ (0.1,0) [0|1000] "%" Vector__XXX
@@ -504,18 +498,116 @@ BO_ 1315 Neuro3_Battery_Data: 8 EMUS_BMS
 BO_ 1328 Neuro4_BimData: 8 EMUS_BMS
  SG_ Neuro4_Discharge_Control : 0|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ Neuro4_Regeneration_Control : 1|1@1+ (1,0) [0|1] "" Vector__XXX
- SG_ Neuro4_AverageCellTemperature : 16|8@1+ (1,40) [0|255] "�C" Vector__XXX
+ SG_ Neuro4_AverageCellTemperature : 16|8@1+ (1,40) [0|255] "C" Vector__XXX
  SG_ Neuro4_CellTemperatureValid : 24|8@1+ (1,0) [0|255] "" Vector__XXX
  SG_ Neuro4_ChargingStatus : 8|8@1+ (1,0) [0|255] "" Vector__XXX
 
-BO_TX_BU_ 2578777088 : VEHICLE_CONTROL_UNIT,EMUS_BMS;
-BO_TX_BU_ 565 : VEHICLE_CONTROL_UNIT,EMUS_BMS;
+BO_ 441 Overall_Parameters2_Std: 8 EMUS_BMS
+ SG_ OverallParams2_NumberOfCells : 7|16@0+ (1,0) [0|65535] "" Vector__XXX
 
+BO_ 2578776068 Overall_Parameters2_Ext: 8 EMUS_BMS
+ SG_ OverallParams2_NumberOfCells : 7|16@0+ (1,0) [0|65535] "" Vector__XXX
 
-CM_ BU_ VEHICLE_CONTROL_UNIT "The system vehicle control unit";
-CM_ BU_ MOTOR_CONTROLLER "The Cascadia Motion inverter";
+BO_ 453 State_Of_Charge_Health_Param_Std: 8 EMUS_BMS
+ SG_ SOCSOHParams_USER_SOC : 39|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
+ SG_ SOCSOHParams_SOH : 55|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
+ SG_ SOCSOHParams_SOC : 23|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
+
+BO_ 2578776080 State_Of_Charge_Health_Param_Ext: 8 EMUS_BMS
+ SG_ SOCSOHParams_USER_SOC : 39|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
+ SG_ SOCSOHParams_SOH : 55|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
+ SG_ SOCSOHParams_SOC : 23|16@0+ (0.01,0) [0|655.35] "%" Vector__XXX
+
+BO_ 2566869221 Bms_Receive_Chg_Trans_Msgs: 8 EMUS_BMS
+ SG_ Charger_StartingState : 35|1@0+ (1,0) [0|1] ""  EMUS_BMS
+ SG_ Charger_InputVoltageProtection : 34|1@0+ (1,0) [0|1] ""  EMUS_BMS
+ SG_ Charger_HighTempProtection : 33|1@0+ (1,0) [0|1] ""  EMUS_BMS
+ SG_ Charger_HardwareFailure : 32|1@0+ (1,0) [0|1] ""  EMUS_BMS
+ SG_ Charger_CommunicationState : 36|1@0+ (1,0) [0|1] ""  EMUS_BMS
+ SG_ Charger_OutputCurrent : 23|16@0+ (0.1,0) [0|65535.01] "A"  EMUS_BMS
+ SG_ Charger_OutputVoltage : 7|16@0+ (0.1,0) [0|65535.01] "V"  EMUS_BMS
+
+BO_ 450 Individual_Cell_Bal_Rate_Std_B: 8 EMUS_BMS
+ SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_7 : 63|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_6 : 55|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_5 : 47|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_4 : 39|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_3 : 31|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_2 : 23|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_1 : 15|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+
+BO_ 2578776077 Indiv_Cell_Balancing_Ext_Extd_B: 8 EMUS_BMS
+ SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_1 : 15|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_2 : 23|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_3 : 31|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_4 : 39|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_5 : 47|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_6 : 55|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+ SG_ IndividualCellBalancRate_Data_7 : 63|8@0+ (0.392156862745098,0) [0|100] "%" Vector__XXX
+
+BO_ 451 Individual_Cell_Temp_Std_B: 8 EMUS_BMS
+ SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ IndividualCellTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+
+BO_ 2578776078 Individual_Cell_Temp_Ext_B: 8 EMUS_BMS
+ SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ IndividualCellTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+
+BO_ 449 Individual_Cell_Mod_Temp_Std_B: 8 EMUS_BMS
+ SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ IndividualCellModTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+
+BO_ 2578776576 Indiv_Cell_Mod_Temp_Inter_Ext_A1: 8 EMUS_BMS
+ SG_ IndividualCellModTemp_Data_0 : 7|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_1 : 15|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_2 : 23|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_3 : 31|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_4 : 39|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_5 : 47|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_6 : 55|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+ SG_ IndividualCellModTemp_Data_7 : 63|8@0+ (1,-100) [-100|155] "C" Vector__XXX
+
+BO_ 448 Individual_Cells_Volt_Std_B: 8 EMUS_BMS
+ SG_ IndividualCellVoltage_Data_7 : 63|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_6 : 55|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_5 : 47|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_4 : 39|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_3 : 31|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_2 : 23|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_1 : 15|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+
+BO_ 2578776075 Individual_Cells_Volt_Ext_B: 8 EMUS_BMS
+ SG_ IndividualCell_Group : 7|8@0+ (1,0) [0|255] "" Vector__XXX
+ SG_ IndividualCellVoltage_Data_1 : 15|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_2 : 23|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_3 : 31|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_4 : 39|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_5 : 47|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_6 : 55|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+ SG_ IndividualCellVoltage_Data_7 : 63|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
+
 CM_ BU_ EMUS_BMS "BMS Master";
-CM_ BU_ U2C "Delphi DC/DC Converter";
 CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
 CM_ BO_ 514 "Message sent by BMS for inverter DC current limiting.";
 CM_ SG_ 514 INV_Max_Discharge_Current "Maximum discharge current from BMS";
@@ -568,13 +660,23 @@ CM_ BO_ 694 "Individual Cell Temperature Standard Option B";
 CM_ SG_ 694 IndividualCellTemp_Data_8 "Individual Cells Group Value for CAN Option B";
 CM_ SG_ 1328 Neuro4_Discharge_Control "Contactor State";
 CM_ SG_ 1328 Neuro4_Regeneration_Control "if max cell voltage is less than fully charge minus balancing range, then allow regeneration";
+CM_ BO_ 450 "Individual Cell Balancing Rates Standard Option A";
+CM_ BO_ 2578776077 "Individual Cell Balancing Rate Extended Option A";
+CM_ BO_ 451 "Individual Cell Temperatures Standard Option A";
+CM_ BO_ 2578776078 "Individual Cell Temperatures Extended Option A";
+CM_ BO_ 449 "Individual Cell Module Temperature Standard Option A";
+CM_ BO_ 2578776576 "Individual Cell Module Temperatures Extended Option A";
+CM_ BO_ 2578776075 "Individual Cells Voltages Extended Option A";
+
 BA_DEF_ BO_  "GenMsgCycleTime" INT 0 100000;
 BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
 BA_DEF_  "BusType" STRING ;
+
 BA_DEF_DEF_  "GenMsgCycleTime" 0;
 BA_DEF_DEF_  "MultiplexExtEnabled" "No";
 BA_DEF_DEF_  "BusType" "CAN";
 BA_ "BusType" "CAN";
+
 VAL_ 2550588916 Bms_Control 1 "Stop Charging" 0 "Start Charging" ;
 VAL_ 2578776064 OverallParams_IgnitionKey 0 "OFF" 1 "ON" ;
 VAL_ 2578776064 OverallParams_ChargerMains 0 "OFF" 1 "ON" ;
@@ -618,4 +720,8 @@ VAL_ 1328 Neuro4_Discharge_Control 0 "DISABLED" 1 "ENABLED" ;
 VAL_ 1328 Neuro4_Regeneration_Control 1 "ENABLED" 0 "DISABLED" ;
 VAL_ 1328 Neuro4_CellTemperatureValid 1 "INVALID" 0 "VALID" ;
 VAL_ 1328 Neuro4_ChargingStatus 0 "NOT CHARGING" 1 "CHARGING IN PROGRESS" 2 "CHARGING COMPLETE" 3 "CHARGING FAULT" ;
-
+VAL_ 2566869221 Charger_StartingState 1 "Bat Disconnecting Or Reverse" 0 "Normal" ;
+VAL_ 2566869221 Charger_InputVoltageProtection 1 "Incrrt Input V/Chrg Stop Working" 0 "Normal" ;
+VAL_ 2566869221 Charger_HighTempProtection 1 "Over Temperature Protection" 0 "Normal" ;
+VAL_ 2566869221 Charger_HardwareFailure 1 "Hardware Failure" 0 "Normal" ;
+VAL_ 2566869221 Charger_CommunicationState 1 "Comm Receiving Time-out" 0 "Normal" ;

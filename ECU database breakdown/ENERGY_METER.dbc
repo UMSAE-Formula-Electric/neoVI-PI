@@ -1,0 +1,95 @@
+VERSION ""
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ENERGY_METER
+
+BO_ 1549 CAN_ENERGY_METER_TEMPERATURE: 8 ENERGY_METER
+ SG_ Temp_31 m6 : 39|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_30 m6 : 31|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_29 m5 : 63|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_28 m5 : 55|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_27 m5 : 47|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_26 m5 : 39|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_25 m5 : 31|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_24 m4 : 63|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_23 m4 : 55|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_22 m4 : 47|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_21 m4 : 39|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_20 m4 : 31|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_19 m3 : 63|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_18 m3 : 55|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_17 m3 : 47|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_16 m3 : 39|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_15 m3 : 31|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_14 m2 : 63|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_13 m2 : 55|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_12 m2 : 47|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_11 m2 : 39|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_10 m2 : 31|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_9 m1 : 63|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_8 m1 : 55|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_7 m1 : 47|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_6 m1 : 39|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_5 m1 : 31|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_4 m0 : 63|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_3 m0 : 55|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_2 m0 : 47|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_1 m0 : 39|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Temp_0 m0 : 31|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Max_Temp : 23|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Min_Temp : 15|8@0+ (0.5,0) [0|127.5] "degC" Vector__XXX
+ SG_ Num_Sensors : 4|5@0+ (1,0) [0|31] "" Vector__XXX
+ SG_ Temp_Multiplexor M : 7|3@0+ (1,0) [0|7] "" Vector__XXX
+
+BO_ 1037 CAN_ENERGY_METER_STATUS: 5 ENERGY_METER
+ SG_ EnergyMeterEnergy : 15|32@0- (1,0) [-3.4E+38|3.4E+38] "Whr" Vector__XXX
+ SG_ EnergyMeterLogging : 1|1@0+ (1,0) [0|1] "" Vector__XXX
+ SG_ EnergyMeterViolation : 0|1@0+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 269 CAN_ENERGY_METER_MEASUREMENT_MSG: 8 ENERGY_METER
+ SG_ EnergyMeterVoltage : 39|32@0- (1,0) [-3.4E+38|3.4E+38] "V" Vector__XXX
+ SG_ EnergyMeterCurrent : 7|32@0- (1,0) [-3.4E+38|3.4E+38] "A" Vector__XXX
+
+BA_DEF_ BO_  "GenMsgCycleTime" INT 0 100000;
+BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
+BA_DEF_DEF_  "GenMsgCycleTime" 0;
+BA_DEF_DEF_  "MultiplexExtEnabled" "No";
+
+BA_ "GenMsgCycleTime" BO_ 1549 250;
+BA_ "GenMsgCycleTime" BO_ 1037 100;
+BA_ "GenMsgCycleTime" BO_ 269 20;
+
+SIG_VALTYPE_ 1037 EnergyMeterEnergy : 1;
+SIG_VALTYPE_ 269 EnergyMeterVoltage : 1;
+SIG_VALTYPE_ 269 EnergyMeterCurrent : 1;

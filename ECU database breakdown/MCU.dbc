@@ -1,6 +1,5 @@
 VERSION ""
 
-
 NS_ : 
 	NS_DESC_
 	CM_
@@ -33,14 +32,14 @@ NS_ :
 
 BS_:
 
-BU_:  VEHICLE_CONTROL_UNIT ACCUMULATOR_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS U2C
+BU_: ENERGY_METER INERTIAL_MEASUREMENT_UNIT SENSOR_CONTROL_UNIT VEHICLE_CONTROL_UNIT ACCUMULATOR_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS U2C
+
 VAL_TABLE_ SWITCH_TOGGLE 1 "TRUE/ON" 0 "FALSE/OFF" ;
 VAL_TABLE_ MC_BUS_STATE 1 "CHARGED" 0 "DISCHARGED" ;
 VAL_TABLE_ SET_INVERTER_DISCHARGE 1 "ENABLED" 0 "DISABLED" ;
 VAL_TABLE_ SET_INVERTER_ENABLE 1 "ENABLED" 0 "DISABLED" ;
 VAL_TABLE_ SET_MC_DIRECTION 1 "FORWARD" 0 "REVERSE" ;
 VAL_TABLE_ DriveState 0 "DriveDisabled" ;
-
 
 BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
  SG_ New_Signal_655 : 0|8@1+ (1,0) [0|0] "" Vector__XXX
@@ -203,20 +202,7 @@ BO_ 471 M187_U2C_Command_Txd: 8 MOTOR_CONTROLLER
  SG_ U2C_ID_Byte : 0|8@1+ (1,0) [0|255] "" Vector__XXX
  SG_ U2C_Setpoint_Calc : 8|8@1+ (1,0) [0|255] "" Vector__XXX
 
-BO_ 3 CAN_VCU_TO_ACU_ID: 8 MOTOR_CONTROLLER
- SG_ HTL_CH_ID_VCU_TO_ACU_HEARTBEAT : 0|8@1+ (1,0) [0|255] ""  ACCUMULATOR_CONTROL_UNIT
-
-BO_ 2 CAN_ACU_TO_VCU_ID: 8 MOTOR_CONTROLLER
- SG_ HTL_CH_ID_ACU_TO_VCU_HEARTBEAT : 0|8@1+ (1,0) [0|255] ""  VEHICLE_CONTROL_UNIT
-
-BO_TX_BU_ 3 : VEHICLE_CONTROL_UNIT,MOTOR_CONTROLLER;
-BO_TX_BU_ 2 : ACCUMULATOR_CONTROL_UNIT,MOTOR_CONTROLLER;
-
-
-CM_ BU_ VEHICLE_CONTROL_UNIT "The system vehicle control unit";
 CM_ BU_ MOTOR_CONTROLLER "The Cascadia Motion inverter";
-CM_ BU_ EMUS_BMS "BMS Master";
-CM_ BU_ U2C "Delphi DC/DC Converter";
 CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
 CM_ BO_ 2147486373 "This is a made up message from 5 signals that just had no message from Cascadias DBC file online. ";
 CM_ BO_ 194 "The inverter response to each Parameter message that is received.";
@@ -303,9 +289,11 @@ CM_ SG_ 160 INV_Module_C "IGBT Module C Temperature";
 CM_ SG_ 160 INV_Module_B "IGBT Module B Temperature";
 CM_ SG_ 160 INV_Module_A "IGBT Module A Temperature";
 CM_ BO_ 471 "Enable message sent to Delphi DC/DC converter.";
+
 BA_DEF_ BO_  "GenMsgCycleTime" INT 0 100000;
 BA_DEF_  "MultiplexExtEnabled" ENUM  "No","Yes";
 BA_DEF_  "BusType" STRING ;
+
 BA_DEF_DEF_  "GenMsgCycleTime" 0;
 BA_DEF_DEF_  "MultiplexExtEnabled" "No";
 BA_DEF_DEF_  "BusType" "CAN";
@@ -326,4 +314,3 @@ BA_ "GenMsgCycleTime" BO_ 163 10;
 BA_ "GenMsgCycleTime" BO_ 162 100;
 BA_ "GenMsgCycleTime" BO_ 161 100;
 BA_ "GenMsgCycleTime" BO_ 160 100;
-
