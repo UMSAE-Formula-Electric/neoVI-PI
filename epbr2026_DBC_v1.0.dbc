@@ -35,6 +35,12 @@ BS_:
 
 BU_: ENERGY_METER INERTIAL_MEASUREMENT_UNIT SENSOR_CONTROL_UNIT VEHICLE_CONTROL_UNIT ACCUMULATOR_CONTROL_UNIT MOTOR_CONTROLLER EMUS_BMS U2C
 
+
+BO_ 150 CAR_ERROR_STATE: 8 Vector__XXX
+ SG_ error_state_multiplexor M : 0|8@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ car_error_2 m0 : 9|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ car_error_1 m0 : 8|1@1+ (1,0) [0|0] "" Vector__XXX
+
 BO_ 782 Team_Data_2_Message: 8 Vector__XXX
  SG_ Team_Signal_4 : 39|32@0- (1,0) [-2147483648|2147483647] ""  ENERGY_METER
  SG_ Team_Signal_3 : 7|32@0- (1,0) [-2147483648|2147483647] ""  ENERGY_METER
@@ -1132,8 +1138,8 @@ BA_DEF_DEF_  "GenMsgCycleTime" 0;
 BA_DEF_DEF_  "MultiplexExtEnabled" "No";
 BA_DEF_DEF_  "BusType" "CAN";
 BA_DEF_DEF_  "SystemSignalLongSymbol" "";
-BA_ "MultiplexExtEnabled" 1;
 BA_ "BusType" "CAN";
+BA_ "MultiplexExtEnabled" 1;
 BA_ "GenMsgCycleTime" BO_ 1549 250;
 BA_ "GenMsgCycleTime" BO_ 1037 100;
 BA_ "GenMsgCycleTime" BO_ 269 20;
