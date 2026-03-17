@@ -141,8 +141,11 @@ def main():
         # DataLinkPDUPoint exposes the raw Frame 
         frame = point.Frame
         #frame = db.decode_message(frame)
-        writable.Append(frame)  
-        print("logging message!!!") 
+        writable.Append(frame) 
+        id = point.GetAttribute('ArbID')
+        data = point.GetAttribute('Payload')
+        decoded_data = db.decode_message(id,data)
+        print(f"{point.GetAttribute('Timestamp')}-{decoded_data}") 
 
         frame_count += 1
 
