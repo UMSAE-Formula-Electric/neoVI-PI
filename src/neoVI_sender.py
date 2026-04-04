@@ -20,18 +20,20 @@ if __name__ == "__main__":
     if device is None or getattr(device, "Source", None) is None:
         print(f"Failed to add source with hardware SN or path: {hardware_sn}")
         exit(1)
-        
-    channel = None
-    for ch in device.Source.Channels:
-        if ch.Name == channel_name:
-            channel = ch
-            break
+    
+    channel = app.Resolver[f'{device.Source.Identifier} {"Channel Name"} Discovery Channel']
+    assert isinstance(channel, vspyx.Communication.Channel), f"Expected a Channel, got {type(channel)}"
+    
+    # for ch in device.Source.Channels:
+    #     if ch.Name == channel_name:
+    #         channel = ch
+    #         break
 
     if channel is None:
         print(f"Channel {channel_name} not found on device {hardware_sn}")
         exit(1)
 
-    channel.Start()
+    # channel.Start()
 
     bus = can.interface.Bus(bustype='vspyx', channel=channel.URITo())
 

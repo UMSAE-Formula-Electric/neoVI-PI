@@ -137,7 +137,6 @@ def main():
         #         return
         # except Exception:
         #     pass
-
         # DataLinkPDUPoint exposes the raw Frame 
         frame = point.Frame
         #frame = db.decode_message(frame)
@@ -145,7 +144,12 @@ def main():
         id = point.GetAttribute('ArbID')
         data = point.GetAttribute('Payload')
         decoded_data = db.decode_message(id,data)
-        print(f"{point.GetAttribute('Timestamp')}-{decoded_data}") 
+        try:
+            print(f"{id} - {db.get_message_by_frame_id(id).name}") 
+            for sig in decoded_data:
+                print(f"\t{id}-{sig}:{decoded_data[sig]}") 
+        except Exception as e:
+            print(e)
 
         frame_count += 1
 
@@ -173,6 +177,7 @@ def main():
         # Best-effort stop/cleanup (API differs a bit across versions)
         if hasattr(app.VehicleSpy, "Stop"):
             try:
+                writable
                 app.VehicleSpy.Stop()
             except Exception:
                 pass
