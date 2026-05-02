@@ -6,6 +6,8 @@ import cantools
 from typing import List,Tuple,Optional
 from datetime import datetime
 from pathlib import Path
+import queue
+import threading
 
 TESTING_MODE = False
 output_path = str(Path(__file__).parent.parent / "logs")
@@ -17,8 +19,9 @@ channel_name = 'HSCAN' # channel to log from
                        # DW CAN 01
                        # DW CAN 02
 
+frame_queue = queue.Queue(maxsize=1000)
 db = cantools.database.load_file("epbr2026_DBC_v1.0.dbc")
-# frame_count = 0
+frame_count = 0
 
 
 if(TESTING_MODE):
@@ -50,7 +53,7 @@ def list_discovery_channels(app, prefix=None):
             uri = obj.URITo()
         except Exception:
             uri = r.ShortestURITo(obj)
-        if(uri.endswith("Discovery Channel") and (prefix is not None or uri.startswith(prefix))):
+        if(uri.endswith("Discovery Channel") and (prefix is None or uri.startswith(prefix))):
             found.append(uri)
         for child in getattr(obj,"Children",[]):
             stack.append(child)
@@ -122,6 +125,26 @@ def main():
     frame_count = 0
     last_stats_t = time.monotonic()
 
+    lock = threading.Lock()
+
+    def consumer_thread():
+        while True:
+            try:
+                item = frame_queue.get(timeout=1.0)
+                if item is None:
+                    break
+                
+                frame,id,data,timestamp,channel = item
+                decoded = db.decode_message(id,data)
+                writable.Append(frame)
+                for sig in decoded:
+                    print(f"{id} - {sig}:{decoded[sig]:.2f}")
+                print("---------------------------------------")
+            except queue.Empty:
+                continue
+            except Exception as e:
+                print(f" Consumer error : {e}")
+
     def on_point(point: "vspyx.Runtime.Point"):
         nonlocal frame_count, last_stats_t
 
@@ -129,35 +152,29 @@ def main():
         if not isinstance(point, vspyx.Communication.DataLinkPDUPoint):
             return
 
-        # # Optional filter: only keep frames from requested channels
-        # # (This is also a safety net if your setup produces extra points.)
-        # try:
-        #     ch_name = point.GetAttribute("ChannelName")
-        #     if ch_name not in args.channels:
-        #         return
-        # except Exception:
-        #     pass
-        # DataLinkPDUPoint exposes the raw Frame 
-        frame = point.Frame
-        #frame = db.decode_message(frame)
-        writable.Append(frame) 
-        id = point.GetAttribute('ArbID')
-        data = point.GetAttribute('Payload')
-        decoded_data = db.decode_message(id,data)
+        channel = point.GetAttribute("ChannelName")
+        c_in = False
+        for c in args.channels:
+            if c in channel:
+                c_in = True
+
+        if not c_in:
+            return
+
         try:
-            print(f"{id} - {db.get_message_by_frame_id(id).name}") 
-            for sig in decoded_data:
-                print(f"\t{id}-{sig}:{decoded_data[sig]}") 
-        except Exception as e:
-            print(e)
-
-        frame_count += 1
-
-        if args.stats:
-            now = time.monotonic()
-            if now - last_stats_t >= 1.0:
-                print(f"{frame_count} frames total")
-                last_stats_t = now
+            frame_queue.put_nowait((
+                point.Frame,
+                point.GetAttribute("ArbID"),
+                point.GetAttribute("Payload"),
+                point.GetAttribute("Timestamp"),
+                point.GetAttribute("ChannelName"),))
+        except frame_queue.Full:
+            print("Queue Full")
+        except Exception as e: 
+            print(f"on_point q error")
+# ------------------------------------------------------------------------------------
+    consumer = threading.Thread(target=consumer_thread, daemon=True)
+    consumer.start()
 
     observer = app.VehicleSpy.PrepareForStart(analysisMode=False)  
     observer.OnPoint.Add(on_point)                                 
@@ -175,6 +192,8 @@ def main():
         pass
     finally:
         # Best-effort stop/cleanup (API differs a bit across versions)
+        frame_queue.put(None)
+        consumer.join(timeout=3.0)
         if hasattr(app.VehicleSpy, "Stop"):
             try:
                 writable
