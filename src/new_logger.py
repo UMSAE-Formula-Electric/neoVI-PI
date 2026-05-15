@@ -19,7 +19,7 @@ import csv
 import signal
 import queue
 import threading
-import curse_display
+#import curse_display
 from datetime import datetime
 from pathlib import Path
 
