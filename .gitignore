@@ -1,3 +1,4 @@
 # Ignore log files and testing directories
 /logs*
 /testing*
+__pycache__
