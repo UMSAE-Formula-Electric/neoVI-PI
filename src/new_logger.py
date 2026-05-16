@@ -122,8 +122,8 @@ def transmit_can(device,id,dlc,fps,stop_event,max=255):
         msg.NetworkID = ics.NETID_HSCAN # First channel of CAN on the device
         # msg parameter here can also be a tuple of messages
         ics.transmit_messages(device, msg)
+        time.sleep(1/fps)
         print(f"Tx: {msg.ArbIDOrHeader} - {msg.Data}")
-        time.sleep(fps)
 
 def capture_thread(
     device,
@@ -297,31 +297,31 @@ def main():
     )
     t_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0x0A5,8,1,stop_event),
+        args=(device,0x0A5,8,10,stop_event),
         name="transmitter",
         daemon=False, 
     )
     t2_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0xA7,8,1,stop_event),
+        args=(device,0xA7,8,10,stop_event),
         name="transmitter",
         daemon=False, 
     )
     t3_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0xA6,8,1,stop_event),
+        args=(device,0xA6,8,10,stop_event),
         name="transmitter",
         daemon=False, 
     )
     t4_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0x105,8,1,stop_event),
+        args=(device,0x105,8,10,stop_event),
         name="transmitter",
         daemon=False, 
     )
     t5_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0x16,1,0.5,stop_event,4),
+        args=(device,0x16,1,10,stop_event,4),
         name="transmitter",
         daemon=False, 
     )
