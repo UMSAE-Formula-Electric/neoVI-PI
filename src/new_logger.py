@@ -12,6 +12,7 @@ Architecture:
 """
 
 import ics
+import random as rn
 import cantools
 import argparse
 import time
@@ -112,11 +113,12 @@ def build_dbc_index(db) -> dict[int, object] | None:
 # ---------------------------------------------------------------------------
     
 
-def transmit_can(device,id,data,fps,stop_event):
+def transmit_can(device,id,dlc,fps,stop_event,max=255):
     while not stop_event.is_set():
         msg = ics.SpyMessage()
         msg.ArbIDOrHeader = id  # CAN Arbitration ID
-        msg.Data = (data, data, data, data, data, data, data, data)  # Data Bytes go here
+        msg.NumberBytesData = 1
+        msg.Data = tuple(rn.randint(0,max) for _ in range(dlc))  # Data Bytes go here
         msg.NetworkID = ics.NETID_HSCAN # First channel of CAN on the device
         # msg parameter here can also be a tuple of messages
         ics.transmit_messages(device, msg)
@@ -301,29 +303,37 @@ def main():
     )
     t2_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0xA7,5,1,stop_event),
+        args=(device,0xA7,8,1,stop_event),
         name="transmitter",
         daemon=False, 
     )
     t3_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0xA6,3,1,stop_event),
+        args=(device,0xA6,8,1,stop_event),
         name="transmitter",
         daemon=False, 
     )
     t4_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0x105,5,1,stop_event),
+        args=(device,0x105,8,1,stop_event),
+        name="transmitter",
+        daemon=False, 
+    )
+    t5_transmitter = threading.Thread(
+        target=transmit_can,
+        args=(device,0x16,1,2,stop_event,4),
         name="transmitter",
         daemon=False, 
     )
     
     t_capture.start()
     t_writer.start()
-    t_transmitter.start()
-    t2_transmitter.start()
-    t3_transmitter.start()
-    t4_transmitter.start()
+    # t_transmitter.start()
+    # t2_transmitter.start()
+    # t3_transmitter.start()
+    # t4_transmitter.start()
+    t5_transmitter.start()
+    
     
     print("Online. Press Ctrl+C to stop.")
 
@@ -354,6 +364,8 @@ def main():
     t2_transmitter.join(timeout=50)
     t3_transmitter.join(timeout=50)
     t4_transmitter.join(timeout=50)
+    t5_transmitter.join(timeout=50)
+    
     
     try:
         ics.close_device(device)
