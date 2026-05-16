@@ -197,6 +197,7 @@ def writer_thread(
             ts, arb_id, net_id, dlc, data = item
             # DBC decode
             decoded = ""
+            # print(f"{arb_id} - {data}")
             if dbc_index is not None:
                 msg_def = dbc_index.get(arb_id)
                 if msg_def is not None:
@@ -210,7 +211,6 @@ def writer_thread(
             # name = db.get_message_by_frame_id(arb_id)
             print("-----------------------------------")
             for sig in decoded:
-            #     message = db.get_message_by_name('YourMessageName')
                 print(f"{arb_id} - {sig}:{decoded[sig]}")
 
             writer.writerow([
@@ -321,19 +321,38 @@ def main():
     )
     t5_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0x16,1,2,stop_event,4),
+        args=(device,0x16,1,0.5,stop_event,4),
         name="transmitter",
         daemon=False, 
     )
     
     t_capture.start()
     t_writer.start()
-    # t_transmitter.start()
-    # t2_transmitter.start()
-    # t3_transmitter.start()
-    # t4_transmitter.start()
+    t_transmitter.start()
+    t2_transmitter.start()
+    t3_transmitter.start()
+    t4_transmitter.start()
     t5_transmitter.start()
     
+    # calibrate angle sensor
+    # msg = ics.SpyMessage() 
+    # msg.ArbIDOrHeader = 0x7C0  # CAN Arbitration ID
+    # msg.NumberBytesData = 8
+    # msg.Data = tuple([0x5,0x00,0x00,0x00,0x00,0x00,0x00,0x00])  # Data Bytes go here
+    # msg.NetworkID = ics.NETID_HSCAN2 # First channel of CAN on the device
+    # # msg parameter here can also be a tuple of messages
+    # ics.transmit_messages(device, msg)
+    # print(f"Tx: {msg.ArbIDOrHeader} - {msg.Data}")
+    
+    # set angle to 0
+    # msg = ics.SpyMessage()
+    # msg.ArbIDOrHeader = 0x7C0  # CAN Arbitration ID
+    # msg.NumberBytesData = 8
+    # msg.Data = tuple([0x3,0x00,0x00,0x00,0x00,0x00,0x00,0x00])  # Data Bytes go here
+    # msg.NetworkID = ics.NETID_HSCAN2 # First channel of CAN on the device
+    # # msg parameter here can also be a tuple of messages
+    # ics.transmit_messages(device, msg)
+    # print(f"Tx: {msg.ArbIDOrHeader} - {msg.Data}")
     
     print("Online. Press Ctrl+C to stop.")
 
@@ -365,6 +384,7 @@ def main():
     t3_transmitter.join(timeout=50)
     t4_transmitter.join(timeout=50)
     t5_transmitter.join(timeout=50)
+    
     
     
     try:
