@@ -49,6 +49,9 @@ CHANNEL_MAP: dict[str, int] = {
 # Sentinel pushed onto the queue to tell writer_thread to exit cleanly.
 _STOP = object()
 
+db = None
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -109,12 +112,12 @@ def build_dbc_index(db) -> dict[int, object] | None:
 # ---------------------------------------------------------------------------
     
 
-def transmit_can(device,fps,stop_event):
+def transmit_can(device,id,data,fps,stop_event):
     while not stop_event.is_set():
         msg = ics.SpyMessage()
-        msg.ArbIDOrHeader = 0x0A5  # CAN Arbitration ID
-        msg.Data = (6, 7, 6, 7, 6, 7, 6, 7)  # Data Bytes go here
-        msg.NetworkID = ics.NETID_HSCAN2 # First channel of CAN on the device
+        msg.ArbIDOrHeader = id  # CAN Arbitration ID
+        msg.Data = (data, data, data, data, data, data, data, data)  # Data Bytes go here
+        msg.NetworkID = ics.NETID_HSCAN # First channel of CAN on the device
         # msg parameter here can also be a tuple of messages
         ics.transmit_messages(device, msg)
         print(f"Tx: {msg.ArbIDOrHeader} - {msg.Data}")
@@ -152,6 +155,7 @@ def capture_thread(
                 continue
             # Extract everything from the C object here, before releasing GIL.
             # bytes() copies the data out of the SpyMessage buffer immediately.
+            
             raw_queue.put((
                 m.TimeSystem,
                 m.ArbIDOrHeader,
@@ -189,7 +193,6 @@ def writer_thread(
                 break
 
             ts, arb_id, net_id, dlc, data = item
-
             # DBC decode
             decoded = ""
             if dbc_index is not None:
@@ -201,9 +204,12 @@ def writer_thread(
                         pass
 
             hex_data = data.hex(" ").upper()
-            
+            # print(decoded)
+            # name = db.get_message_by_frame_id(arb_id)
+            print("-----------------------------------")
             for sig in decoded:
-                print(f"{arb_id} - {sig}:{decoded[sig]} {db.get_message_by_name(sig).unit}")
+            #     message = db.get_message_by_name('YourMessageName')
+                print(f"{arb_id} - {sig}:{decoded[sig]}")
 
             writer.writerow([
                 f"{ts:.6f}",
@@ -245,7 +251,7 @@ def main():
     args = p.parse_args()
 
     # Load DBC
-    db = None
+    # db = None
     try:
         db = cantools.database.load_file(args.dbc)
         print(f"Loaded DBC: {args.dbc}  ({len(db.messages)} messages)")
@@ -289,15 +295,36 @@ def main():
     )
     t_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,1,stop_event),
+        args=(device,0x0A5,8,1,stop_event),
+        name="transmitter",
+        daemon=False, 
+    )
+    t2_transmitter = threading.Thread(
+        target=transmit_can,
+        args=(device,0xA7,5,1,stop_event),
+        name="transmitter",
+        daemon=False, 
+    )
+    t3_transmitter = threading.Thread(
+        target=transmit_can,
+        args=(device,0xA6,3,1,stop_event),
+        name="transmitter",
+        daemon=False, 
+    )
+    t4_transmitter = threading.Thread(
+        target=transmit_can,
+        args=(device,0x105,5,1,stop_event),
         name="transmitter",
         daemon=False, 
     )
     
-
     t_capture.start()
     t_writer.start()
     t_transmitter.start()
+    t2_transmitter.start()
+    t3_transmitter.start()
+    t4_transmitter.start()
+    
     print("Online. Press Ctrl+C to stop.")
 
     # Main thread: stats + duration watchdog only
@@ -324,7 +351,10 @@ def main():
     t_capture.join(timeout=5)
     t_writer.join(timeout=30)
     t_transmitter.join(timeout=50)
-
+    t2_transmitter.join(timeout=50)
+    t3_transmitter.join(timeout=50)
+    t4_transmitter.join(timeout=50)
+    
     try:
         ics.close_device(device)
     except Exception:
