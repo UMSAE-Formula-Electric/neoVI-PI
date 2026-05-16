@@ -186,6 +186,9 @@ BO_ 2364549760 HTL_CH_ID_ANGULAR_RATE: 8 INERTIAL_MEASUREMENT_UNIT
  SG_ Angular_Rate_Y : 16|16@1- (0.0078125,-250) [-250|252] "deg/s" Vector__XXX
  SG_ Angular_Rate_X : 0|16@1- (0.0078125,-250) [-250|252] "deg/s" Vector__XXX
 
+BO_ 195 M195_Pedal_Press_Percent: 8 VEHICLE_CONTROL_UNIT
+ SG_ Pedal_Pess_Percent : 0|16@1+ (0.1,0) [0|100] "%" Vector__XXX
+
 BO_ 194 M194_Read_Write_Param_Response: 8 MOTOR_CONTROLLER
  SG_ INV_Write_Success : 16|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ INV_Data_Response : 32|16@1- (1,0) [-32768|32767] "" Vector__XXX
