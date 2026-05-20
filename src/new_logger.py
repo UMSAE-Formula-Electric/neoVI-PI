@@ -17,6 +17,8 @@ import cantools
 import argparse
 import time
 import csv
+import json
+import sys
 import signal
 import queue
 import threading
@@ -29,7 +31,7 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 DEFAULT_OUTPUT_DIR = str(Path(__file__).parent.parent / "logs")
 DBC_FILE = "epbr2026_DBC_v1.0.dbc"
-DEBUGGING = True
+DEBUGGING = False
 
 # How many raw frame tuples the queue can hold before capture_thread blocks.
 # 50k frames at ~100 bytes each ≈ 5 MB — fine for a Pi.
@@ -46,16 +48,36 @@ CHANNEL_MAP: dict[str, int] = {
     "DW CAN 02": ics.NETID_HSCAN2,
     "neoVI":     ics.NETID_HSCAN,
 }
+# Map channel NET ids to the there names
+NET_ID_TO_NAME: dict[int, str] = {v: k for k, v in CHANNEL_MAP.items()}
 
 # Sentinel pushed onto the queue to tell writer_thread to exit cleanly.
 _STOP = object()
 
-db = None
-
+db = None  # global DBC object, loaded in main() and read-only after that
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def log(*args, **kwargs):
+    print("[LOG]",*args, **kwargs, file=sys.stderr)
+        
+def debug(*args, **kwargs):
+    if DEBUGGING:
+        print("[DEBUG]",*args, **kwargs, file=sys.stderr)
+
+def emit_signal(channel_name, arb_id, msg_name, signal_name, value, unit=""):
+    sys.stdout.write(json.dumps({
+        "channel": channel_name,
+        "id":      f"0x{arb_id:08X}",
+        "name":    msg_name,
+        "signal":  signal_name,
+        "value":   float(value) if hasattr(value, '__float__') else str(value),
+        "unit":    unit,
+        "timestamp": time.time()
+    }) + "\n")
+    sys.stdout.flush()
 
 def ensure_output_path(out_dir: str | None) -> str:
     out_dir = out_dir or DEFAULT_OUTPUT_DIR
@@ -70,7 +92,6 @@ def open_device(serial: str | None) -> "ics.NeoDevice":
         raise RuntimeError("No Intrepid devices found. Is the hardware connected?")
 
     device = None
-    tx_device = None
     if serial:
         for d in devices:
             if str(d.SerialNumber) == serial or serial.lower() in str(d).lower():
@@ -85,7 +106,8 @@ def open_device(serial: str | None) -> "ics.NeoDevice":
         device = devices[0]
 
     ics.open_device(device)
-    print(f"Opened: {device}  (serial {device.SerialNumber})")
+    log(f"Opened: {device}  (serial {device.SerialNumber})")
+    # print(f"Opened: {device}  (serial {device.SerialNumber})")
     return device
 
 
@@ -99,7 +121,8 @@ def resolve_net_ids(channel_names: list[str]) -> set[int]:
             if hasattr(ics, attr):
                 net_ids.add(getattr(ics, attr))
             else:
-                print(f"[WARN] Unknown channel '{name}' — will not filter by network ID.")
+                log(f"[WARN] Unknown channel '{name}' — will not filter by network ID.")
+                # print(f"[WARN] Unknown channel '{name}' — will not filter by network ID.")
     return net_ids
 
 def build_dbc_index(db) -> dict[int, object] | None:
@@ -112,18 +135,24 @@ def build_dbc_index(db) -> dict[int, object] | None:
 # Threads
 # ---------------------------------------------------------------------------
     
-
 def transmit_can(device,id,dlc,fps,stop_event,max=255):
     while not stop_event.is_set():
         msg = ics.SpyMessage()
-        msg.ArbIDOrHeader = id  # CAN Arbitration ID
-        msg.NumberBytesData = 1
-        msg.Data = tuple(rn.randint(0,max) for _ in range(dlc))  # Data Bytes go here
-        msg.NetworkID = ics.NETID_HSCAN # First channel of CAN on the device
-        # msg parameter here can also be a tuple of messages
-        ics.transmit_messages(device, msg)
-        time.sleep(1/fps)
-        print(f"Tx: {msg.ArbIDOrHeader} - {msg.Data}")
+        msg.ArbIDOrHeader   = id
+        msg.NumberBytesData = dlc
+        msg.Data            = tuple(rn.randint(0, max) for _ in range(dlc))
+        msg.NetworkID       = ics.NETID_HSCAN2
+        msg.StatusBitField  = ics.SPY_STATUS_XTD_FRAME
+        
+        try:
+            ics.transmit_messages(device, msg)
+            debug(f"Tx: {msg.ArbIDOrHeader:#010x} - {msg.Data}")
+            # print(f"Tx: {msg.ArbIDOrHeader:#010x} - {msg.Data}")
+        except Exception as e:
+            debug(f"[tx error] id={id:#010x} : {e}")
+            # print(f"[tx error] id={id:#010x} : {e}")
+        time.sleep(1 / fps)
+        
 
 def capture_thread(
     device,
@@ -145,22 +174,27 @@ def capture_thread(
         try:
             msgs, error_count = ics.get_messages(device)
         except Exception as e:
-            print(f"[capture] get_messages error: {e}")
+            debug(f"[capture] get_messages error: {e}")
+            # print(f"[capture] get_messages error: {e}")
             stop_event.set()
             break
 
         if error_count:
             hw_errors[0] += error_count
 
+        # for m in msgs:
+        #     print(f"[RAW] NetID={m.NetworkID:3d}  "
+        #           f"ArbID=0x{m.ArbIDOrHeader:08X}  "
+        #           f"Masked=0x{m.ArbIDOrHeader & 0x1FFFFFFF:08X}  "
+        #           f"DLC={m.NumberBytesData}  "
+        #           f"Data={bytes(m.Data[:m.NumberBytesData]).hex(' ').upper()}")
+
         for m in msgs:
             if net_ids and m.NetworkID not in net_ids:
                 continue
-            # Extract everything from the C object here, before releasing GIL.
-            # bytes() copies the data out of the SpyMessage buffer immediately.
-            
             raw_queue.put((
                 m.TimeSystem,
-                m.ArbIDOrHeader,
+                m.ArbIDOrHeader & 0x1FFFFFFF,
                 m.NetworkID,
                 m.NumberBytesData,
                 bytes(m.Data[:m.NumberBytesData]),
@@ -197,7 +231,6 @@ def writer_thread(
             ts, arb_id, net_id, dlc, data = item
             # DBC decode
             decoded = ""
-            # print(f"{arb_id} - {data}")
             if dbc_index is not None:
                 msg_def = dbc_index.get(arb_id)
                 if msg_def is not None:
@@ -207,12 +240,11 @@ def writer_thread(
                         pass
 
             hex_data = data.hex(" ").upper()
-            # print(decoded)
-            # name = db.get_message_by_frame_id(arb_id)
-            print("-----------------------------------")
+            debug("-----------------------------------")
             for sig in decoded:
-                print(f"{arb_id} - {sig}:{decoded[sig]}")
-
+                debug(f"{arb_id} - {sig}:{decoded[sig]}({msg_def.get_signal_by_name(sig).unit})")
+                # print(f"{arb_id} - {sig}:{decoded[sig]}({msg_def.get_signal_by_name(sig).unit})")
+                emit_signal(NET_ID_TO_NAME.get(net_id, f"NetID_{net_id}"), arb_id, msg_def.name, sig, decoded[sig], msg_def.get_signal_by_name(sig).unit)
             writer.writerow([
                 f"{ts:.6f}",
                 f"0x{arb_id:08X}",
@@ -222,9 +254,9 @@ def writer_thread(
                 decoded,
             ])
 
-            if verbose:
-                print(f"{ts:.3f}  [{net_id:3d}]  0x{arb_id:08X}  {hex_data}"
-                      + (f"  →  {decoded}" if decoded else ""))
+            # if verbose:
+            #     print(f"{ts:.3f}  [{net_id:3d}]  0x{arb_id:08X}  {hex_data}"
+            #           + (f"  →  {decoded}" if decoded else ""))
 
             frame_counter[0] += 1
 
@@ -253,21 +285,31 @@ def main():
     args = p.parse_args()
 
     # Load DBC
-    # db = None
+    db = None
     try:
         db = cantools.database.load_file(args.dbc)
-        print(f"Loaded DBC: {args.dbc}  ({len(db.messages)} messages)")
+        log(f"Loaded DBC: {args.dbc}  ({len(db.messages)} messages)")
+        # print(f"Loaded DBC: {args.dbc}  ({len(db.messages)} messages)")
     except Exception as e:
-        print(f"[WARN] Could not load DBC '{args.dbc}': {e}. Decoding disabled.")
+        log(f"[WARN] Could not load DBC '{args.dbc}': {e}. Decoding disabled.")
+        # print(f"[WARN] Could not load DBC '{args.dbc}': {e}. Decoding disabled.")
 
     dbc_index = build_dbc_index(db)
     out_path  = ensure_output_path(args.out)
     net_ids   = resolve_net_ids(args.channels)
     device    = open_device(args.serial)
+    
+    
+    log("DBC index:")
+    for fid, msg in dbc_index.items():
+        log(f"  {fid:#010x}  {msg.name}")
+    log("")
+    
+    log(f"Filtering for net_ids: {net_ids}")
 
-    print(f"Channels : {args.channels}  →  net_ids={net_ids}")
-    print(f"Poll     : {args.poll_ms} ms")
-    print(f"Output   : {out_path}")
+    log(f"Channels : {args.channels}  →  net_ids={net_ids}")
+    log(f"Poll     : {args.poll_ms} ms")
+    log(f"Output   : {out_path}")
 
     # Shared state (lists so threads can mutate without nonlocal)
     frame_counter = [0]
@@ -297,7 +339,7 @@ def main():
     )
     t_transmitter = threading.Thread(
         target=transmit_can,
-        args=(device,0x0A5,8,10,stop_event),
+        args=(device,0x18f02a80,8,1,stop_event),
         name="transmitter",
         daemon=False, 
     )
@@ -342,7 +384,6 @@ def main():
     # msg.NetworkID = ics.NETID_HSCAN2 # First channel of CAN on the device
     # # msg parameter here can also be a tuple of messages
     # ics.transmit_messages(device, msg)
-    # print(f"Tx: {msg.ArbIDOrHeader} - {msg.Data}")
     
     # set angle to 0
     # msg = ics.SpyMessage()
@@ -352,9 +393,8 @@ def main():
     # msg.NetworkID = ics.NETID_HSCAN2 # First channel of CAN on the device
     # # msg parameter here can also be a tuple of messages
     # ics.transmit_messages(device, msg)
-    # print(f"Tx: {msg.ArbIDOrHeader} - {msg.Data}")
     
-    print("Online. Press Ctrl+C to stop.")
+    log("Online. Press Ctrl+C to stop.")
 
     # Main thread: stats + duration watchdog only
     start_t      = time.monotonic()
@@ -367,9 +407,9 @@ def main():
             now = time.monotonic()
             if now - last_stats_t >= 1.0:
                 qsize = raw_queue.qsize()
-                print(f"[stats] {frame_counter[0]} frames  |  queue: {qsize}  |  hw errors: {hw_errors[0]}")
+                log(f"[stats] {frame_counter[0]} frames  |  queue: {qsize}  |  hw errors: {hw_errors[0]}")
                 if qsize > QUEUE_MAXSIZE * 0.8:
-                    print("[WARN] Queue >80% full — writer can't keep up. Consider --poll-ms 25.")
+                    log("[WARN] Queue >80% full — writer can't keep up. Consider --poll-ms 25.")
                 last_stats_t = now
 
         if args.duration > 0 and (time.monotonic() - start_t) >= args.duration:
@@ -379,22 +419,20 @@ def main():
     # Wait for it to do that, then wait for writer to drain and close the file.
     t_capture.join(timeout=5)
     t_writer.join(timeout=30)
-    t_transmitter.join(timeout=50)
-    t2_transmitter.join(timeout=50)
-    t3_transmitter.join(timeout=50)
-    t4_transmitter.join(timeout=50)
-    t5_transmitter.join(timeout=50)
-    
-    
+    t_transmitter.join(timeout=10)
+    t2_transmitter.join(timeout=10)
+    t3_transmitter.join(timeout=10)
+    t4_transmitter.join(timeout=10)
+    t5_transmitter.join(timeout=10)
     
     try:
         ics.close_device(device)
     except Exception:
         pass
 
-    print(f"\nStopped. Wrote {frame_counter[0]} frames to {out_path}")
+    log(f"\nStopped. Wrote {frame_counter[0]} frames to {out_path}")
     if hw_errors[0]:
-        print(f"[WARN] Total hardware errors reported: {hw_errors[0]}")
+        log(f"[WARN] Total hardware errors reported: {hw_errors[0]}")
 
 
 if __name__ == "__main__":

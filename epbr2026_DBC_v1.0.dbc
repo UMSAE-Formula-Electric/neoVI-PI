@@ -169,17 +169,26 @@ BO_ 594 CAN_WHEEL_SPEED: 8 SENSOR_CONTROL_UNIT
 BO_ 593 CAN_VEHICLE_SPEED: 2 SENSOR_CONTROL_UNIT
  SG_ Vehicle_Speed : 0|16@1- (0.01,0) [-327.68|327.67] "kph" Vector__XXX
 
-BO_ 2297441664 HTL_CH_ID_ACCELERATION: 8 INERTIAL_MEASUREMENT_UNIT
- SG_ FoM_Latency : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
- SG_ Acceleration_Z : 32|16@1- (0.01,-320) [-320|5.81818181818182] "m/s^2" Vector__XXX
- SG_ Acceleration_Y : 16|16@1- (0.01,-320) [-320|5.81818181818182] "m/s^2" Vector__XXX
- SG_ Acceleration_X : 0|16@1- (0.01,-320) [-320|5.81818181818182] "m/s^2" Vector__XXX
+BO_ 2565876096 SlopeSensor_Type2: 8 INERTIAL_MEASUREMENT_UNIT
+ SG_ PitchAngle : 7|16@0+ (0.0001526,0) [-3.1416|3.1416] "rad" Vector__XXX
+ SG_ RollAngle : 23|16@0+ (0.0001526,0) [-3.1416|3.1416] "rad" Vector__XXX
+ SG_ PitchAngleStatus : 55|2@0+ (1,0) [0|3] "" Vector__XXX
+ SG_ RollAngleStatus : 53|2@0+ (1,0) [0|3] "" Vector__XXX
 
-BO_ 2364549760 HTL_CH_ID_ANGULAR_RATE: 8 INERTIAL_MEASUREMENT_UNIT
- SG_ FoM_Latency : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
- SG_ Angular_Rate_Z : 32|16@1- (0.0078125,-250) [-250|252] "deg/s" Vector__XXX
- SG_ Angular_Rate_Y : 16|16@1- (0.0078125,-250) [-250|252] "deg/s" Vector__XXX
- SG_ Angular_Rate_X : 0|16@1- (0.0078125,-250) [-250|252] "deg/s" Vector__XXX
+BO_ 2565876352 AngularRate: 8 INERTIAL_MEASUREMENT_UNIT
+ SG_ PitchRate : 7|16@0+ (0.0078125,-250) [-250|250] "deg/s" Vector__XXX
+ SG_ RollRate : 23|16@0+ (0.0078125,-250) [-250|250] "deg/s" Vector__XXX
+ SG_ YawRate : 39|16@0+ (0.0078125,-250) [-250|250] "deg/s" Vector__XXX
+
+BO_ 2565877120 Acceleration: 8 INERTIAL_MEASUREMENT_UNIT
+ SG_ LongitudinalAccel : 7|16@0+ (0.01,-320) [-320|322.55] "m/s^2" Vector__XXX
+ SG_ LateralAccel : 23|16@0+ (0.01,-320) [-320|322.55] "m/s^2" Vector__XXX
+ SG_ VerticalAccel : 39|16@0+ (0.01,-320) [-320|322.55] "m/s^2" Vector__XXX
+
+BO_ 2566875776 Magnetometer: 8 INERTIAL_MEASUREMENT_UNIT
+ SG_ MagX : 7|16@0+ (0.001,-32) [-32|32] "Gauss" Vector__XXX
+ SG_ MagY : 23|16@0+ (0.001,-32) [-32|32] "Gauss" Vector__XXX
+ SG_ MagZ : 39|16@0+ (0.001,-32) [-32|32] "Gauss" Vector__XXX
 
 BO_ 195 M195_Pedal_Press_Percent: 8 VEHICLE_CONTROL_UNIT
  SG_ Pedal_Press_Percent : 0|8@1+ (1,0) [0|255] "%" Vector__XXX
