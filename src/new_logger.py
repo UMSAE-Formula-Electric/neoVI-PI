@@ -49,7 +49,14 @@ CHANNEL_MAP: dict[str, int] = {
     "neoVI":     ics.NETID_HSCAN,
 }
 # Map channel NET ids to the there names
-NET_ID_TO_NAME: dict[int, str] = {v: k for k, v in CHANNEL_MAP.items()}
+# NET_ID_TO_NAME: dict[int, str] = {v: k for k, v in CHANNEL_MAP.items()} # USE FOR DEBUGGING
+NET_ID_TO_NAME: dict[int, str] = {
+    ics.NETID_HSCAN:    "MAIN",
+    ics.NETID_HSCAN2:   "SENSOR",
+    ics.NETID_HSCAN3:   "HSCAN3",
+    ics.NETID_MSCAN:    "MSCAN",
+    ics.NETID_SWCAN:    "SWCAN",
+}
 
 # Sentinel pushed onto the queue to tell writer_thread to exit cleanly.
 _STOP = object()
@@ -370,11 +377,11 @@ def main():
     
     t_capture.start()
     t_writer.start()
-    t_transmitter.start()
-    t2_transmitter.start()
-    t3_transmitter.start()
-    t4_transmitter.start()
-    t5_transmitter.start()
+    # t_transmitter.start()
+    # t2_transmitter.start()
+    # t3_transmitter.start()
+    # t4_transmitter.start()
+    # t5_transmitter.start()
     
     # calibrate angle sensor
     # msg = ics.SpyMessage() 
@@ -419,11 +426,11 @@ def main():
     # Wait for it to do that, then wait for writer to drain and close the file.
     t_capture.join(timeout=5)
     t_writer.join(timeout=30)
-    t_transmitter.join(timeout=10)
-    t2_transmitter.join(timeout=10)
-    t3_transmitter.join(timeout=10)
-    t4_transmitter.join(timeout=10)
-    t5_transmitter.join(timeout=10)
+    # t_transmitter.join(timeout=10)
+    # t2_transmitter.join(timeout=10)
+    # t3_transmitter.join(timeout=10)
+    # t4_transmitter.join(timeout=10)
+    # t5_transmitter.join(timeout=10)
     
     try:
         ics.close_device(device)
