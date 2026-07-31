@@ -1,0 +1,113 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-31T23:26:03.403Z",
+  "phase": "00",
+  "phase_name": "compression-ratio-gate",
+  "phase_dir": ".planning/phases/00-compression-ratio-gate",
+  "plan": 2,
+  "task": 2,
+  "total_tasks": 2,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "End-to-end bytes/frame for one CAN ID — the whole spine, one path",
+      "status": "done",
+      "commit": "5588bfd"
+    },
+    {
+      "id": 2,
+      "name": "Harden the spine — input validation and the four ablation modes",
+      "status": "not_started",
+      "progress": "blocked on the tracer feedback gate after Task 1"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 2,
+      "name": "00-02 Task 2: Harden the spine — input validation and the four ablation modes",
+      "status": "not_started"
+    },
+    {
+      "id": 3,
+      "name": "Plan 00-03 (wave 2): worst-case structural classifier — GATE-02 selector",
+      "status": "not_started"
+    },
+    {
+      "id": 4,
+      "name": "Plan 00-04 (wave 2): threshold lock — pass bar, headroom, modelling assumptions (CHECKPOINT plan)",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "name": "Plan 00-05 (wave 3): full-bus synthetic stream — 128 messages, modelled rates, entropy brackets",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "name": "Plan 00-06 (wave 4): overhead accounting and the measurement report",
+      "status": "not_started"
+    },
+    {
+      "id": 7,
+      "name": "Plan 00-07 (wave 5): run the gate, publish artifacts, write the go/no-go decision (CHECKPOINT plan)",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Plan 00-02 Task 1 is a type=\"tracer\" task. workflow.auto_advance is false, so an interactive checkpoint fires after the tracer commits and before any expansion task runs. Task 2 cannot start until answered.",
+      "type": "human_action",
+      "workaround": "None needed — this gate is by design, not a fault. Answer the checkpoint to proceed."
+    },
+    {
+      "description": "Worktree parallelism is degraded to sequential for this phase. HEAD (add-pedal-percent-msg) has diverged from origin/HEAD, so worktree.base-check returns shouldDegrade=true (#683) and all 7 plans run one at a time on the main working tree.",
+      "type": "technical",
+      "workaround": "Cosmetic/perf only — execution is correct, just serial. To restore parallel worktrees run: gsd-tools worktree set-baseref (sets worktree.baseRef:\"head\")."
+    },
+    {
+      "description": "00-VALIDATION.md is still an unfilled template — every {placeholder} intact. No test infrastructure, sampling rate, or per-task verification map was written, and workflow.nyquist_validation is on.",
+      "type": "technical",
+      "workaround": "Non-blocking: every task across the 7 plans carries an <automated> verify, so the underlying contract is satisfiable. Run /gsd-validate-phase 0 to fill it."
+    }
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "Answer the 00-02 tracer checkpoint: does 8.129 bytes/frame for M192_Command_Message look like a sane, non-broken number for a single non-multiplexed 8-byte, 5ms-cycle ID with a rolling counter?",
+      "context": "Raw payload alone is 8 bytes, so this reflects roughly the CFR header cost amortized over a payload that changes almost every frame because the counter increments. Confirming unblocks Task 2 (input validation + the four ablation modes).",
+      "blocking": true
+    },
+    {
+      "action": "Decide the HSCAN vs HSCAN2 bus assignment for the 128 DBC messages (RESEARCH.md Open Question 1), when plan 00-04 reaches it.",
+      "context": "epbr2026_DBC_v1.0.dbc has one BU_: node line and NO per-message bus attribute, so nothing in the repo says which messages ride HSCAN (~2,900 frames/s) vs HSCAN2 (~830 frames/s). 00-04 proposes a placeholder derived from ECU sender, flagged confirmed:false in config and surfaced in the report. Peak bit-rate-vs-radio-budget numbers depend on this split.",
+      "blocking": false
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Trust DBC facts measured via cantools over 00-RESEARCH.md prose wherever the two disagree.",
+      "rationale": "Plan 00-01 measured directly and found two errors in RESEARCH.md's DBC Ground Truth table: messages bearing a cycle time is 19, not 23; the third multiplexed message is M175_Diag_Data_Message, not INV_Diag_Buffer. Both are now committed assertions in tests/test_dbc_ground_truth.py. 00-03's classifier and 00-05's rate model both key off these numbers.",
+      "phase": "00"
+    },
+    {
+      "decision": "Set workflow.test_command to \"python -m pytest -x -q --tb=short\" explicitly in .planning/config.json.",
+      "rationale": "The post-merge and regression gates auto-sniff the test runner by looking for requirements.txt or pyproject.toml. This project has neither — plan 00-01 created requirements-dev.txt. Left unset, the sniff chain falls through to TEST_CMD=\"true\" and both gates silently no-op for the entire phase, so cross-plan integration breakage would go undetected. NOTE: this change is still UNCOMMITTED.",
+      "phase": "00"
+    },
+    {
+      "decision": "Skip re-planning phase 00 on autonomous re-entry; resume straight to execution.",
+      "rationale": "All 7 plans were already on disk and intact from a prior session, and init.manager's recommended action was execute. Re-running plan-phase would have been destructive to 7 existing plans for no gain.",
+      "phase": "00"
+    }
+  ],
+  "uncommitted_files": [
+    ".planning/config.json",
+    ".planning/research/.cache/039f73bf8b7485e764beb68bcf9eace25a31c3b02be8ce78b550a7577e16e544.json",
+    ".planning/research/.cache/24c44f49528cedb9638f0dc9161ab30deb09b37e138667f7ba35a2bf12ede402.json",
+    ".planning/research/.cache/44d5926c4c2f1aa097c845d4cac067e5b3c1dbcb6ab9781934e2c5f3fd5f3f62.json",
+    ".planning/research/.cache/e0ed6d935ca88b7c67fe0d29fb058c3c30478f35cb8c0ae70462f647cc4182dd.json"
+  ],
+  "next_action": "Run /gsd-autonomous. It resumes at plan 00-02 and re-raises the tracer checkpoint for Task 1 (the 8.129 bytes/frame sanity check). Answer it, then Task 2 and the remaining 5 plans proceed.",
+  "context_notes": "Phase 00 progress: 1 of 7 plans complete (00-01), 00-02 half done (Task 1 of 2 committed). Waves: 1=[00-01 done], 2=[00-02 in progress, 00-03, 00-04], 3=[00-05], 4=[00-06], 5=[00-07]. Checkpoint plans (autonomous:false) are 00-01, 00-04, 00-07; 00-01's package-legitimacy gate was already satisfied by a decision recorded in STATE.md from a prior session. The two-session PATH-staleness blocker that halted the previous runs is RESOLVED — the Claude Code restart worked, python is CPython 3.12.10, cantools and pytest are installed, and pytest runs green. Post-merge test gate passed after wave 1 (8 tests). A non-blocking codebase-drift advisory fired (4 structural elements since last mapping: .claude/CLAUDE.md, pytest.ini, requirements-dev.txt, telemetry_conversation.md) with directive=warn and spawn_mapper=false. The paused work is a designed feedback gate, not a failure — the tracer slice proved the whole spine end to end before horizontal expansion."
+}
