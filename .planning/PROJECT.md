@@ -99,7 +99,10 @@ Known debt carried in: two parallel logger implementations, commented-out transm
 | Transport abstracted behind a swappable link | RFD900x is not purchased and testing season is close. Loopback and UDP/Wi-Fi stand-ins let the full chain be built and tested now. | — Pending |
 | 900 MHz (RFD900x) over 2.4/5 GHz Wi-Fi | ~34 dB total link advantage, firmware diversity, no consumer USB hardware on the car — and the compressed full bus still fits. | — Pending |
 | Whole-stack rebuild rather than bolting transport onto the existing code | The existing seams (same-machine pipe, decode-on-car) are in the wrong places for this system. | — Pending |
-| Ground-station runtime (Node vs Python) deferred to research | Existing dashboard is Node; cantools is Python. Decided during project research, not by default. | — Pending |
+| Ground station is Python end-to-end; retire the Node server | No JS equivalent to `cantools` exists, so DBC decode must be Python. `server.js` is a ~20-line WebSocket server, so porting it to Python `websockets` collapses the pipeline into one process and removes the same-machine constraint. `dashboard.html` survives nearly unchanged. | ✓ Good |
+| MCAP as the on-car archive format | Crash-safe append-only. Vector BLF's append mode is an open bug (python-can #1751) and MDF4 has no append at all — both are wrong as a live write target. Convert post-session for tool compatibility. | — Pending |
+| Compression ratio becomes a go/no-go gate before transport work | The "full bus fits over 900 MHz" conclusion rests entirely on an unmeasured 4:1–8:1 assumption, and per-ID sequence numbers add a further ~12–15%. A bad ratio invalidates the transport design, not just its tuning. | — Pending |
+| Own bufferbloat control required on the live path | The RFD900x's SiK anti-bufferbloat throttling is MAVLink-specific; a non-MAVLink stream gets none of it. Without a drop-oldest policy the link looks healthy while data arrives seconds stale. | — Pending |
 
 ## Evolution
 
