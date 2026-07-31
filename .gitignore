@@ -3,6 +3,8 @@
 /testing*
 __pycache__
 *.json
+# ...but GSD planning config must be tracked
+!.planning/**/*.json
 # Ignore virtual environment directories
 venv/
 env/
