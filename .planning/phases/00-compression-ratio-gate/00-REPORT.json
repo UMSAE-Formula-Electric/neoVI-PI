@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "dbc_path": "C:\\Users\\ethan\\Documents\\UMSAE\\neoVI-PI\\epbr2026_DBC_v1.0.dbc",
+    "dict_version": 127,
+    "seed": 42,
+    "duration_s": 5.0,
+    "batch_frames": 100,
+    "only_message": [
+      "M192_Command_Message"
+    ]
+  },
+  "aggregate": {
+    "total_frames": 1000,
+    "total_bytes": 8129,
+    "bytes_per_frame": 8.129
+  },
+  "per_id": [
+    {
+      "id_index": 23,
+      "frame_id": "0xC0",
+      "is_extended": false,
+      "frame_count": 1000,
+      "total_bytes": 8129,
+      "bytes_per_frame": 8.129
+    }
+  ]
+}
