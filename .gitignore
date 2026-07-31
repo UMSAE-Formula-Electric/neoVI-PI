@@ -2,7 +2,7 @@
 /logs*
 /testing*
 __pycache__
-*.json
+# *.json
 # ...but GSD planning config must be tracked
 !.planning/**/*.json
 # Ignore virtual environment directories
@@ -14,6 +14,8 @@ env/
 .ipynb_checkpoints/
 # Ignore data files
 *.csv
+# ...but planning report artifacts (e.g. the D-16 compression-gate report) must be tracked
+!.planning/**/*.csv
 *.xlsx
 *.h5
 *.hdf5

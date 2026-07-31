@@ -1,0 +1,6 @@
+# Phase-0-scoped dev manifest (Compression Ratio Gate).
+# Superseded by the full requirements.txt that Phase 1 owns under OPS-06 —
+# do not extend this file with runtime dependencies; it exists only to pin
+# the two packages Phase 0's tooling and test suite need.
+cantools==42.0.3
+pytest==9.1.1
