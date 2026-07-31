@@ -132,17 +132,78 @@ Acknowledged, deferred, not in this roadmap.
 
 ## Traceability
 
-Populated during roadmap creation.
+Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (pending roadmap) | — | Pending |
+| GATE-01 | Phase 0 | Pending |
+| GATE-02 | Phase 0 | Pending |
+| GATE-03 | Phase 0 | Pending |
+| CAP-01 | Phase 1 | Pending |
+| CAP-02 | Phase 1 | Pending |
+| CAP-03 | Phase 1 | Pending |
+| CAP-04 | Phase 1 | Pending |
+| CAP-05 | Phase 1 | Pending |
+| CAP-06 | Phase 1 | Pending |
+| ARCH-01 | Phase 1 | Pending |
+| ARCH-02 | Phase 1 | Pending |
+| ARCH-03 | Phase 1 | Pending |
+| ARCH-04 | Phase 1 | Pending |
+| ARCH-05 | Phase 1 | Pending |
+| ARCH-06 | Phase 8 | Pending |
+| LINK-01 | Phase 1 | Pending |
+| LINK-02 | Phase 1 | Pending |
+| LINK-03 | Phase 1 | Pending |
+| LINK-04 | Phase 1 | Pending |
+| LINK-05 | Phase 5 | Pending |
+| LINK-06 | Phase 5 | Pending |
+| GND-01 | Phase 1 | Pending |
+| GND-02 | Phase 2 | Pending |
+| GND-03 | Phase 2 | Pending |
+| GND-04 | Phase 2 | Pending |
+| GND-05 | Phase 2 | Pending |
+| PROTO-01 | Phase 4 | Pending |
+| PROTO-02 | Phase 4 | Pending |
+| PROTO-03 | Phase 4 | Pending |
+| PROTO-04 | Phase 4 | Pending |
+| PROTO-05 | Phase 4 | Pending |
+| PROTO-06 | Phase 4 | Pending |
+| VIEW-01 | Phase 6 | Pending |
+| VIEW-02 | Phase 6 | Pending |
+| VIEW-03 | Phase 6 | Pending |
+| VIEW-04 | Phase 6 | Pending |
+| VIEW-05 | Phase 6 | Pending |
+| VIEW-06 | Phase 6 | Pending |
+| ALRM-01 | Phase 7 | Pending |
+| ALRM-02 | Phase 7 | Pending |
+| ALRM-03 | Phase 7 | Pending |
+| ALRM-04 | Phase 7 | Pending |
+| ALRM-05 | Phase 7 | Pending |
+| OPS-01 | Phase 3 | Pending |
+| OPS-02 | Phase 3 | Pending |
+| OPS-03 | Phase 3 | Pending |
+| OPS-04 | Phase 1 | Pending |
+| OPS-05 | Phase 1 | Pending |
+| OPS-06 | Phase 1 | Pending |
+| OPS-07 | Phase 3 | Pending |
+| SYNC-01 | Phase 8 | Pending |
+| SYNC-02 | Phase 8 | Pending |
+| SYNC-03 | Phase 8 | Pending |
+| SYNC-04 | Phase 8 | Pending |
+| TEST-01 | Phase 5 | Pending |
+| TEST-02 | Phase 5 | Pending |
+| TEST-03 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 55 total
-- Mapped to phases: 0
-- Unmapped: 55 ⚠️
+- v1 requirements: 57 total (count corrected from 55 — the original total was understated; no requirements were added or removed)
+- Mapped to phases: 57
+- Unmapped: 0 ✓
+
+**Notes on placement:**
+- **OPS-05** (config not hardcoded) lands in Phase 1 for channels, DBC path, and link settings. The alarm-limits portion of the same sentence is delivered by **ALRM-05** in Phase 7, when alarm limits first exist.
+- **CAP-02** (no dropped frames at full rate) is proven in Phase 1 as a property of the capture path; **TEST-03** in Phase 5 makes that proof a repeatable automated soak that also reports transmitted and dropped counts on the live path.
+- **Phase 9 (RFD900x Radio Integration) carries no requirements by design** — every v1 requirement is satisfiable with loopback, PTY, or UDP transports, so unpurchased radio hardware cannot block v1 completion.
 
 ---
 *Requirements defined: 2026-07-30*
-*Last updated: 2026-07-30 after initial definition*
+*Last updated: 2026-07-30 after roadmap creation*
