@@ -9,7 +9,7 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 
 ### Validation Gate
 
-- [ ] **GATE-01**: Compression ratio is measured against a real captured CAN log, reported as bytes/frame overall and per CAN ID
+- [x] **GATE-01**: Compression ratio is measured against a real captured CAN log, reported as bytes/frame overall and per CAN ID
 - [ ] **GATE-02**: Measurement includes worst-case IDs — rolling counters, checksums, multiplexed messages, and high-entropy analog channels — reported separately from the aggregate
 - [ ] **GATE-03**: A documented go/no-go decision records whether full-bus streaming is viable, or whether scope falls back to a critical-channels subset
 
@@ -102,15 +102,18 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 Acknowledged, deferred, not in this roadmap.
 
 ### Live Display
+
 - **VIEW-07**: Pause and scrub back through recent history on a live stream
 - **VIEW-08**: Session and lap markers
 
 ### Alarms
+
 - **ALRM-06**: Alarm severity tiers
 - **ALRM-07**: Latched versus momentary alarm semantics
 - **ALRM-08**: Alarm history log
 
 ### Archive
+
 - **ARCH-07**: Session metadata tagging (driver, event, setup, conditions)
 - **ARCH-08**: Time alignment of multiple recording sources
 - **ARCH-09**: Video synchronization by timestamp
@@ -136,7 +139,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GATE-01 | Phase 0 | Pending |
+| GATE-01 | Phase 0 | Complete |
 | GATE-02 | Phase 0 | Pending |
 | GATE-03 | Phase 0 | Pending |
 | CAP-01 | Phase 1 | Pending |
@@ -195,11 +198,13 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | TEST-03 | Phase 5 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 57 total (count corrected from 55 — the original total was understated; no requirements were added or removed)
 - Mapped to phases: 57
 - Unmapped: 0 ✓
 
 **Notes on placement:**
+
 - **OPS-05** (config not hardcoded) lands in Phase 1 for channels, DBC path, and link settings. The alarm-limits portion of the same sentence is delivered by **ALRM-05** in Phase 7, when alarm limits first exist.
 - **CAP-02** (no dropped frames at full rate) is proven in Phase 1 as a property of the capture path; **TEST-03** in Phase 5 makes that proof a repeatable automated soak that also reports transmitted and dropped counts on the live path.
 - **Phase 9 (RFD900x Radio Integration) carries no requirements by design** — every v1 requirement is satisfiable with loopback, PTY, or UDP transports, so unpurchased radio hardware cannot block v1 completion.

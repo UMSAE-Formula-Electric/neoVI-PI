@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 00
 current_phase_name: Compression Ratio Gate
 status: executing
-stopped_at: Phase 0 context gathered
-last_updated: "2026-07-31T22:22:24.560Z"
+stopped_at: Completed 00-01-PLAN.md
+last_updated: "2026-07-31T23:14:10.978Z"
 last_activity: 2026-07-31
-last_activity_desc: Phase 00 execution started
+last_activity_desc: Phase 00 execution resumed (wave continue)
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 7
-  completed_plans: 0
+  completed_plans: 1
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-30)
 ## Current Position
 
 Phase: 00 (Compression Ratio Gate) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 00
-Last activity: 2026-07-31 — Phase 00 execution started
+Plan: 2 of 7
+Status: Ready to execute
+Last activity: 2026-07-31 — Phase 00 execution resumed (wave continue)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 14%
 
 ## Performance Metrics
 
@@ -54,6 +54,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 00 P01 | 15min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -68,6 +73,7 @@ Recent decisions affecting current work:
 - [Roadmap]: Ground station is Python end to end; the Node server is retired in Phase 2 once the Python process serves the dashboard.
 - [Phase 0, 2026-07-31]: Dev interpreter is **native Windows CPython 3.12.10**, installed via `winget install Python.Python.3.12` to `C:\Users\ethan\AppData\Local\Programs\Python\Python312\`. WSL Ubuntu's Python 3.14.4 was considered and rejected — it would force a `wsl -e bash -c "cd /mnt/c/… && …"` wrapper around every verify command in every plan, and `cantools==42.0.3` has no settled 3.14 wheel support. Plans may assume bare `python` / `pytest` on PATH.
 - [Phase 0, 2026-07-31]: Package legitimacy gate **approved** for `cantools==42.0.3` and `pytest==9.1.1`. Both RESEARCH.md `SUS` verdicts were metadata artifacts, not legitimacy findings: `too-new` (recency of point release 42.0.3) and `unknown-downloads` (checker could not fetch a count). `cantools` is already an existing dependency — imported in `src/neoVI_logger.py` and `src/new_logger.py` (not `src/references.py`, contrary to the plan's parenthetical). No other package is introduced; `cobs` and CRC-16 libraries stay uninstalled per D-06.
+- [Phase ?]: [Phase 0-01, 2026-07-31]: Corrected two RESEARCH.md DBC Ground Truth figures against direct cantools measurement: cycle-time-bearing message count is 19 (not 23), and the third multiplexed message is M175_Diag_Data_Message (not INV_Diag_Buffer, which exists but is unmultiplexed). See 00-01-SUMMARY.md Deviations.
 
 ### Pending Todos
 
@@ -91,18 +97,14 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-31T22:22:24.560Z
-Stopped at: Phase 0 planned (7 plans, 5 waves); plan 00-01 halted at Task 2 precondition — no Python on this session's PATH
-Resume file: .planning/phases/00-compression-ratio-gate/00-01-PLAN.md
+Last session: 2026-07-31T23:14:10.966Z
+Stopped at: Completed 00-01-PLAN.md
+Resume file: None
 
-**Resume with:** restart Claude Code (so the shell inherits the PATH winget already set), then `/gsd-autonomous`.
-Plan 00-01 has zero commits — Task 1's package-legitimacy checkpoint was approved but produces no artifacts, and Task 2 halted before touching disk. Execution resumes at 00-01 Task 2 with nothing to unwind.
+**Resume with:** `/gsd-autonomous` (or `/gsd-execute-phase 00`) to continue with plan 00-02.
 
-**Second `/gsd-autonomous` attempt (2026-07-31) halted at the same precondition.** Diagnosis is now
-confirmed, so do not re-derive it: the *persisted* user PATH (`HKCU:\Environment`) already contains
-`…\Programs\Python\Python312\` and `…\Python312\Scripts\`, and `…\Python312\python.exe` reports
-3.12.10. Only the running Claude Code process env is stale — its `$PATH` still resolves `python` to
-the WindowsApps Store stub, and `CLAUDE_ENV_FILE` is unset so there is no in-session escape hatch.
-The fix is a **full application restart** (quit and relaunch Claude Code / the terminal hosting it) —
-a new conversation or `/clear` in the same process will not help. All 7 Phase 0 plans verify via
-`python -m pytest`, so nothing in this phase can start before that.
+Plan 00-01 completed in this session — Python 3.12.10 (native Windows CPython) was confirmed on
+PATH at session start, so the previously-blocking precondition is resolved and no longer applies
+to later plans. Task 1's package-legitimacy checkpoint was approved in a prior session; Tasks 2
+and 3 executed cleanly with two documented Rule 1 corrections to RESEARCH.md's DBC Ground Truth
+figures (see 00-01-SUMMARY.md). `pytest tests/ -x` runs green (8 tests). Next up: 00-02.
