@@ -97,3 +97,12 @@ Resume file: .planning/phases/00-compression-ratio-gate/00-01-PLAN.md
 
 **Resume with:** restart Claude Code (so the shell inherits the PATH winget already set), then `/gsd-autonomous`.
 Plan 00-01 has zero commits — Task 1's package-legitimacy checkpoint was approved but produces no artifacts, and Task 2 halted before touching disk. Execution resumes at 00-01 Task 2 with nothing to unwind.
+
+**Second `/gsd-autonomous` attempt (2026-07-31) halted at the same precondition.** Diagnosis is now
+confirmed, so do not re-derive it: the *persisted* user PATH (`HKCU:\Environment`) already contains
+`…\Programs\Python\Python312\` and `…\Python312\Scripts\`, and `…\Python312\python.exe` reports
+3.12.10. Only the running Claude Code process env is stale — its `$PATH` still resolves `python` to
+the WindowsApps Store stub, and `CLAUDE_ENV_FILE` is unset so there is no in-session escape hatch.
+The fix is a **full application restart** (quit and relaunch Claude Code / the terminal hosting it) —
+a new conversation or `/clear` in the same process will not help. All 7 Phase 0 plans verify via
+`python -m pytest`, so nothing in this phase can start before that.
