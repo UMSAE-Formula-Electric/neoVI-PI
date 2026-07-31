@@ -35,7 +35,16 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The worst-case IDs — rolling counters or checksums, multiplexed messages, and the highest-entropy analog channels — appear in the report with their own numbers rather than folded into the average
   3. The report states the resulting average and peak bit rate for the combined ~4,000 frames/s bus, directly comparable to the ~200–250 kbit/s usable radio budget
   4. A written go/no-go decision records either "full-bus streaming is viable" or names the specific critical-channel subset that will be streamed instead, and that decision is the input every later phase's link scope is built against
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+- [ ] 00-01-PLAN.md — Toolchain bootstrap, `src/telemetry/` package skeleton, and executable DBC ground-truth assertions
+- [ ] 00-02-PLAN.md — Tracer: end-to-end bytes/frame for one CAN ID with a byte-identical round trip
+- [ ] 00-03-PLAN.md — Structural signal classifier and worst-case category buckets (GATE-02)
+- [ ] 00-04-PLAN.md — Pre-registered pass threshold and checked-in modelling assumptions
+- [ ] 00-05-PLAN.md — Full-bus synthetic stream: rate model, entropy brackets, multiplexer cycling
+- [ ] 00-06-PLAN.md — Measurement engine: per-ID, per-category, worst-N, ablations, peak windows, bit rate
+- [ ] 00-07-PLAN.md — Run the gate, publish the report, author the go/no-go decision
 
 ### Phase 1: Dual-Path Capture — Durable Archive and Thin Live Link
 **Goal**: The car runs one logger that never loses a frame to disk and simultaneously delivers frames to a ground station over a swappable link, with no radio present
@@ -162,7 +171,7 @@ Phase 9 is hardware-gated and may slip past any later work without blocking it. 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Compression Ratio Gate | 0/TBD | Not started | - |
+| 0. Compression Ratio Gate | 0/7 | Planned | - |
 | 1. Dual-Path Capture — Durable Archive and Thin Live Link | 0/TBD | Not started | - |
 | 2. Python Ground Station and Dashboard Cutover | 0/TBD | Not started | - |
 | 3. Unattended On-Car Operation | 0/TBD | Not started | - |
