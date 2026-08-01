@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Dual-Path Capture
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-08-01T19:42:31.822Z"
+stopped_at: Completed 01-04-PLAN.md (tracer)
+last_updated: "2026-08-01T19:54:50.347Z"
 last_activity: 2026-08-01
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 20
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 01 (Dual-Path Capture) — EXECUTING
-Plan: 3 of 13
+Plan: 4 of 13
 Status: Ready to execute
 Last activity: 2026-08-01 — Phase 01 execution started
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 55%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [█████░░░░░] 50%
 | Phase 00 P07 | 25min | 1 tasks | 3 files |
 | Phase 01 P02 | 12min | 2 tasks | 15 files |
 | Phase 01 P03 | 20min | 1 tasks | 5 files |
+| Phase 01 P04 | 55min | 1 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,9 @@ Recent decisions affecting current work:
 - [Phase ?]: EMUS BMS _Ext-message modelling error (34 messages don't exist on the real standard-ID-only bus) recorded as a documented arithmetic correction (~261.85 kbit/s), not a re-run of the committed gate config
 - [Phase ?]: [Phase 1-02, 2026-08-01] python-ics pinned as python-ics==1!26.3.9 (PEP 440 epoch 1) in requirements.txt, correcting 01-RESEARCH.md's epoch-dropping illustrative install line; lz4 and zstandard pinned explicitly as mcap's transitive deps; requirements-dev.txt kept byte-identical as Phase 0 provenance record
 - [Phase ?]: [Phase 1-03, 2026-08-01] config/logger.json + typed loader mirrors telemetry.measure.config exactly (OPS-05); netid format validated without importing ics, real resolution is a test-only check; resolve_allowlist kept as a separate free function so config loading stays cantools/ics-free; telemetry.batch_max_age_s validated against wire/encoder.py's MAX_DELTA_T_US (imported, not restated); all 12 critical-channel allowlist names resolve against the real DBC; test_requirements_pinned cross-checks requirements.txt/requirements-dev.txt never drift (OPS-06)
+- [Phase ?]: Tracer (01-04): CRC-16 trailer placed inside the COBS envelope, not outside as RESEARCH.md Pattern 7 sketched, to preserve LINK-01's delimiter resync property
+- [Phase ?]: Tracer (01-04): one shared, encoding-less MCAP schema plus one channel per configured channel name (/can/{name}), verified against real mcap==1.4.0 Writer signatures
+- [Phase ?]: Tracer (01-04): recomputed critical-subset bit rate with the batcher's 1-byte length prefix is 81.94 kbit/s (was 74.62 kbit/s), still well under the 120 kbit/s pass bar
 
 ### Pending Todos
 
@@ -124,8 +128,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-01T19:42:31.809Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-08-01T19:54:50.333Z
+Stopped at: Completed 01-04-PLAN.md (tracer)
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.

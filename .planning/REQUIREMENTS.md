@@ -17,18 +17,18 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 
 - [ ] **CAP-01**: A single logger implementation captures both CAN buses concurrently; the duplicate implementation is removed from the repository
 - [ ] **CAP-02**: Capture sustains ~4,000 frames/s combined across both buses for a full session without dropping frames on the archive path
-- [ ] **CAP-03**: Capture fans out to two independent consumers whose overflow policies differ — the archive consumer never drops, the telemetry consumer never blocks
-- [ ] **CAP-04**: The telemetry consumer is structurally incapable of applying backpressure to the capture thread or the archive path
+- [x] **CAP-03**: Capture fans out to two independent consumers whose overflow policies differ — the archive consumer never drops, the telemetry consumer never blocks
+- [x] **CAP-04**: The telemetry consumer is structurally incapable of applying backpressure to the capture thread or the archive path
 - [ ] **CAP-05**: Frames the telemetry path discards are counted and reported, not silently dropped
 - [ ] **CAP-06**: Hardware and decode errors are logged with frame context rather than silently swallowed
 
 ### Archive
 
-- [ ] **ARCH-01**: Every captured frame is written to a local MCAP archive on the onboard NVMe
+- [x] **ARCH-01**: Every captured frame is written to a local MCAP archive on the onboard NVMe
 - [ ] **ARCH-02**: The archive survives an abrupt power cut mid-session with all data written before the cut intact and readable
 - [ ] **ARCH-03**: Archive durability is proven by a repeatable physical power-pull test, not by inspection
 - [ ] **ARCH-04**: Writes are flushed on a batched cadence rather than per record, so flushing never stalls capture
-- [ ] **ARCH-05**: A completed session is marked with a `.done` marker only after the archive is closed and flushed
+- [x] **ARCH-05**: A completed session is marked with a `.done` marker only after the archive is closed and flushed
 - [ ] **ARCH-06**: An archived session can be converted to MDF4 for use in standard analysis tools
 
 ### Wire Protocol
@@ -42,16 +42,16 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 
 ### Link and Framing
 
-- [ ] **LINK-01**: The encoded stream is batched and framed with COBS plus a CRC, so a corrupted byte stream resynchronizes at the next frame delimiter
-- [ ] **LINK-02**: Frames failing CRC are discarded and counted, never passed upstream
-- [ ] **LINK-03**: Transport is abstracted so the same stream runs over loopback, UDP/Wi-Fi, or a serial port with no change to the layers above
-- [ ] **LINK-04**: The full chain runs end to end with no radio hardware present
+- [x] **LINK-01**: The encoded stream is batched and framed with COBS plus a CRC, so a corrupted byte stream resynchronizes at the next frame delimiter
+- [x] **LINK-02**: Frames failing CRC are discarded and counted, never passed upstream
+- [x] **LINK-03**: Transport is abstracted so the same stream runs over loopback, UDP/Wi-Fi, or a serial port with no change to the layers above
+- [x] **LINK-04**: The full chain runs end to end with no radio hardware present
 - [ ] **LINK-05**: When the link saturates, the sender drops the oldest pending data rather than queuing it, so delivered data stays fresh
 - [ ] **LINK-06**: A saturation test demonstrates that end-to-end latency stays flat at p99 as offered load exceeds link capacity
 
 ### Ground Station
 
-- [ ] **GND-01**: The ground station receives the framed stream, decompresses it, and decodes signals against the DBC
+- [x] **GND-01**: The ground station receives the framed stream, decompresses it, and decodes signals against the DBC
 - [ ] **GND-02**: The ground station runs as a single process serving both the decode pipeline and the browser dashboard
 - [ ] **GND-03**: The Node.js server is retired and removed from the repository
 - [ ] **GND-04**: The ground station maintains current signal state and pushes updates to connected browsers
@@ -144,23 +144,23 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | GATE-03 | Phase 0 | Complete |
 | CAP-01 | Phase 1 | Pending |
 | CAP-02 | Phase 1 | Pending |
-| CAP-03 | Phase 1 | Pending |
-| CAP-04 | Phase 1 | Pending |
+| CAP-03 | Phase 1 | Complete |
+| CAP-04 | Phase 1 | Complete |
 | CAP-05 | Phase 1 | Pending |
 | CAP-06 | Phase 1 | Pending |
-| ARCH-01 | Phase 1 | Pending |
+| ARCH-01 | Phase 1 | Complete |
 | ARCH-02 | Phase 1 | Pending |
 | ARCH-03 | Phase 1 | Pending |
 | ARCH-04 | Phase 1 | Pending |
-| ARCH-05 | Phase 1 | Pending |
+| ARCH-05 | Phase 1 | Complete |
 | ARCH-06 | Phase 8 | Pending |
-| LINK-01 | Phase 1 | Pending |
-| LINK-02 | Phase 1 | Pending |
-| LINK-03 | Phase 1 | Pending |
-| LINK-04 | Phase 1 | Pending |
+| LINK-01 | Phase 1 | Complete |
+| LINK-02 | Phase 1 | Complete |
+| LINK-03 | Phase 1 | Complete |
+| LINK-04 | Phase 1 | Complete |
 | LINK-05 | Phase 5 | Pending |
 | LINK-06 | Phase 5 | Pending |
-| GND-01 | Phase 1 | Pending |
+| GND-01 | Phase 1 | Complete |
 | GND-02 | Phase 2 | Pending |
 | GND-03 | Phase 2 | Pending |
 | GND-04 | Phase 2 | Pending |
