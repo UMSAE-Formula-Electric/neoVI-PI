@@ -16,6 +16,7 @@ import cantools
 import pytest
 from pathlib import Path
 
+from telemetry.logger.config import LoggerConfig, load_logger_config
 from telemetry.measure.config import GateConfig, load_gate_config
 
 DBC_FILENAME = "epbr2026_DBC_v1.0.dbc"
@@ -51,3 +52,12 @@ def gate_config() -> GateConfig:
     single source of every rate-model, entropy-bracket, and bus-target
     assumption a test needs, never duplicated as a literal in a test file."""
     return load_gate_config(GateConfig.default_path())
+
+
+@pytest.fixture(scope="session")
+def logger_config() -> LoggerConfig:
+    """The checked-in `config/logger.json`, loaded exactly once per test
+    session via the typed loader (`src/telemetry/logger/config.py`) — the
+    single source of every channel, archive, telemetry, and link setting a
+    test needs, never duplicated as a literal in a test file."""
+    return load_logger_config(LoggerConfig.default_path())

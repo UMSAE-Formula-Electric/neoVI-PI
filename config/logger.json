@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "dbc_path": "epbr2026_DBC_v1.0.dbc",
+  "channels": [
+    {"name": "MAIN", "netid": "NETID_HSCAN", "bus": "bus1"},
+    {"name": "SENSOR", "netid": "NETID_HSCAN2", "bus": "bus2"}
+  ],
+  "capture": {
+    "poll_interval_s": 0.01,
+    "hardware_serial": null
+  },
+  "archive": {
+    "root_dir": "sessions",
+    "queue_depth": 50000,
+    "flush_every_records": 1000,
+    "flush_every_s": 0.25,
+    "done_marker_filename": ".done"
+  },
+  "telemetry": {
+    "queue_depth": 1000,
+    "batch_frames": 100,
+    "batch_max_age_s": 0.05,
+    "allowlist": [
+      "M176_Fast_Info",
+      "M192_Command_Message",
+      "M166_Current_Info",
+      "M167_Voltage_Info",
+      "CAN_WHEEL_SPEED",
+      "BRAKE_TEMPS",
+      "M195_Pedal_Press_Percent",
+      "Battery_Volt_1_Overall_Param_Std",
+      "CAN_VEHICLE_SPEED",
+      "HTL_CH_ID_SAFETY_LOOP_STATUS",
+      "HTL_CH_ID_BRAKE_PRESSED",
+      "M160_Temperature_Set_1"
+    ]
+  },
+  "link": {
+    "kind": "loopback",
+    "udp": {
+      "local_host": "127.0.0.1",
+      "local_port": 9700,
+      "remote_host": "127.0.0.1",
+      "remote_port": 9701,
+      "recv_bufsize": 8192
+    }
+  }
+}
