@@ -8,6 +8,8 @@ the aggregation-engine tests (per-ID, per-category, worst-N, ablations,
 peak windows, bit rate) for `telemetry.measure.report`.
 """
 
+import dataclasses
+
 import pytest
 
 from telemetry.wire.overhead import (
@@ -311,6 +313,28 @@ def test_build_report_worst_n_independent_of_categories_and_threshold_comparison
 
     assert report["meta"]["input_provenance"]
     assert report["meta"]["known_limitation"]
+
+
+def test_build_report_raises_when_peak_window_s_not_in_peak_windows_s(gate_config):
+    # WR-03: thresholds.peak_window_s and peak_windows_s have no enforced
+    # relationship in gate.json. A mismatch must raise loudly rather than
+    # silently reporting a 0.0 kbit/s peak as trivially passing.
+    id_specs = [(0x100, False, 10, 100.0, 110.0)]
+    full = _make_measurement(id_specs)
+    ablation_measurements = {"typical": {name: full for name in ABLATIONS}}
+    mismatched_thresholds = dataclasses.replace(gate_config.thresholds, peak_window_s=5.0)
+
+    with pytest.raises(ValueError, match="peak_window_s"):
+        build_report(
+            ablation_measurements=ablation_measurements,
+            duration_s=1.0,
+            rates=[],
+            classifications={},
+            worst_n=1,
+            peak_windows_s=[0.1, 1.0],  # 5.0 deliberately absent
+            thresholds=mismatched_thresholds,
+            meta={"input_provenance": "x", "known_limitation": "y"},
+        )
 
 
 def test_write_report_csv_one_row_per_bracket_and_id(tmp_path, gate_config):

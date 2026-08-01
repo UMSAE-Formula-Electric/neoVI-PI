@@ -380,7 +380,18 @@ def _threshold_comparison(brackets: Dict[str, dict], thresholds) -> List[dict]:
     }
 
     peak_label = _window_label(thresholds.peak_window_s)
-    peak_window = gating["peaks"]["windows"].get(peak_label, {"peak_bits_per_s": 0.0})
+    peak_window = gating["peaks"]["windows"].get(peak_label)
+    if peak_window is None:
+        # WR-03: thresholds.peak_window_s and peak_windows_s are two
+        # independently-overridable gate.json values with no enforced
+        # relationship. Defaulting to {"peak_bits_per_s": 0.0} here would
+        # silently report the peak criterion as trivially passing instead
+        # of surfacing the mismatch.
+        raise ValueError(
+            f"thresholds.peak_window_s={thresholds.peak_window_s} produced "
+            f"label {peak_label!r}, which is not in "
+            f"peak_windows_s={sorted(gating['peaks']['windows'])}"
+        )
     peak_measured_kbps = peak_window["peak_bits_per_s"] / 1000.0
     peak_entry = {
         "criterion": "peak_kbps",
