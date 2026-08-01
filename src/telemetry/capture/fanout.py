@@ -24,13 +24,20 @@ things, neither of which can block:
 `deque(maxlen=N).append()` gives no signal that it evicted anything, so
 CAP-05's discard-counting requirement is implemented by checking fullness
 **before** the append, never by inspecting the deque afterward.
+
+Threading note: `FanOutCounters` is written only by the capture thread
+that calls `submit()` and is read by other threads only after that
+capture thread has stopped (e.g. after `join()`), so no lock guards it —
+single-item `deque.append()` and `Queue.put_nowait()` are each
+individually safe under the GIL, and there is no read-modify-write across
+threads while capture is running.
 """
 
 import logging
 import queue
 import threading
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Deque, FrozenSet, NamedTuple, Tuple
 
 from telemetry.wire.frame_source import RawFrame
@@ -51,18 +58,28 @@ class CapturedFrame(NamedTuple):
 @dataclass
 class FanOutCounters:
     """Mutable, shared counters (CAP-05/CAP-06): both queues' high-water
-    marks, the telemetry discard count, and whether the archive queue has
-    ever overflowed. `archive_write_failure` is set by
+    marks, throughput accounting, and the telemetry discard/filter counts —
+    each counted separately so the live path's loss rate is a set of exact
+    numbers, never an inference. `archive_write_failure` is set by
     `telemetry.archive.runner.ArchiveRunner` (not by this module — this
     dataclass is a plain data holder with no dependency on the archive
-    package in either direction) when the archive writer itself raises,
-    the durability-side counterpart to `archive_overflow` above."""
+    package in either direction), the durability-side counterpart to
+    `archive_overflow` below."""
 
+    # Throughput accounting.
+    frames_submitted: int = 0
+    archive_enqueued: int = 0
+    telemetry_enqueued: int = 0
+
+    # Archive side (CAP-03: never drops; a full queue is fatal).
     archive_high_water_mark: int = 0
-    telemetry_high_water_mark: int = 0
-    telemetry_discard_count: int = 0
     archive_overflow: bool = False
     archive_write_failure: bool = False
+
+    # Telemetry side (CAP-05: exact discard/filter accounting).
+    telemetry_high_water_mark: int = 0
+    telemetry_discard_count: int = 0  # dropped by drop-oldest overflow
+    telemetry_filtered_count: int = 0  # not on the allowlist — not a discard
 
 
 class FanOut:
@@ -84,33 +101,41 @@ class FanOut:
     def submit(self, captured: CapturedFrame) -> None:
         """Fan `captured` out to the archive queue (never-drop, fatal if
         full) and, if allowlisted, the telemetry deque (drop-oldest).
-        Neither branch can block or be blocked by the other."""
+        Neither branch can block or be blocked by the other, and this call
+        never raises `queue.Full` to the caller."""
+        self.counters.frames_submitted += 1
+
         try:
             self.archive_queue.put_nowait(captured)
         except queue.Full:
             logger.critical(
                 "archive queue full — durability guarantee at risk; "
-                "stopping session (channel=%s frame_id=0x%X is_extended=%s)",
+                "stopping session (channel=%s frame_id=0x%X is_extended=%s "
+                "timestamp_us=%d)",
                 captured.channel,
                 captured.frame.frame_id,
                 captured.frame.is_extended,
+                captured.frame.timestamp_us,
             )
             self.counters.archive_overflow = True
             self.stop_event.set()
             return
 
+        self.counters.archive_enqueued += 1
         self.counters.archive_high_water_mark = max(
             self.counters.archive_high_water_mark, self.archive_queue.qsize()
         )
 
         key: AllowlistKey = (captured.frame.frame_id, captured.frame.is_extended)
         if key not in self.telemetry_allowlist:
+            self.counters.telemetry_filtered_count += 1
             return
 
         was_full = len(self.telemetry_queue) == self.telemetry_queue.maxlen
         self.telemetry_queue.append(captured)
         if was_full:
             self.counters.telemetry_discard_count += 1
+        self.counters.telemetry_enqueued += 1
         self.counters.telemetry_high_water_mark = max(
             self.counters.telemetry_high_water_mark, len(self.telemetry_queue)
         )
