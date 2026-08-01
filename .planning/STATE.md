@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 00
 current_phase_name: Compression Ratio Gate
 status: executing
-stopped_at: Completed 00-03-PLAN.md
-last_updated: "2026-08-01T03:15:39.240Z"
+stopped_at: Completed 00-04-PLAN.md
+last_updated: "2026-08-01T03:29:05.068Z"
 last_activity: 2026-07-31
 last_activity_desc: Phase 00 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-30)
 ## Current Position
 
 Phase: 00 (Compression Ratio Gate) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-07-31 — Phase 00 execution started
 
-Progress: [████░░░░░░] 43%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [████░░░░░░] 43%
 | Phase 00 P01 | 15min | 3 tasks | 10 files |
 | Phase 00 P02 | 20min | 2 tasks | 8 files |
 | Phase 00 P03 | 25min | 2 tasks | 2 files |
+| Phase 00 P04 | 20min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Recent decisions affecting current work:
 - [Phase ?]: INV_Diag_Buffer confirmed genuinely extended-ID (is_extended_frame=True, frame_id 0xAA5) via direct cantools measurement before use as the extended-ID ablation subject, independent of its separate multiplexed-message correction from 00-01
 - [Phase ?]: [Phase 0-03, 2026-08-01] Corrected the plan's own Task 2 behavior block, which had inherited RESEARCH.md's wrong third-multiplexed-message figure (INV_Diag_Buffer instead of the measured M175_Diag_Data_Message, already corrected once in 00-01-SUMMARY.md); the classifier test pins the measured set.
 - [Phase ?]: [Phase 0-03, 2026-08-01] The structural checksum rule measures 12 candidate messages on this DBC (heartbeats, fault codes, SOH values), not the empty bucket the plan anticipated -- reported as an inspectable, non-empty candidate list per T-00-10 rather than forced to an assumed-empty count; likely false positives per RESEARCH.md's flagged Assumption A2 risk, to be hand-reviewed when GATE-02's report is written in plan 00-06.
+- [Phase ?]: [Phase 0-04, 2026-07-31] Pre-registered the D-13 pass threshold (option-a: 200 kbit/s baseline, 120/170 kbit/s average/peak caps, 40%/15% headroom, typical bracket gates) in 00-THRESHOLD.md and checked in every D-12 modelling assumption to config/gate.json behind a typed loader (src/telemetry/measure/config.py) that raises GateConfigError rather than defaulting on malformed input.
+- [Phase ?]: [Phase 0-04, 2026-07-31] User added a fifth confirmed:false assumption beyond the plan's original four: total bus frame rate. Verified against cantools that only 19/128 DBC messages declare GenMsgCycleTime (summing to ~1,690.67 fps); the prose-cited ~3,730-4,000 fps combined figure is not DBC-derivable. Recorded in gate.json's bus_targets/default_period_ms_by_ecu and surfaced in 00-THRESHOLD.md alongside the pre-registered 6-byte/frame CFR header-floor risk (179-192 kbit/s at the prose rate vs 81 kbit/s at the DBC floor), which is explicitly not grounds to move the bar if it fires.
 
 ### Pending Todos
 
@@ -103,8 +106,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-01T03:15:39.228Z
-Stopped at: Completed 00-03-PLAN.md
+Last session: 2026-08-01T03:29:05.048Z
+Stopped at: Completed 00-04-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` (or `/gsd-execute-phase 00`) to continue with plan 00-02.

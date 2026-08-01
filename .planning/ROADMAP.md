@@ -39,7 +39,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The report states the resulting average and peak bit rate for the combined ~4,000 frames/s bus, directly comparable to the ~200–250 kbit/s usable radio budget
   4. A written go/no-go decision records either "full-bus streaming is viable" or names the specific critical-channel subset that will be streamed instead, and that decision is the input every later phase's link scope is built against
 
-**Plans**: 3/7 plans executed
+**Plans**: 4/7 plans executed
 
 Plans:
 **Wave 1**
@@ -50,7 +50,7 @@ Plans:
 
 - [x] 00-02-PLAN.md — Tracer: end-to-end bytes/frame for one CAN ID with a byte-identical round trip
 - [x] 00-03-PLAN.md — Structural signal classifier and worst-case category buckets (GATE-02)
-- [ ] 00-04-PLAN.md — Pre-registered pass threshold and checked-in modelling assumptions
+- [x] 00-04-PLAN.md — Pre-registered pass threshold and checked-in modelling assumptions
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -216,7 +216,7 @@ Phase 9 is hardware-gated and may slip past any later work without blocking it. 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Compression Ratio Gate | 3/7 | In Progress|  |
+| 0. Compression Ratio Gate | 4/7 | In Progress|  |
 | 1. Dual-Path Capture — Durable Archive and Thin Live Link | 0/TBD | Not started | - |
 | 2. Python Ground Station and Dashboard Cutover | 0/TBD | Not started | - |
 | 3. Unattended On-Car Operation | 0/TBD | Not started | - |
