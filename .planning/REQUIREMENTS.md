@@ -154,9 +154,9 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | ARCH-04 | Phase 1 | Complete |
 | ARCH-05 | Phase 1 | Complete |
 | ARCH-06 | Phase 8 | Pending |
-| LINK-01 | Phase 1 | Pending |
+| LINK-01 | Phase 1 | Complete |
 | LINK-02 | Phase 1 | Pending |
-| LINK-03 | Phase 1 | Pending |
+| LINK-03 | Phase 1 | Complete |
 | LINK-04 | Phase 1 | Pending |
 | LINK-05 | Phase 5 | Pending |
 | LINK-06 | Phase 5 | Pending |
