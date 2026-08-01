@@ -1,35 +1,53 @@
 """
-telemetry.measure.cli — the Phase 0 tracer-slice entry point.
+telemetry.measure.cli — the Phase 0 full-matrix measurement entry point.
 
-`python -m telemetry.measure.cli --only-message M192_Command_Message` runs
-the whole spine end to end: DBC load -> ID dictionary -> synthetic frame
-source -> CFR encoder -> matching decoder (round-trip proof) -> per-ID
-aggregation -> `00-REPORT.json` on disk. Mirrors `src/new_logger.py::main`'s
-argparse shape and its `log()`-to-stderr / data-to-file convention — this
-tool's report is a file artifact, not stdout, so stdout stays empty for any
-future scripting that pipes this CLI's output.
+`python -m telemetry.measure.cli` runs the whole spine end to end for every
+requested entropy bracket (default: all three — best/typical/worst) crossed
+with every requested D-10 ablation (default: all four — full,
+no_sequence_byte, raw_payload, no_dictionary): DBC load -> ID dictionary ->
+D-03 rate model -> D-04 structural classification -> one materialized
+synthetic frame list per bracket -> CFR encoder/decoder per ablation
+(round-trip proof, every time) -> the full per-ID/per-category/worst-N/
+ablation/peak-window report -> `00-REPORT.json` and `00-REPORT.csv` on disk.
+
+Mirrors `src/new_logger.py::main`'s argparse shape and its `log()`-to-stderr
+convention — this tool's reports are file artifacts, not stdout, so stdout
+carries exactly one line (the gating-bracket summary) for any future
+scripting that pipes this CLI's output.
 """
 
 import argparse
 import sys
+import time
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Dict
 
 from telemetry.wire.decoder import Decoder
 from telemetry.wire.dictionary import DbcLoadError, build_id_dictionary, load_dbc
 from telemetry.wire.encoder import Encoder
+from telemetry.synth.entropy import BRACKET_NAMES
 from telemetry.synth.generator import SyntheticFrameSource
+from telemetry.synth.rates import assign_rates, bus_totals
+from telemetry.measure.classify import classify_database
 from telemetry.measure.config import GateConfig, GateConfigError, load_gate_config
-from telemetry.measure.report import build_report, measure_stream, write_report_json
+from telemetry.measure.report import (
+    ABLATIONS,
+    StreamMeasurement,
+    ablation_options,
+    build_report,
+    measure_stream,
+    write_report_csv,
+    write_report_json,
+)
 
 DBC_FILENAME = "epbr2026_DBC_v1.0.dbc"
 # Repo-root-relative default: cli.py -> measure/ -> telemetry/ -> src/ -> repo root.
 DEFAULT_DBC_PATH = str(Path(__file__).resolve().parents[3] / DBC_FILENAME)
 
-REPORT_FILENAME = "00-REPORT.json"
-
-DEFAULT_DURATION_S = 5.0
-DEFAULT_BATCH_FRAMES = 100
+REPORT_JSON_FILENAME = "00-REPORT.json"
+REPORT_CSV_FILENAME = "00-REPORT.csv"
 
 
 def log(*args, **kwargs):
@@ -40,8 +58,10 @@ def main():
     p = argparse.ArgumentParser(
         description=(
             "Phase 0 compression-ratio measurement — runs the DBC-to-report "
-            "spine (dictionary, synthetic frame source, CFR encoder/decoder, "
-            "per-ID aggregation) and writes 00-REPORT.json."
+            "spine (dictionary, rate model, synthetic frame source, CFR "
+            "encoder/decoder round-trip proof, per-ID/category/worst-N/"
+            "ablation/peak aggregation) across every requested entropy "
+            "bracket and D-10 ablation, and writes 00-REPORT.json/.csv."
         )
     )
     p.add_argument(
@@ -52,13 +72,7 @@ def main():
     p.add_argument(
         "--out-dir",
         default=".",
-        help=f"Directory to write {REPORT_FILENAME} into.",
-    )
-    p.add_argument(
-        "--seed",
-        type=int,
-        default=None,
-        help="Override the seed from gate.json for the synthetic generator.",
+        help=f"Directory to write {REPORT_JSON_FILENAME}/{REPORT_CSV_FILENAME} into.",
     )
     p.add_argument(
         "--gate-config",
@@ -66,22 +80,32 @@ def main():
         help="Path to gate.json (default: the phase's checked-in config).",
     )
     p.add_argument(
-        "--bracket",
+        "--brackets",
+        action="append",
         default=None,
-        choices=["best", "typical", "worst"],
-        help="Entropy bracket to generate (default: gate.json's gating_bracket).",
+        dest="brackets",
+        choices=list(BRACKET_NAMES),
+        help="Entropy bracket(s) to run (repeatable; default: all three).",
+    )
+    p.add_argument(
+        "--ablations",
+        action="append",
+        default=None,
+        dest="ablations",
+        choices=list(ABLATIONS),
+        help="D-10 ablation(s) to run (repeatable; default: all four).",
     )
     p.add_argument(
         "--duration-s",
         type=float,
-        default=DEFAULT_DURATION_S,
-        help="Synthetic stream duration in seconds.",
+        default=None,
+        help="Override gate.json's duration_s (recorded in meta as an override).",
     )
     p.add_argument(
-        "--batch-frames",
+        "--seed",
         type=int,
-        default=DEFAULT_BATCH_FRAMES,
-        help="Target batch size (frames) for the CFR batching window.",
+        default=None,
+        help="Override gate.json's seed (recorded in meta as an override).",
     )
     p.add_argument(
         "--only-message",
@@ -90,14 +114,33 @@ def main():
         dest="only_message",
         help="Restrict the stream to this message name (repeatable).",
     )
+    p.add_argument(
+        "--fail-on-roundtrip-mismatch",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Abort and write no report on any round-trip mismatch (default: "
+            "on). GATE-01 prohibits reporting a bytes/frame number for an "
+            "encoding not proven reversible (T-00-23) -- round-trip "
+            "verification stays mandatory regardless of this flag."
+        ),
+    )
     args = p.parse_args()
+
+    if not args.fail_on_roundtrip_mismatch:
+        log(
+            "[WARN] --no-fail-on-roundtrip-mismatch was requested, but "
+            "GATE-01/T-00-23 prohibit reporting a bytes/frame number for any "
+            "encoding not proven reversible in the same pass that counts it "
+            "-- round-trip verification stays mandatory regardless of this "
+            "flag."
+        )
 
     try:
         db = load_dbc(args.dbc)
     except DbcLoadError as exc:
         log(f"[ERROR] {exc}")
         raise SystemExit(1) from exc
-
     log(f"Loaded DBC: {args.dbc}  ({len(db.messages)} messages)")
 
     dictionary = build_id_dictionary(db, dbc_path=args.dbc)
@@ -106,57 +149,160 @@ def main():
         f"dict_version={dictionary.dict_version}"
     )
 
-    # Plan 00-04 made gate.json the single source of modelling assumptions, so
-    # the generator is driven from it rather than from CLI defaults. --seed
-    # still overrides, because reproducing a specific run is a debugging need.
     try:
         config = load_gate_config(args.gate_config or GateConfig.default_path())
     except GateConfigError as exc:
         log(f"[ERROR] {exc}")
         raise SystemExit(1) from exc
-    if args.seed is not None:
+
+    seed_overridden = args.seed is not None
+    if seed_overridden:
         config = replace(config, seed=args.seed)
-    bracket = args.bracket or config.thresholds.gating_bracket
 
-    source = SyntheticFrameSource(
-        db=db,
-        dictionary=dictionary,
-        config=config,
-        bracket_name=bracket,
-        duration_s=args.duration_s,
-        only_message_names=args.only_message,
-    )
+    duration_overridden = args.duration_s is not None
+    duration_s = args.duration_s if duration_overridden else config.duration_s
 
-    encoder = Encoder(dictionary)
-    decoder = Decoder(dictionary)
+    brackets_to_run = args.brackets or list(BRACKET_NAMES)
+    ablations_to_run = args.ablations or list(ABLATIONS)
 
-    log(
-        f"Measuring: duration={args.duration_s}s seed={config.seed} "
-        f"bracket={bracket} batch_frames={args.batch_frames} "
-        f"only_message={args.only_message or 'ALL'}"
-    )
+    classifications = classify_database(db)
+    rates = assign_rates(db, config)
+    achieved_bus_fps = bus_totals(rates)
 
-    measurement = measure_stream(source, encoder, decoder, args.batch_frames)
+    start = time.monotonic()
+    ablation_measurements: Dict[str, Dict[str, StreamMeasurement]] = {}
+
+    for bracket_name in brackets_to_run:
+        # Materialized exactly once per bracket and reused across every
+        # ablation below: the ablations are only comparable if they encode
+        # identical frames, and regenerating the stream once per ablation
+        # would multiply the dominant cost of the run.
+        source = SyntheticFrameSource(
+            db=db,
+            dictionary=dictionary,
+            config=config,
+            bracket_name=bracket_name,
+            duration_s=duration_s,
+            only_message_names=args.only_message,
+        )
+        frames = list(source.frames())
+        log(
+            f"Bracket {bracket_name}: materialized {len(frames)} frames "
+            f"(elapsed={time.monotonic() - start:.2f}s)"
+        )
+
+        per_ablation: Dict[str, StreamMeasurement] = {}
+        for ablation_name in ablations_to_run:
+            options = ablation_options(ablation_name)
+            encoder = Encoder(dictionary, options)
+            decoder = Decoder(dictionary, options)
+            measurement = measure_stream(frames, encoder, decoder, config.batch_frames)
+            per_ablation[ablation_name] = measurement
+            log(
+                f"Bracket {bracket_name} ablation {ablation_name}: "
+                f"{measurement.bytes_per_frame:.3f} clean bytes/frame "
+                f"(elapsed={time.monotonic() - start:.2f}s)"
+            )
+        ablation_measurements[bracket_name] = per_ablation
 
     meta = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "dbc_path": str(args.dbc),
+        "dbc_message_count": len(db.messages),
         "dict_version": dictionary.dict_version,
+        "config_hash": config.config_hash,
         "seed": config.seed,
-        "bracket": bracket,
-        "duration_s": args.duration_s,
-        "batch_frames": args.batch_frames,
+        "seed_source": "cli_override" if seed_overridden else "gate_config",
+        "duration_s": duration_s,
+        "duration_s_source": "cli_override" if duration_overridden else "gate_config",
+        "batch_frames": config.batch_frames,
+        "worst_n": config.worst_n,
+        "peak_windows_s": config.peak_windows_s,
+        "bus_assignment_confirmed": bool(config.bus_assignment.get("confirmed", False)),
+        "bus_targets": {
+            name: {"load_pct": bt.load_pct, "target_fps": bt.target_fps}
+            for name, bt in config.bus_targets.items()
+        },
+        "achieved_bus_fps": achieved_bus_fps,
+        "thresholds": {
+            "baseline_budget_kbps": config.thresholds.baseline_budget_kbps,
+            "gating_bracket": config.thresholds.gating_bracket,
+            "max_average_kbps": config.thresholds.max_average_kbps,
+            "max_peak_kbps": config.thresholds.max_peak_kbps,
+            "peak_window_s": config.thresholds.peak_window_s,
+            "required_average_headroom_pct": config.thresholds.required_average_headroom_pct,
+            "required_peak_headroom_pct": config.thresholds.required_peak_headroom_pct,
+        },
         "only_message": args.only_message,
+        "fail_on_roundtrip_mismatch": args.fail_on_roundtrip_mismatch,
+        "input_provenance": (
+            f"Every frame in this report is synthesized from {DBC_FILENAME} "
+            "(D-01) via telemetry.synth.generator.SyntheticFrameSource -- "
+            "this is a modelled stream, not a captured vehicle log."
+        ),
+        "known_limitation": (
+            "Payload entropy is exactly the quantity this gate exists to "
+            "measure, and synthetic data has only the entropy the model in "
+            "config/gate.json's entropy_brackets gives it. The compensating "
+            "controls are the three-bracket (best/typical/worst) band "
+            "reported below and the D-14 worst-case re-check against real "
+            "captured traffic in Phase 1."
+        ),
+        "bus_assignment_caveat": (
+            "bus_assignment.confirmed is False: epbr2026_DBC_v1.0.dbc names "
+            "no per-message bus, so which of these messages rides bus1 vs "
+            "bus2 is a human-authored ECU-sender proxy, not a DBC-derived "
+            "fact (see config/gate.json bus_assignment._note)."
+        ),
+        "bus_targets_caveat": (
+            "bus_targets.confirmed is False: the combined bus frame rate "
+            "this run's rate model targets is prose-sourced "
+            "(telemetry_conversation.md/CLAUDE.md), not derivable from "
+            "epbr2026_DBC_v1.0.dbc -- see config/gate.json bus_targets._note "
+            "and 00-THRESHOLD.md's pre-registered header-overhead risk."
+        ),
+        "default_period_confirmed": bool(
+            config.default_period_ms_by_ecu.get("confirmed", False)
+        ),
     }
-    report = build_report(measurement, meta)
 
-    out_path = Path(args.out_dir) / REPORT_FILENAME
-    write_report_json(report, out_path)
+    report = build_report(
+        ablation_measurements=ablation_measurements,
+        duration_s=duration_s,
+        rates=rates,
+        classifications=classifications,
+        worst_n=config.worst_n,
+        peak_windows_s=config.peak_windows_s,
+        thresholds=config.thresholds,
+        meta=meta,
+    )
 
-    log(f"Wrote report: {out_path}")
-    log(
-        f"Aggregate: {measurement.total_frames} frames, "
-        f"{measurement.total_bytes} bytes, "
-        f"{measurement.bytes_per_frame:.3f} bytes/frame"
+    out_dir = Path(args.out_dir)
+    json_path = out_dir / REPORT_JSON_FILENAME
+    csv_path = out_dir / REPORT_CSV_FILENAME
+    write_report_json(report, json_path)
+    write_report_csv(report, csv_path)
+
+    log(f"Wrote reports: {json_path}, {csv_path}")
+
+    gating_bracket = config.thresholds.gating_bracket
+    if gating_bracket in report["brackets"]:
+        summary_bracket = gating_bracket
+    else:
+        # A narrowed --brackets run (e.g. only "worst") never ran the
+        # official gating bracket -- summarize whichever bracket did run
+        # rather than KeyError, and say so explicitly so the one stdout
+        # line is never mistaken for the gate's real go/no-go bracket.
+        summary_bracket = next(iter(report["brackets"]))
+        log(
+            f"[WARN] gating_bracket={gating_bracket!r} was not run "
+            f"(--brackets={brackets_to_run}) -- summarizing {summary_bracket!r} "
+            f"instead; this is NOT the bracket 00-THRESHOLD.md gates on"
+        )
+    summary_kbps = report["brackets"][summary_bracket]["aggregate"]["kbps_all_in"]
+    print(
+        f"{summary_bracket} bracket all-in average: {summary_kbps:.2f} kbit/s "
+        f"(ceiling: {config.thresholds.max_average_kbps:.2f} kbit/s)"
     )
 
 
