@@ -23,7 +23,7 @@ created: 2026-08-01
 | Property | Value |
 |----------|-------|
 | **Framework** | pytest 9.1.1 — installed, 127 tests currently passing |
-| **Config file** | `pytest.ini` (`pythonpath = src`, `testpaths = tests`, `addopts = -ra`) — Wave 0 creates it |
+| **Config file** | `pytest.ini` — **already exists and is tracked** (`pythonpath = src`, `testpaths = tests`, `addopts = -ra`); Wave 0 only adds the `slow` marker registration |
 | **Quick run command** | `python -m pytest -x -q --tb=short -m "not slow"` |
 | **Full suite command** | `python -m pytest -q` |
 | **Estimated runtime** | ~5 s quick (current suite is 3.75 s), soak test excluded from quick |
@@ -67,8 +67,11 @@ the planner must attach each row's automated command to the task that implements
 
 ## Wave 0 Requirements
 
-- [ ] `pytest.ini` — `pythonpath = src`, `testpaths = tests`, and a registered `slow` marker so
-      the soak test is excludable from the quick loop
+- [ ] `pytest.ini` — exists already; add only the registered `slow` marker so the soak test is
+      excludable from the quick loop
+- [ ] `requirements.txt` — OPS-06's runtime manifest. Note `requirements-dev.txt` already exists
+      but is explicitly Phase-0-scoped ("do not extend this file with runtime dependencies");
+      Phase 1 owns the new full manifest and should reconcile the two rather than duplicating pins
 - [ ] `tests/test_fanout.py` — CAP-01/02/03/04/05/06
 - [ ] `tests/test_archive_writer.py` — ARCH-01/04, exercises the writer directly
 - [ ] `tests/test_archive_crash_recovery.py` — ARCH-02/03 automated half; MUST carry an inline

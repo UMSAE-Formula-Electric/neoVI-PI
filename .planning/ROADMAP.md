@@ -78,7 +78,46 @@ Plans:
   4. A frame captured on the car arrives at the ground station decoded against the DBC, having crossed the batching, COBS+CRC framing, and link layers, with no radio hardware anywhere in the chain and corrupt batches discarded and counted instead of passed upstream
   5. Channels, DBC path, and link settings are read from a config file with no source edit, and a clean machine can be provisioned from the dependency manifest
 
-**Plans**: TBD
+**Plans**: 13 plans
+
+> **Scope note on criterion 1:** the "duplicate implementation is gone from the repository"
+> clause is deliberately NOT delivered in Phase 1. The user chose to keep
+> `src/neoVI_logger.py`, `src/new_logger.py`, `src/references.py`, and `src/neoVI_sender.py`
+> in place through Phase 1 for rollback safety (`01-CONTEXT.md` § Deferred Ideas). Phase 1
+> delivers CAP-01's other half — one new implementation captures both buses concurrently —
+> and the removal clause re-targets to Phase 2, which is already the retirement phase.
+
+Plans:
+**Wave 1**
+
+- [ ] 01-01-PLAN.md — Package legitimacy gate for mcap, cobs, crccheck, and python-ics (blocking human checkpoint)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 01-02-PLAN.md — Pinned runtime manifest, slow marker, and placeholder test files for every Wave 0 gap
+- [ ] 01-03-PLAN.md — `config/logger.json` and its typed fail-closed loader, including the 12-message allowlist
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 01-04-PLAN.md — Tracer: one frame through capture → archive AND capture → encode → frame → link → deframe → DBC decode
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 01-05-PLAN.md — Crash-recovery read path, session naming fallback, and the physical power-pull procedure
+- [ ] 01-06-PLAN.md — Archive writer flush cadence, sync accounting, and the drain thread
+- [ ] 01-07-PLAN.md — Fan-out hardening: divergent overflow, exact discard counting, errors with frame context
+- [ ] 01-08-PLAN.md — Framing corruption and resync proofs, plus the UDP link
+- [ ] 01-09-PLAN.md — python-ics hardware capture source, proven with no device attached
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 01-10-PLAN.md — Car-side telemetry pipeline and logger CLI with a shutdown counters report
+- [ ] 01-11-PLAN.md — Headless ground station and the two-process capture-to-pit run over UDP
+- [ ] 01-12-PLAN.md — Archive replay frame source and a real-log input path for the Phase 0 gate
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 01-13-PLAN.md — Sustained full-rate soak with per-stage timing and reported counters
 
 ### Phase 2: Python Ground Station and Dashboard Cutover
 
