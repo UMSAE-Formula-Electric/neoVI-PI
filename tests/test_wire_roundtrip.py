@@ -59,13 +59,18 @@ def test_cfr_header_struct_shape():
     assert CFR_HEADER_STRUCT.format == "<BBBHB"
 
 
-def test_traced_message_roundtrip_byte_identical(dbc, dictionary):
+def test_traced_message_roundtrip_byte_identical(dbc, dictionary, gate_config):
     """Every synthetic frame for M192_Command_Message decodes back
     byte-identical, and at least one emitted CFR is shorter than the 6-byte
     header plus 8 payload bytes — proving the delta path actually compresses
     rather than always emitting keyframes."""
     source = SyntheticFrameSource(
-        dbc, dictionary, seed=42, duration_s=5.0, only_message_names=[TRACED_MESSAGE]
+        dbc,
+        dictionary,
+        gate_config,
+        "typical",
+        duration_s=5.0,
+        only_message_names=[TRACED_MESSAGE],
     )
     enc = Encoder(dictionary)
     dec = Decoder(dictionary)
@@ -93,14 +98,21 @@ def test_traced_message_roundtrip_byte_identical(dbc, dictionary):
 
 @pytest.mark.parametrize("options", ABLATION_MODES)
 @pytest.mark.parametrize("message_name", ROUNDTRIP_SUBJECTS)
-def test_ablation_roundtrip_byte_identical(dbc, dictionary, message_name, options):
+def test_ablation_roundtrip_byte_identical(
+    dbc, dictionary, gate_config, message_name, options
+):
     """Every one of the four D-10 ablation modes round-trips byte-identical,
     for both a standard-ID and an extended-ID subject. GATE-01's
     transparency prohibition means an ablation's bytes/frame number is only
     meaningful if the encoding that produced it was proven reversible over
     the same frames that were counted."""
     source = SyntheticFrameSource(
-        dbc, dictionary, seed=42, duration_s=2.0, only_message_names=[message_name]
+        dbc,
+        dictionary,
+        gate_config,
+        "typical",
+        duration_s=2.0,
+        only_message_names=[message_name],
     )
     enc = Encoder(dictionary, options)
     dec = Decoder(dictionary, options)

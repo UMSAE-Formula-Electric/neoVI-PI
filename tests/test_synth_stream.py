@@ -30,7 +30,9 @@ import re
 import pytest
 
 from telemetry.synth.entropy import BRACKET_NAMES, PayloadMutator
+from telemetry.synth.generator import SyntheticFrameSource
 from telemetry.synth.rates import MessageRate, RateModelError, assign_rates, bus_totals
+from telemetry.wire.dictionary import build_id_dictionary
 
 # A non-multiplexed message carrying both a name-findable rolling counter
 # (VCU_INV_RollingCounter) and a high_entropy_analog signal
@@ -50,6 +52,13 @@ MUX_ANCHOR_MESSAGE = "CAN_ENERGY_METER_TEMPERATURE"
 
 def _hamming_distance(a: bytes, b: bytes) -> int:
     return sum(bin(x ^ y).count("1") for x, y in zip(a, b))
+
+
+@pytest.fixture(scope="module")
+def dictionary(dbc):
+    """`IdDictionary` built once per test module from the session-scoped
+    `dbc` fixture (`tests/conftest.py`)."""
+    return build_id_dictionary(dbc)
 
 
 # ---------------------------------------------------------------------------
@@ -310,3 +319,88 @@ def test_energy_meter_temperature_reaches_at_least_seven_selectors(dbc, gate_con
         seen.add(mutator.selector_value)
 
     assert len(seen) >= 7
+
+
+# ---------------------------------------------------------------------------
+# Task 3: full-bus generator (telemetry.synth.generator.SyntheticFrameSource)
+# ---------------------------------------------------------------------------
+
+
+def test_full_bus_run_combined_rate_within_range(dbc, dictionary, gate_config):
+    for bracket_name in BRACKET_NAMES:
+        source = SyntheticFrameSource(dbc, dictionary, gate_config, bracket_name, duration_s=2.0)
+        frame_count = sum(1 for _ in source.frames())
+        fps = frame_count / 2.0
+        assert 3400 < fps < 4200, (bracket_name, fps)
+
+
+def test_full_bus_run_timestamps_non_decreasing(dbc, dictionary, gate_config):
+    source = SyntheticFrameSource(dbc, dictionary, gate_config, "typical", duration_s=1.0)
+    timestamps = [frame.timestamp_us for frame in source.frames()]
+    assert timestamps == sorted(timestamps)
+
+
+def test_full_bus_run_covers_all_message_ids_over_sufficient_duration(dbc, dictionary, gate_config):
+    rates = assign_rates(dbc, gate_config)
+    slowest_period_us = max(r.period_us for r in rates)
+    duration_s = (slowest_period_us / 1_000_000.0) * 1.1
+
+    source = SyntheticFrameSource(dbc, dictionary, gate_config, "typical", duration_s=duration_s)
+    seen_keys = {(frame.frame_id, frame.is_extended) for frame in source.frames()}
+    expected_keys = {(m.frame_id, m.is_extended_frame) for m in dbc.messages}
+    assert seen_keys == expected_keys
+
+
+def test_full_bus_run_deterministic_same_seed_identical_frames(dbc, dictionary, gate_config):
+    source_a = SyntheticFrameSource(dbc, dictionary, gate_config, "typical", duration_s=1.0)
+    source_b = SyntheticFrameSource(dbc, dictionary, gate_config, "typical", duration_s=1.0)
+    assert list(source_a.frames()) == list(source_b.frames())
+
+
+def test_full_bus_run_different_seed_diverges(dbc, dictionary, gate_config):
+    other_config = dataclasses.replace(gate_config, seed=gate_config.seed + 1)
+    source_a = SyntheticFrameSource(dbc, dictionary, gate_config, "typical", duration_s=1.0)
+    source_b = SyntheticFrameSource(dbc, dictionary, other_config, "typical", duration_s=1.0)
+    assert list(source_a.frames()) != list(source_b.frames())
+
+
+def test_only_message_names_matches_full_bus_subset_timestamps(dbc, dictionary, gate_config):
+    message = dbc.get_message_by_name(ANALOG_AND_COUNTER_MESSAGE)
+
+    full_source = SyntheticFrameSource(dbc, dictionary, gate_config, "typical", duration_s=2.0)
+    full_timestamps = [
+        frame.timestamp_us for frame in full_source.frames() if frame.frame_id == message.frame_id
+    ]
+
+    subset_source = SyntheticFrameSource(
+        dbc,
+        dictionary,
+        gate_config,
+        "typical",
+        duration_s=2.0,
+        only_message_names=[ANALOG_AND_COUNTER_MESSAGE],
+    )
+    subset_timestamps = [frame.timestamp_us for frame in subset_source.frames()]
+
+    assert full_timestamps == subset_timestamps
+    assert full_timestamps, "expected at least one frame for the traced message"
+
+
+def test_generator_rates_attribute_has_one_entry_per_message(dbc, dictionary, gate_config):
+    source = SyntheticFrameSource(
+        dbc,
+        dictionary,
+        gate_config,
+        "typical",
+        duration_s=1.0,
+        only_message_names=[ANALOG_AND_COUNTER_MESSAGE],
+    )
+    assert len(source.rates) == len(dbc.messages)
+    assert all(isinstance(r, MessageRate) for r in source.rates)
+
+
+def test_generator_module_has_no_threading_or_queue_imports():
+    from telemetry.synth import generator as generator_module
+
+    src = inspect.getsource(generator_module)
+    assert not re.search(r"^\s*(import (threading|queue)\b|from (threading|queue)\b)", src, re.MULTILINE)
