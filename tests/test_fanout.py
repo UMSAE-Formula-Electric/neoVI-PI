@@ -19,10 +19,12 @@ change what an assertion here means.
 import logging
 import threading
 import time
-
-import pytest
+from pathlib import Path
 
 from telemetry.capture.fanout import CapturedFrame, FanOut
+from telemetry.synth.generator import SyntheticFrameSource
+from telemetry.wire.dictionary import IdDictionary, build_id_dictionary
+from telemetry.wire.encoder import MAX_PAYLOAD_BYTES
 from telemetry.wire.frame_source import RawFrame
 
 CHANNEL_A = "MAIN"
@@ -296,3 +298,191 @@ def test_high_water_marks_track_deepest_occupancy_and_never_decrease():
         )
     assert fan_out.counters.archive_high_water_mark == 3  # re-filling to 2 stays under 3
     assert fan_out.counters.telemetry_high_water_mark == 3
+
+
+# ---------------------------------------------------------------------------
+# Task 2: dual-bus capture in one stream (CAP-01), and error context (CAP-06)
+# ---------------------------------------------------------------------------
+
+
+def _empty_dictionary() -> IdDictionary:
+    """An `IdDictionary` that knows no ids at all -- used to force the
+    unknown-id half of the CAP-06 precheck deterministically, without
+    depending on the real DBC containing (or not containing) any
+    particular id."""
+    return IdDictionary(index={}, reverse={}, dict_version=0, dbc_path=Path("unused"))
+
+
+def test_dual_bus_capture(dbc, gate_config, logger_config):
+    """CAP-01's own named node: one `FanOut` instance carries frames from
+    both configured channel names, interleaved, driven through
+    `SyntheticFrameSource` so the payloads are real DBC-valid frames rather
+    than invented bytes.
+
+    This proves one implementation carries both buses concurrently in one
+    stream -- CAP-01's first clause. It does NOT prove the duplicate
+    legacy implementation has been removed from the repository (that
+    clause is deliberately deferred to Phase 2 by user decision -- see
+    01-CONTEXT.md's Deferred section), and it does not substitute for the
+    hardware-attached dual-bus check 01-VALIDATION.md lists as
+    manual-only.
+    """
+    dictionary = build_id_dictionary(dbc, logger_config.dbc_path)
+
+    channel_names = [c.name for c in logger_config.channels]
+    assert len(channel_names) >= 2, "test assumes at least two configured channels"
+    channel_a, channel_b = channel_names[0], channel_names[1]
+
+    message_names = [m.name for m in dbc.messages][:2]
+    source = SyntheticFrameSource(
+        dbc, dictionary, gate_config, "typical", duration_s=0.5, only_message_names=message_names
+    )
+    frames = list(source.frames())
+    assert frames, "expected at least one synthetic frame for the selected subset"
+
+    stop_event = threading.Event()
+    fan_out = FanOut(
+        archive_maxsize=10_000,
+        telemetry_maxsize=10_000,
+        telemetry_allowlist=frozenset(),  # CAP-01 is proven on the archive side here
+        stop_event=stop_event,
+    )
+
+    expected_counts = {channel_a: 0, channel_b: 0}
+    for i, frame in enumerate(frames):
+        channel = channel_a if i % 2 == 0 else channel_b
+        expected_counts[channel] += 1
+        fan_out.submit(CapturedFrame(channel=channel, frame=frame))
+
+    assert not stop_event.is_set()
+
+    archived = []
+    while not fan_out.archive_queue.empty():
+        archived.append(fan_out.archive_queue.get_nowait())
+
+    assert len(archived) == len(frames)
+    assert [c.frame for c in archived] == frames  # one stream, submission order preserved
+
+    actual_counts = {channel_a: 0, channel_b: 0}
+    for captured in archived:
+        actual_counts[captured.channel] += 1
+    assert actual_counts == expected_counts
+
+
+def test_unknown_id_counted_and_logged_archive_still_receives_the_frame(caplog):
+    """CAP-06: a frame whose id is absent from the ID dictionary is counted
+    as a telemetry-path encode error and logged with its channel, id, and
+    timestamp. The archive path still receives it -- the archive is not
+    dictionary-bound and must not lose a frame just because the live path
+    cannot encode it."""
+    stop_event = threading.Event()
+    key = (0x321, False)
+    fan_out = FanOut(
+        archive_maxsize=10,
+        telemetry_maxsize=10,
+        telemetry_allowlist=frozenset({key}),
+        stop_event=stop_event,
+        dictionary=_empty_dictionary(),
+    )
+    frame = _make_frame(0x321, timestamp_us=555)
+
+    with caplog.at_level(logging.WARNING):
+        fan_out.submit(CapturedFrame(channel=CHANNEL_A, frame=frame))
+
+    assert fan_out.counters.telemetry_unknown_id_count == 1
+    assert len(fan_out.telemetry_queue) == 0  # never reached the telemetry deque
+
+    assert fan_out.archive_queue.qsize() == 1  # archive is unaffected
+    archived = fan_out.archive_queue.get_nowait()
+    assert archived.frame == frame
+
+    warning_records = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert warning_records
+    joined = " ".join(r.getMessage() for r in warning_records)
+    assert CHANNEL_A in joined
+    assert "0x321" in joined
+    assert "555" in joined
+
+
+def test_over_length_payload_counted_and_logged_no_unhandled_exception(caplog):
+    """An over-length payload is counted and logged the same way as an
+    unknown id, and does not propagate an unhandled exception out of
+    `submit`."""
+    stop_event = threading.Event()
+    key = (0x322, False)
+    fan_out = FanOut(
+        archive_maxsize=10,
+        telemetry_maxsize=10,
+        telemetry_allowlist=frozenset({key}),
+        stop_event=stop_event,
+    )
+    over_length_payload = bytes(range(MAX_PAYLOAD_BYTES + 3))
+    frame = _make_frame(0x322, payload=over_length_payload, timestamp_us=777)
+
+    with caplog.at_level(logging.WARNING):
+        fan_out.submit(CapturedFrame(channel=CHANNEL_B, frame=frame))  # must not raise
+
+    assert fan_out.counters.telemetry_payload_too_long_count == 1
+    assert len(fan_out.telemetry_queue) == 0
+    assert fan_out.archive_queue.qsize() == 1  # archive is unaffected
+
+
+def test_unexpected_telemetry_error_is_caught_counted_logged_not_swallowed(caplog):
+    """CAP-06 also requires an unexpected exception from the telemetry
+    side to be caught, counted, and logged -- never silently swallowed the
+    way `src/new_logger.py`'s bare `except Exception: debug(...)` is."""
+
+    class _ExplodingDictionary:
+        def index_of(self, frame_id, is_extended):
+            raise RuntimeError("boom -- simulated unexpected failure")
+
+    stop_event = threading.Event()
+    key = (0x324, False)
+    fan_out = FanOut(
+        archive_maxsize=10,
+        telemetry_maxsize=10,
+        telemetry_allowlist=frozenset({key}),
+        stop_event=stop_event,
+        dictionary=_ExplodingDictionary(),
+    )
+    frame = _make_frame(0x324, timestamp_us=888)
+
+    with caplog.at_level(logging.WARNING):
+        fan_out.submit(CapturedFrame(channel=CHANNEL_A, frame=frame))  # must not propagate
+
+    assert fan_out.counters.telemetry_unexpected_error_count == 1
+    assert len(fan_out.telemetry_queue) == 0
+    assert fan_out.archive_queue.qsize() == 1
+
+    warning_records = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert any("boom" in r.getMessage() for r in warning_records)
+
+
+def test_repeated_unknown_id_errors_are_rate_limited_but_still_counted(caplog):
+    """The first occurrence per frame id is logged in full; repeats are
+    counted without re-logging, so a persistently unknown id cannot flood
+    the log at bus rate and hide everything else. Report the suppressed
+    totals on the counters object so nothing is actually lost."""
+    stop_event = threading.Event()
+    key = (0x323, False)
+    fan_out = FanOut(
+        archive_maxsize=1000,
+        telemetry_maxsize=1000,
+        telemetry_allowlist=frozenset({key}),
+        stop_event=stop_event,
+        dictionary=_empty_dictionary(),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        for i in range(50):
+            fan_out.submit(
+                CapturedFrame(channel=CHANNEL_A, frame=_make_frame(0x323, timestamp_us=i))
+            )
+
+    assert fan_out.counters.telemetry_unknown_id_count == 50
+    assert fan_out.counters.telemetry_error_log_suppressed_count == 49
+
+    matching_records = [
+        r for r in caplog.records if r.levelno >= logging.WARNING and "0x323" in r.getMessage()
+    ]
+    assert len(matching_records) == 1  # first occurrence logged in full, repeats suppressed

@@ -25,6 +25,23 @@ things, neither of which can block:
 CAP-05's discard-counting requirement is implemented by checking fullness
 **before** the append, never by inspecting the deque afterward.
 
+CAP-06 (this plan, 01-07): a frame that passes the allowlist filter can
+still be un-encodable for the telemetry path — its id may be absent from
+the ID dictionary, or its payload may exceed the CAN DLC maximum. Both are
+checked here, before the frame ever reaches the telemetry deque, so a
+downstream encode failure never happens silently and never costs CPU on a
+frame that would just be thrown away later. This is a pre-flight check,
+not the CFR encode itself (`telemetry.wire.encoder.Encoder` still runs
+downstream, unchanged, per `01-CONTEXT.md`'s "allowlist... applied here,
+before the encoder"). Every failure is caught by its specific named type,
+counted on `FanOutCounters`, and logged with the frame's channel, id, and
+timestamp — the first occurrence per `(frame_id, is_extended)` in full
+detail, repeats counted but not re-logged, so a persistently unknown id
+cannot flood the log at bus rate (T-01-18). The archive enqueue above
+always happens first and unconditionally, so a telemetry-side failure
+never costs the archive a frame — the durability guarantee does not
+depend on a frame being encodable.
+
 Threading note: `FanOutCounters` is written only by the capture thread
 that calls `submit()` and is read by other threads only after that
 capture thread has stopped (e.g. after `join()`), so no lock guards it —
@@ -38,8 +55,10 @@ import queue
 import threading
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, FrozenSet, NamedTuple, Tuple
+from typing import Deque, FrozenSet, NamedTuple, Optional, Tuple
 
+from telemetry.wire.dictionary import IdDictionary, UnknownFrameId
+from telemetry.wire.encoder import MAX_PAYLOAD_BYTES, PayloadTooLong
 from telemetry.wire.frame_source import RawFrame
 
 logger = logging.getLogger(__name__)
@@ -81,6 +100,15 @@ class FanOutCounters:
     telemetry_discard_count: int = 0  # dropped by drop-oldest overflow
     telemetry_filtered_count: int = 0  # not on the allowlist — not a discard
 
+    # Telemetry-path encode-precheck failures (CAP-06).
+    telemetry_unknown_id_count: int = 0
+    telemetry_payload_too_long_count: int = 0
+    telemetry_unexpected_error_count: int = 0
+    # Per-frame-id log rate limiting (T-01-18): every suppressed repeat is
+    # still counted here, so nothing is actually lost even though it isn't
+    # re-logged.
+    telemetry_error_log_suppressed_count: int = 0
+
 
 class FanOut:
     """One capture step's fan-out to two independent consumers."""
@@ -91,12 +119,20 @@ class FanOut:
         telemetry_maxsize: int,
         telemetry_allowlist: FrozenSet[AllowlistKey],
         stop_event: threading.Event,
+        dictionary: Optional[IdDictionary] = None,
     ) -> None:
         self.archive_queue: "queue.Queue[CapturedFrame]" = queue.Queue(maxsize=archive_maxsize)
         self.telemetry_queue: Deque[CapturedFrame] = deque(maxlen=telemetry_maxsize)
         self.telemetry_allowlist = telemetry_allowlist
         self.stop_event = stop_event
+        # Optional: when absent, the unknown-id half of the CAP-06 precheck
+        # is skipped (the payload-length half needs no dictionary and
+        # always runs). Callers that construct a FanOut without a
+        # dictionary -- e.g. tests exercising only the archive side, or
+        # 01-04's tracer -- keep their existing behavior unchanged.
+        self.dictionary = dictionary
         self.counters = FanOutCounters()
+        self._logged_error_frame_keys: set = set()
 
     def submit(self, captured: CapturedFrame) -> None:
         """Fan `captured` out to the archive queue (never-drop, fatal if
@@ -131,6 +167,9 @@ class FanOut:
             self.counters.telemetry_filtered_count += 1
             return
 
+        if not self._passes_telemetry_precheck(captured):
+            return
+
         was_full = len(self.telemetry_queue) == self.telemetry_queue.maxlen
         self.telemetry_queue.append(captured)
         if was_full:
@@ -138,4 +177,61 @@ class FanOut:
         self.counters.telemetry_enqueued += 1
         self.counters.telemetry_high_water_mark = max(
             self.counters.telemetry_high_water_mark, len(self.telemetry_queue)
+        )
+
+    def _passes_telemetry_precheck(self, captured: CapturedFrame) -> bool:
+        """CAP-06: catches every reason `captured` cannot be carried on the
+        telemetry path, counts it on a specific `FanOutCounters` field, and
+        logs it (rate-limited per frame id) — never silently swallowed and
+        never left to surface as an unhandled exception out of `submit`.
+        The archive enqueue in `submit` above has already happened
+        unconditionally by the time this runs, so a `False` return here
+        never costs the archive a frame."""
+        frame = captured.frame
+        try:
+            if len(frame.payload) > MAX_PAYLOAD_BYTES:
+                raise PayloadTooLong(
+                    f"frame_id=0x{frame.frame_id:X} payload length "
+                    f"{len(frame.payload)} exceeds the {MAX_PAYLOAD_BYTES}-byte "
+                    f"CAN DLC maximum"
+                )
+            if self.dictionary is not None:
+                self.dictionary.index_of(frame.frame_id, frame.is_extended)
+        except UnknownFrameId as exc:
+            self._record_telemetry_error(captured, "telemetry_unknown_id_count", exc)
+            return False
+        except PayloadTooLong as exc:
+            self._record_telemetry_error(captured, "telemetry_payload_too_long_count", exc)
+            return False
+        except Exception as exc:  # noqa: BLE001 -- last-resort net: always
+            # counted and logged below with full frame context, never
+            # silently swallowed and never left to propagate out of
+            # submit(). This is deliberately unlike src/new_logger.py's
+            # `except Exception: debug(...)` (invisible unless a module
+            # flag is set) — CAP-06 exists specifically to eliminate that.
+            self._record_telemetry_error(captured, "telemetry_unexpected_error_count", exc)
+            return False
+        return True
+
+    def _record_telemetry_error(
+        self, captured: CapturedFrame, counter_name: str, exc: Exception
+    ) -> None:
+        setattr(self.counters, counter_name, getattr(self.counters, counter_name) + 1)
+
+        frame = captured.frame
+        error_key: AllowlistKey = (frame.frame_id, frame.is_extended)
+        if error_key in self._logged_error_frame_keys:
+            self.counters.telemetry_error_log_suppressed_count += 1
+            return
+        self._logged_error_frame_keys.add(error_key)
+
+        logger.warning(
+            "telemetry path cannot carry frame (channel=%s frame_id=0x%X "
+            "is_extended=%s timestamp_us=%d): %s — archive path unaffected; "
+            "further occurrences of this frame id are counted, not re-logged",
+            captured.channel,
+            frame.frame_id,
+            frame.is_extended,
+            frame.timestamp_us,
+            exc,
         )
