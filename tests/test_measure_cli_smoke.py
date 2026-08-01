@@ -84,6 +84,29 @@ def test_cli_defaults_seed_and_duration_from_gate_config(monkeypatch, tmp_path):
     assert report["meta"]["duration_s_source"] == "gate_config"
 
 
+@pytest.mark.parametrize("bad_duration", ["0", "-5"])
+def test_cli_rejects_non_positive_duration_s(monkeypatch, tmp_path, bad_duration):
+    """WR-05: config.py enforces duration_s > 0 for the file-based config
+    (`_require_positive_number`); --duration-s must not be able to bypass
+    that check and silently produce an empty-frame, all-zeros report."""
+    argv = [
+        "telemetry.measure.cli",
+        "--only-message",
+        "M192_Command_Message",
+        "--duration-s",
+        bad_duration,
+        "--out-dir",
+        str(tmp_path),
+    ]
+    monkeypatch.setattr("sys.argv", argv)
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main()
+
+    assert exc_info.value.code == 1
+    assert not (tmp_path / cli.REPORT_JSON_FILENAME).exists()
+
+
 def test_cli_seed_flag_overrides_gate_config(monkeypatch, tmp_path):
     """--seed still overrides, because reproducing a specific run is a
     debugging need that outlives any one config revision. The override is

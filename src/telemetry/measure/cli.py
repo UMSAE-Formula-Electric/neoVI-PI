@@ -127,6 +127,16 @@ def main():
     )
     args = p.parse_args()
 
+    if args.duration_s is not None and args.duration_s <= 0:
+        # WR-05: config.py's loader enforces duration_s > 0 for the
+        # checked-in config (_require_positive_number), but argparse's bare
+        # `type=float` lets --duration-s bypass that check entirely and
+        # silently produce an empty-frame run. Fail the same way the
+        # DbcLoadError/GateConfigError handling below does, rather than
+        # letting a non-positive override reach the frame source.
+        log(f"[ERROR] --duration-s must be a positive number, got {args.duration_s!r}")
+        raise SystemExit(1)
+
     if not args.fail_on_roundtrip_mismatch:
         log(
             "[WARN] --no-fail-on-roundtrip-mismatch was requested, but "
