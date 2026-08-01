@@ -12,12 +12,14 @@ future scripting that pipes this CLI's output.
 
 import argparse
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from telemetry.wire.decoder import Decoder
 from telemetry.wire.dictionary import DbcLoadError, build_id_dictionary, load_dbc
 from telemetry.wire.encoder import Encoder
 from telemetry.synth.generator import SyntheticFrameSource
+from telemetry.measure.config import GateConfig, GateConfigError, load_gate_config
 from telemetry.measure.report import build_report, measure_stream, write_report_json
 
 DBC_FILENAME = "epbr2026_DBC_v1.0.dbc"
@@ -26,7 +28,6 @@ DEFAULT_DBC_PATH = str(Path(__file__).resolve().parents[3] / DBC_FILENAME)
 
 REPORT_FILENAME = "00-REPORT.json"
 
-DEFAULT_SEED = 42
 DEFAULT_DURATION_S = 5.0
 DEFAULT_BATCH_FRAMES = 100
 
@@ -56,8 +57,19 @@ def main():
     p.add_argument(
         "--seed",
         type=int,
-        default=DEFAULT_SEED,
-        help="Seed for the synthetic generator's random.Random instance.",
+        default=None,
+        help="Override the seed from gate.json for the synthetic generator.",
+    )
+    p.add_argument(
+        "--gate-config",
+        default=None,
+        help="Path to gate.json (default: the phase's checked-in config).",
+    )
+    p.add_argument(
+        "--bracket",
+        default=None,
+        choices=["best", "typical", "worst"],
+        help="Entropy bracket to generate (default: gate.json's gating_bracket).",
     )
     p.add_argument(
         "--duration-s",
@@ -94,10 +106,23 @@ def main():
         f"dict_version={dictionary.dict_version}"
     )
 
+    # Plan 00-04 made gate.json the single source of modelling assumptions, so
+    # the generator is driven from it rather than from CLI defaults. --seed
+    # still overrides, because reproducing a specific run is a debugging need.
+    try:
+        config = load_gate_config(args.gate_config or GateConfig.default_path())
+    except GateConfigError as exc:
+        log(f"[ERROR] {exc}")
+        raise SystemExit(1) from exc
+    if args.seed is not None:
+        config = replace(config, seed=args.seed)
+    bracket = args.bracket or config.thresholds.gating_bracket
+
     source = SyntheticFrameSource(
         db=db,
         dictionary=dictionary,
-        seed=args.seed,
+        config=config,
+        bracket_name=bracket,
         duration_s=args.duration_s,
         only_message_names=args.only_message,
     )
@@ -106,8 +131,8 @@ def main():
     decoder = Decoder(dictionary)
 
     log(
-        f"Measuring: duration={args.duration_s}s seed={args.seed} "
-        f"batch_frames={args.batch_frames} "
+        f"Measuring: duration={args.duration_s}s seed={config.seed} "
+        f"bracket={bracket} batch_frames={args.batch_frames} "
         f"only_message={args.only_message or 'ALL'}"
     )
 
@@ -116,7 +141,8 @@ def main():
     meta = {
         "dbc_path": str(args.dbc),
         "dict_version": dictionary.dict_version,
-        "seed": args.seed,
+        "seed": config.seed,
+        "bracket": bracket,
         "duration_s": args.duration_s,
         "batch_frames": args.batch_frames,
         "only_message": args.only_message,
