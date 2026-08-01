@@ -1,104 +1,50 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-31T23:26:03.403Z",
-  "phase": "00",
-  "phase_name": "compression-ratio-gate",
-  "phase_dir": ".planning/phases/00-compression-ratio-gate",
-  "plan": 2,
-  "task": 2,
+  "timestamp": "2026-08-01T21:06:14.757Z",
+  "phase": "01",
+  "phase_name": "dual-path-capture-durable-archive-and-thin-live-link",
+  "phase_dir": ".planning/phases/01-dual-path-capture-durable-archive-and-thin-live-link",
+  "plan": 9,
+  "task": 1,
   "total_tasks": 2,
   "status": "paused",
-  "completed_tasks": [
-    {
-      "id": 1,
-      "name": "End-to-end bytes/frame for one CAN ID — the whole spine, one path",
-      "status": "done",
-      "commit": "5588bfd"
-    },
-    {
-      "id": 2,
-      "name": "Harden the spine — input validation and the four ablation modes",
-      "status": "not_started",
-      "progress": "blocked on the tracer feedback gate after Task 1"
-    }
-  ],
+  "completed_tasks": [],
   "remaining_tasks": [
     {
+      "id": 1,
+      "name": "SDK seam, config-driven channel resolution, and fail-fast device open",
+      "status": "in_progress",
+      "progress": "All required context read (plan, RESEARCH.md, CONTEXT.md, frame_source.py, fanout.py, new_logger.py, logger/config.py, config/logger.json, existing test_fanout.py/conftest.py conventions). The three SDK facts the task requires (extended-ID flag, timestamp unit, poll return shape) were investigated live against the installed `ics` 1!26.3.9 package this session -- see decisions_made. No src/telemetry/capture/hardware_source.py written yet. tests/test_hardware_source.py is still 01-02's placeholder skip. No commit made for this plan."
+    },
+    {
       "id": 2,
-      "name": "00-02 Task 2: Harden the spine — input validation and the four ablation modes",
-      "status": "not_started"
-    },
-    {
-      "id": 3,
-      "name": "Plan 00-03 (wave 2): worst-case structural classifier — GATE-02 selector",
-      "status": "not_started"
-    },
-    {
-      "id": 4,
-      "name": "Plan 00-04 (wave 2): threshold lock — pass bar, headroom, modelling assumptions (CHECKPOINT plan)",
-      "status": "not_started"
-    },
-    {
-      "id": 5,
-      "name": "Plan 00-05 (wave 3): full-bus synthetic stream — 128 messages, modelled rates, entropy brackets",
-      "status": "not_started"
-    },
-    {
-      "id": 6,
-      "name": "Plan 00-06 (wave 4): overhead accounting and the measurement report",
-      "status": "not_started"
-    },
-    {
-      "id": 7,
-      "name": "Plan 00-07 (wave 5): run the gate, publish artifacts, write the go/no-go decision (CHECKPOINT plan)",
+      "name": "The poll loop, frame construction, and hardware error accounting",
       "status": "not_started"
     }
   ],
-  "blockers": [
-    {
-      "description": "Plan 00-02 Task 1 is a type=\"tracer\" task. workflow.auto_advance is false, so an interactive checkpoint fires after the tracer commits and before any expansion task runs. Task 2 cannot start until answered.",
-      "type": "human_action",
-      "workaround": "None needed — this gate is by design, not a fault. Answer the checkpoint to proceed."
-    },
-    {
-      "description": "Worktree parallelism is degraded to sequential for this phase. HEAD (add-pedal-percent-msg) has diverged from origin/HEAD, so worktree.base-check returns shouldDegrade=true (#683) and all 7 plans run one at a time on the main working tree.",
-      "type": "technical",
-      "workaround": "Cosmetic/perf only — execution is correct, just serial. To restore parallel worktrees run: gsd-tools worktree set-baseref (sets worktree.baseRef:\"head\")."
-    },
-    {
-      "description": "00-VALIDATION.md is still an unfilled template — every {placeholder} intact. No test infrastructure, sampling rate, or per-task verification map was written, and workflow.nyquist_validation is on.",
-      "type": "technical",
-      "workaround": "Non-blocking: every task across the 7 plans carries an <automated> verify, so the underlying contract is satisfiable. Run /gsd-validate-phase 0 to fill it."
-    }
-  ],
+  "blockers": [],
   "async_jobs": [],
-  "human_actions_pending": [
-    {
-      "action": "Answer the 00-02 tracer checkpoint: does 8.129 bytes/frame for M192_Command_Message look like a sane, non-broken number for a single non-multiplexed 8-byte, 5ms-cycle ID with a rolling counter?",
-      "context": "Raw payload alone is 8 bytes, so this reflects roughly the CFR header cost amortized over a payload that changes almost every frame because the counter increments. Confirming unblocks Task 2 (input validation + the four ablation modes).",
-      "blocking": true
-    },
-    {
-      "action": "Decide the HSCAN vs HSCAN2 bus assignment for the 128 DBC messages (RESEARCH.md Open Question 1), when plan 00-04 reaches it.",
-      "context": "epbr2026_DBC_v1.0.dbc has one BU_: node line and NO per-message bus attribute, so nothing in the repo says which messages ride HSCAN (~2,900 frames/s) vs HSCAN2 (~830 frames/s). 00-04 proposes a placeholder derived from ECU sender, flagged confirmed:false in config and surfaced in the report. Peak bit-rate-vs-radio-budget numbers depend on this split.",
-      "blocking": false
-    }
-  ],
+  "human_actions_pending": [],
   "decisions": [
     {
-      "decision": "Trust DBC facts measured via cantools over 00-RESEARCH.md prose wherever the two disagree.",
-      "rationale": "Plan 00-01 measured directly and found two errors in RESEARCH.md's DBC Ground Truth table: messages bearing a cycle time is 19, not 23; the third multiplexed message is M175_Diag_Data_Message, not INV_Diag_Buffer. Both are now committed assertions in tests/test_dbc_ground_truth.py. 00-03's classifier and 00-05's rate model both key off these numbers.",
-      "phase": "00"
+      "decision": "Extended-ID flag ESTABLISHED with confidence: `StatusBitField & ics.SPY_STATUS_XTD_FRAME` (0x4), not `ics.SPY_STATUS_EXTENDED` (0x80000000).",
+      "rationale": "SPY_STATUS_XTD_FRAME sits in the coherent low-order per-frame flag family (SPY_STATUS_GLOBAL_ERR=0x1, TX_MSG=0x2, XTD_FRAME=0x4, REMOTE_FRAME=0x8, CRC_ERROR=0x10 -- sequential single-bit flags describing one specific frame). SPY_STATUS_EXTENDED sits in a separate high-bit tier (0x20000000/0x40000000/0x80000000) alongside SPY_STATUS_CANFD/HIGH_SPEED/INIT_MESSAGE -- device/mode-level flags, not per-frame identity -- and SPY_STATUS_CANFD and SPY_STATUS_INIT_MESSAGE both equal 0x20000000 (overloaded/context-dependent), which rules that tier out as a reliable simple per-frame flag space. Corroborated by symmetry with src/new_logger.py's existing working TX code, which already sets `msg.StatusBitField = ics.SPY_STATUS_XTD_FRAME` to mark an outgoing frame extended on the exact same field of the exact same SpyMessage type sent to the exact same hardware -- same field, same bit, set on TX and expected back on RX. Verified live via `ics.SPY_STATUS_XTD_FRAME` etc. in this session (see context_notes for the exact values captured).",
+      "phase": "01"
     },
     {
-      "decision": "Set workflow.test_command to \"python -m pytest -x -q --tb=short\" explicitly in .planning/config.json.",
-      "rationale": "The post-merge and regression gates auto-sniff the test runner by looking for requirements.txt or pyproject.toml. This project has neither — plan 00-01 created requirements-dev.txt. Left unset, the sniff chain falls through to TEST_CMD=\"true\" and both gates silently no-op for the entire phase, so cross-plan integration breakage would go undetected. NOTE: this change is still UNCOMMITTED.",
-      "phase": "00"
+      "decision": "Poll return shape ESTABLISHED with confidence: `ics.get_messages(device)` returns `(tuple_of_SpyMessage, error_count)`.",
+      "rationale": "Confirmed directly from the installed module's own docstring/example this session (`ics.get_messages.__doc__`): 'Returns: tuple of two items. First item is a tuple of SpyMessage and second is the error count.' Matches src/new_logger.py's existing `msgs, error_count = ics.get_messages(device)` usage exactly -- no ambiguity here.",
+      "phase": "01"
     },
     {
-      "decision": "Skip re-planning phase 00 on autonomous re-entry; resume straight to execution.",
-      "rationale": "All 7 plans were already on disk and intact from a prior session, and init.manager's recommended action was execute. Re-running plan-phase would have been destructive to 7 existing plans for no gain.",
-      "phase": "00"
+      "decision": "Timestamp unit/epoch NOT established with confidence -- must be implemented behind a named constant explicitly labelled UNCONFIRMED in both code and the eventual SUMMARY, and routed to the hardware bring-up check per the plan's own instruction. Do NOT resolve this by guessing.",
+      "rationale": "Two genuinely conflicting/incomplete signals found this session, neither resolvable without real hardware: (1) `SpyMessage.TimeSystem`'s own docstring (captured live via help(ics.SpyMessage)) reads verbatim 'TimeSystem is loaded with the value received from the timeGetTime call in the WIN32 multimedia API' -- i.e. milliseconds, from a Windows-specific API, with an arbitrary system-uptime-relative epoch that wraps roughly every 49.7 days as a DWORD. The actual deployment target is Linux (CM4), so this Windows-specific docstring text may not even describe what the same attribute name reports on the real hardware -- the compiled extension could report something entirely different there. (2) src/new_logger.py's existing (unverified) legacy code formats `m.TimeSystem` with `f'{ts:.6f}'` under a CSV header of 'timestamp_s', implying an assumption that the raw value is already fractional seconds -- which directly contradicts the vendor docstring's 'milliseconds from timeGetTime' description (though it is NOT actually a contradiction in the strictest sense: an integer millisecond count formatted with 6 decimal places just displays trailing zeros and LOOKS like seconds.microseconds without being wrong data -- this is itself an ambiguity, not a resolved fact). (3) A second candidate API exists, `ics.get_timestamp_for_msg(device, msg)`, whose own docstring/example (captured live) returns a bare `Float` with no unit or epoch documented at all (example output 354577568.9145524 -- plausible as seconds since an arbitrary/hardware-relative epoch given the magnitude, but this is inference, not a vendor statement). RESEARCH.md's own Assumption A2 already flagged this exact area ('python-ics's hardware timestamp (m.TimeSystem) ... not directly compared for accuracy/resolution this session') as untested. This is precisely the kind of fact the plan says must be carried forward as a labelled assumption, not promoted to fact.",
+      "phase": "01"
+    },
+    {
+      "decision": "Exception-type landmine found and must be respected in Task 2 (and reused in Task 1's device-open path): `ics.RuntimeError` is NOT a subclass of the Python builtin `RuntimeError`.",
+      "rationale": "Verified live this session: `issubclass(ics.RuntimeError, RuntimeError)` returns `False`; `ics.RuntimeError.__mro__` is `(ics.ics.RuntimeError, Exception, BaseException, object)` -- it inherits directly from `Exception`, bypassing the builtin `RuntimeError` entirely. Confirmed this is the actual exception type raised by real calls in this environment: `ics.find_devices()` with no driver present raised `<class 'ics.ics.RuntimeError'>` (message: \"Error: find_devices(): Failed to Retrieve address of function 'icsneoFindDevices': Windows Error #127 for library 'icsneo40.dll'\"). The plan's Task 2 behavior block requires 'an exception raised by the SDK's message-poll call is caught by its own type' -- a bare `except RuntimeError:` would silently NOT catch this and let it propagate uncaught, which is exactly the failure mode CAP-06 exists to prevent. The implementation must catch the exception type off the injected SDK object itself (e.g. `sdk.RuntimeError`), never the builtin, so the fake SDK used in tests and the real `ics` module both work identically through the same seam.",
+      "phase": "01"
     }
   ],
   "uncommitted_files": [
@@ -108,6 +54,6 @@
     ".planning/research/.cache/44d5926c4c2f1aa097c845d4cac067e5b3c1dbcb6ab9781934e2c5f3fd5f3f62.json",
     ".planning/research/.cache/e0ed6d935ca88b7c67fe0d29fb058c3c30478f35cb8c0ae70462f647cc4182dd.json"
   ],
-  "next_action": "Run /gsd-autonomous. It resumes at plan 00-02 and re-raises the tracer checkpoint for Task 1 (the 8.129 bytes/frame sanity check). Answer it, then Task 2 and the remaining 5 plans proceed.",
-  "context_notes": "Phase 00 progress: 1 of 7 plans complete (00-01), 00-02 half done (Task 1 of 2 committed). Waves: 1=[00-01 done], 2=[00-02 in progress, 00-03, 00-04], 3=[00-05], 4=[00-06], 5=[00-07]. Checkpoint plans (autonomous:false) are 00-01, 00-04, 00-07; 00-01's package-legitimacy gate was already satisfied by a decision recorded in STATE.md from a prior session. The two-session PATH-staleness blocker that halted the previous runs is RESOLVED — the Claude Code restart worked, python is CPython 3.12.10, cantools and pytest are installed, and pytest runs green. Post-merge test gate passed after wave 1 (8 tests). A non-blocking codebase-drift advisory fired (4 structural elements since last mapping: .claude/CLAUDE.md, pytest.ini, requirements-dev.txt, telemetry_conversation.md) with directive=warn and spawn_mapper=false. The paused work is a designed feedback gate, not a failure — the tracer slice proved the whole spine end to end before horizontal expansion."
+  "next_action": "Resume /gsd-execute-phase 1 (or re-invoke the 01-09 plan executor directly). Start by writing src/telemetry/capture/hardware_source.py Task 1 (SDK seam via a constructor arg defaulting to a lazily-imported real `ics` module; config-driven channel resolution with a named error on an unresolvable symbolic constant; net-ID-to-channel-name map; fail-fast device-open by serial-or-first with CAP-06 context logging before raising; a module-level test asserting no module under telemetry imports vspyx) and tests/test_hardware_source.py (replacing the 01-02 placeholder skip) covering every bullet in the plan's Task 1 <behavior> block, using the SDK facts and the RuntimeError landmine recorded in decisions_made above. Do not re-derive the three SDK facts from scratch -- they are already established/labelled above.",
+  "context_notes": "This is a genuinely clean pause point: zero code written, zero files modified, zero commits made for plan 01-09 -- pausing occurred entirely during the research/context-gathering portion of Task 1, before any Write/Edit call. Exact values captured live this session for reference: ics.NETID_HSCAN=1, ics.NETID_HSCAN2=42 (both match config/logger.json's channel entries); ics.SPY_STATUS_GLOBAL_ERR=0x1, TX_MSG=0x2, XTD_FRAME=0x4, REMOTE_FRAME=0x8, CRC_ERROR=0x10, CANFD=0x20000000, INIT_MESSAGE=0x20000000, HIGH_SPEED=0x40000000, EXTENDED=0x80000000; ics.find_devices()/open_device()/close_device()/get_messages()/get_timestamp_for_msg() docstrings all captured via help()/`.__doc__` in this session and cross-checked against src/new_logger.py's existing usage. The dev environment genuinely has no neoVI driver installed (find_devices() raises immediately, confirming 01-RESEARCH.md Pattern 5's fail-fast claim). Existing repo conventions confirmed for the module to be written: config-driven loader pattern already exists at src/telemetry/logger/config.py (LoggerConfig.channels gives name/netid/bus per entry -- netid is the string form e.g. 'NETID_HSCAN', to be resolved via getattr against the injected SDK object); FanOut/CapturedFrame contract already exists at src/telemetry/capture/fanout.py (CapturedFrame(channel, frame), frame is a RawFrame(timestamp_us, frame_id, is_extended, payload)); test style precedent is tests/test_fanout.py (plain functions, no test classes, fixtures from tests/conftest.py: dbc, logger_config, gate_config, all session-scoped). Per the invoking prompt's critical_constraints: do NOT delete/modify src/new_logger.py, src/neoVI_logger.py, src/references.py, or src/neoVI_sender.py (CAP-01's removal clause is deferred to Phase 2); do NOT mark CAP-01/CAP-06/OPS-05 complete in REQUIREMENTS.md when this plan finishes, since 01-10 (CAP-01, OPS-05), 01-11/01-12 (OPS-05), and 01-13 (CAP-06) also claim those IDs -- the plan's own success_criteria section says this explicitly."
 }
