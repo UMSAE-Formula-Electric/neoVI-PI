@@ -11,7 +11,7 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 
 - [x] **GATE-01**: Compression ratio is measured against a real captured CAN log, reported as bytes/frame overall and per CAN ID
 - [x] **GATE-02**: Measurement includes worst-case IDs — rolling counters, checksums, multiplexed messages, and high-entropy analog channels — reported separately from the aggregate
-- [ ] **GATE-03**: A documented go/no-go decision records whether full-bus streaming is viable, or whether scope falls back to a critical-channels subset
+- [x] **GATE-03**: A documented go/no-go decision records whether full-bus streaming is viable, or whether scope falls back to a critical-channels subset
 
 ### Capture
 
@@ -141,7 +141,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 |-------------|-------|--------|
 | GATE-01 | Phase 0 | Complete |
 | GATE-02 | Phase 0 | Complete |
-| GATE-03 | Phase 0 | Pending |
+| GATE-03 | Phase 0 | Complete |
 | CAP-01 | Phase 1 | Pending |
 | CAP-02 | Phase 1 | Pending |
 | CAP-03 | Phase 1 | Pending |
