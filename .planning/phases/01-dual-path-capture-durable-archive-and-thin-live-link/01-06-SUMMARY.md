@@ -195,3 +195,7 @@ None — no external service configuration required.
 ---
 *Phase: 01-dual-path-capture-durable-archive-and-thin-live-link*
 *Completed: 2026-08-01*
+
+## Self-Check: PASSED
+
+All 4 created/modified source and test files (`src/telemetry/archive/runner.py`, `src/telemetry/archive/writer.py`, `src/telemetry/capture/fanout.py`, `tests/test_archive_writer.py`) and this SUMMARY.md were verified present on disk. All three commits (`fcc9587`, `fbf76a1`, `fb61580`) were verified present in `git log --oneline --all`. `python -m pytest tests/test_archive_writer.py -x -q --tb=short` (13 passed) and `python -m pytest -q -m "not slow"` (188 passed, 7 Wave-0 placeholder skips, 0 failures) were both re-confirmed green before this summary was finalized.

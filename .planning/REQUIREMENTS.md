@@ -27,7 +27,7 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 - [x] **ARCH-01**: Every captured frame is written to a local MCAP archive on the onboard NVMe
 - [x] **ARCH-02**: The archive survives an abrupt power cut mid-session with all data written before the cut intact and readable
 - [ ] **ARCH-03**: Archive durability is proven by a repeatable physical power-pull test, not by inspection
-- [ ] **ARCH-04**: Writes are flushed on a batched cadence rather than per record, so flushing never stalls capture
+- [x] **ARCH-04**: Writes are flushed on a batched cadence rather than per record, so flushing never stalls capture
 - [x] **ARCH-05**: A completed session is marked with a `.done` marker only after the archive is closed and flushed
 - [ ] **ARCH-06**: An archived session can be converted to MDF4 for use in standard analysis tools
 
@@ -151,7 +151,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | ARCH-01 | Phase 1 | Pending |
 | ARCH-02 | Phase 1 | Complete |
 | ARCH-03 | Phase 1 | Pending |
-| ARCH-04 | Phase 1 | Pending |
+| ARCH-04 | Phase 1 | Complete |
 | ARCH-05 | Phase 1 | Complete |
 | ARCH-06 | Phase 8 | Pending |
 | LINK-01 | Phase 1 | Pending |
