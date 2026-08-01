@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 00
 current_phase_name: Compression Ratio Gate
 status: executing
-stopped_at: Completed 00-05-PLAN.md
-last_updated: "2026-08-01T03:49:21.875Z"
+stopped_at: Completed 00-06-PLAN.md
+last_updated: "2026-08-01T04:09:55.348Z"
 last_activity: 2026-07-31
 last_activity_desc: Phase 00 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-30)
 ## Current Position
 
 Phase: 00 (Compression Ratio Gate) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-07-31 — Phase 00 execution started
 
-Progress: [███████░░░] 71%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [███████░░░] 71%
 | Phase 00 P03 | 25min | 2 tasks | 2 files |
 | Phase 00 P04 | 20min | 2 tasks | 4 files |
 | Phase 00 P05 | 35min | 3 tasks | 6 files |
+| Phase 00 P06 | 70min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 0-05, 2026-07-31] Resolved the plan's abbreviated default_period_ms_by_ecu[sender] lookup against the actual gate.json shape (nested one level deeper at default_period_ms_by_ecu.seed_period_ms_by_ecu, NO_SENDER not _default as the fallback key); rate model achieves bus1 2900.0005 fps / bus2 830.0050 fps against 2900/830 targets (both within 0.001%).
 - [Phase ?]: [Phase 0-05, 2026-07-31] Confirmed empirically that cantools message.encode(strict=False) disables the declared physical min/max check but still enforces the raw bit-width range; entropy mutation domain is therefore 2**length (or signed two's-complement range), not the signal's declared min/max.
 - [Phase ?]: [Phase 0-05, 2026-07-31] Rule-3 deviation: updated tests/test_wire_roundtrip.py's two SyntheticFrameSource call sites (old seed= keyword) to the new (db, dictionary, config, bracket_name) signature via a new session-scoped gate_config fixture in tests/conftest.py, since this plan's own interface contract removed the seed parameter. src/telemetry/measure/cli.py's equivalent call site is deliberately left for 00-06-PLAN.md, which already owns widening it.
+- [Phase ?]: measure_stream now takes a plain frame iterable (not a FrameSource object) so cli.py can materialize the frame list once per bracket and reuse it across all four D-10 ablations
+- [Phase ?]: Per-ID all-in bytes/frame apportions each batch's D-06 overhead_breakdown proportional to each ID's share of the batch's clean bytes (executor's documented modelling choice, since the interface contract only specifies the batch-level formula)
+- [Phase ?]: meta.threshold_comparison covers only average_kbps and peak_kbps for thresholds.gating_bracket (typical), matching 00-THRESHOLD.md's pass-requires-BOTH condition; measured typical bracket came in at 306.08 kbit/s avg / 314.43 kbit/s peak, both over the pre-registered ceilings (120/170 kbit/s) -- the pre-registered header-overhead risk materializing as measured fact
 
 ### Pending Todos
 
@@ -110,8 +114,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-01T03:49:21.861Z
-Stopped at: Completed 00-05-PLAN.md
+Last session: 2026-08-01T04:09:55.335Z
+Stopped at: Completed 00-06-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` (or `/gsd-execute-phase 00`) to continue with plan 00-02.
