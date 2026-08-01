@@ -52,12 +52,17 @@ class CapturedFrame(NamedTuple):
 class FanOutCounters:
     """Mutable, shared counters (CAP-05/CAP-06): both queues' high-water
     marks, the telemetry discard count, and whether the archive queue has
-    ever overflowed."""
+    ever overflowed. `archive_write_failure` is set by
+    `telemetry.archive.runner.ArchiveRunner` (not by this module — this
+    dataclass is a plain data holder with no dependency on the archive
+    package in either direction) when the archive writer itself raises,
+    the durability-side counterpart to `archive_overflow` above."""
 
     archive_high_water_mark: int = 0
     telemetry_high_water_mark: int = 0
     telemetry_discard_count: int = 0
     archive_overflow: bool = False
+    archive_write_failure: bool = False
 
 
 class FanOut:
