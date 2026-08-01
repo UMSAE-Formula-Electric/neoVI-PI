@@ -24,11 +24,33 @@ phase (00-01-SUMMARY.md, 00-03-SUMMARY.md).
 
 import dataclasses
 import inspect
+import random
 import re
 
 import pytest
 
+from telemetry.synth.entropy import BRACKET_NAMES, PayloadMutator
 from telemetry.synth.rates import MessageRate, RateModelError, assign_rates, bus_totals
+
+# A non-multiplexed message carrying both a name-findable rolling counter
+# (VCU_INV_RollingCounter) and a high_entropy_analog signal
+# (VCU_INV_Torque_Command, scale=0.1) — anchors the counter-increment and
+# analog-dither assertions below without needing to hardcode a DBC-derived
+# category count.
+ANALOG_AND_COUNTER_MESSAGE = "M192_Command_Message"
+ANALOG_SIGNAL = "VCU_INV_Torque_Command"
+ROLLING_COUNTER_SIGNAL = "VCU_INV_RollingCounter"
+
+# The multiplexed message with the most selector values on this DBC
+# (tests/test_dbc_ground_truth.py::test_energy_meter_temperature_multiplexer_value_count
+# pins its measured selector count at >=7) — anchors GATE-02's mux-cycling
+# prohibition.
+MUX_ANCHOR_MESSAGE = "CAN_ENERGY_METER_TEMPERATURE"
+
+
+def _hamming_distance(a: bytes, b: bytes) -> int:
+    return sum(bin(x ^ y).count("1") for x, y in zip(a, b))
+
 
 # ---------------------------------------------------------------------------
 # Task 1: rate model (telemetry.synth.rates)
@@ -137,3 +159,154 @@ def test_rates_module_docstring_names_d03():
     assert "D-03" in doc
     assert "model" in doc.lower()
     assert "gate.json" in doc
+
+
+# ---------------------------------------------------------------------------
+# Task 2: entropy brackets (telemetry.synth.entropy)
+# ---------------------------------------------------------------------------
+
+
+def test_payload_mutator_length_matches_message_length_for_all_messages(dbc, gate_config):
+    bracket = gate_config.entropy_brackets["typical"]
+    for message in dbc.messages:
+        mutator = PayloadMutator(message, bracket, random.Random(1))
+        payload = mutator.next_payload()
+        assert len(payload) == message.length, message.name
+
+
+def test_payload_mutator_deterministic_with_same_seed(dbc, gate_config):
+    message = dbc.get_message_by_name(ANALOG_AND_COUNTER_MESSAGE)
+    bracket = gate_config.entropy_brackets["typical"]
+
+    mutator_a = PayloadMutator(message, bracket, random.Random(123))
+    sequence_a = [mutator_a.next_payload() for _ in range(100)]
+
+    mutator_b = PayloadMutator(message, bracket, random.Random(123))
+    sequence_b = [mutator_b.next_payload() for _ in range(100)]
+
+    assert sequence_a == sequence_b
+
+
+def test_payload_mutator_different_seed_diverges(dbc, gate_config):
+    message = dbc.get_message_by_name(ANALOG_AND_COUNTER_MESSAGE)
+    bracket = gate_config.entropy_brackets["typical"]
+
+    mutator_a = PayloadMutator(message, bracket, random.Random(123))
+    sequence_a = [mutator_a.next_payload() for _ in range(100)]
+
+    mutator_c = PayloadMutator(message, bracket, random.Random(999))
+    sequence_c = [mutator_c.next_payload() for _ in range(100)]
+
+    assert sequence_a != sequence_c
+
+
+def test_entropy_module_does_not_use_global_random():
+    from telemetry.synth import entropy as entropy_module
+
+    src = inspect.getsource(entropy_module)
+    assert re.search(r"^import random$", src, re.MULTILINE)
+    assert not re.search(r"(?<!\w)random\.(random|randint|choice|randrange)\(", src)
+
+
+def test_payload_mutator_rolling_counter_increments_by_one_modulo_length(dbc, gate_config):
+    message = dbc.get_message_by_name(ANALOG_AND_COUNTER_MESSAGE)
+    signal = next(s for s in message.signals if s.name == ROLLING_COUNTER_SIGNAL)
+    bracket = gate_config.entropy_brackets["typical"]
+    modulus = 2 ** signal.length
+
+    mutator = PayloadMutator(message, bracket, random.Random(7))
+    previous = None
+    for _ in range(20):
+        payload = mutator.next_payload()
+        decoded = message.decode(payload, decode_choices=False, scaling=False)
+        value = decoded[ROLLING_COUNTER_SIGNAL]
+        if previous is not None:
+            assert value == (previous + 1) % modulus
+        previous = value
+
+
+def test_high_entropy_analog_bracket_change_count_increases(dbc, gate_config):
+    message = dbc.get_message_by_name(ANALOG_AND_COUNTER_MESSAGE)
+    change_counts = {}
+
+    for bracket_name in BRACKET_NAMES:
+        bracket = gate_config.entropy_brackets[bracket_name]
+        mutator = PayloadMutator(message, bracket, random.Random(55))
+        previous_value = None
+        changes = 0
+        for _ in range(1000):
+            payload = mutator.next_payload()
+            decoded = message.decode(payload, decode_choices=False, scaling=False)
+            value = decoded[ANALOG_SIGNAL]
+            if previous_value is not None and value != previous_value:
+                changes += 1
+            previous_value = value
+        change_counts[bracket_name] = changes
+
+    assert change_counts["best"] < change_counts["typical"] < change_counts["worst"], change_counts
+
+
+def test_hamming_distance_increases_strictly_across_brackets(dbc, gate_config):
+    message = dbc.get_message_by_name(ANALOG_AND_COUNTER_MESSAGE)
+    mean_distances = {}
+
+    for bracket_name in BRACKET_NAMES:
+        bracket = gate_config.entropy_brackets[bracket_name]
+        mutator = PayloadMutator(message, bracket, random.Random(99))
+        previous_payload = None
+        distances = []
+        for _ in range(300):
+            payload = mutator.next_payload()
+            if previous_payload is not None:
+                distances.append(_hamming_distance(payload, previous_payload))
+            previous_payload = payload
+        mean_distances[bracket_name] = sum(distances) / len(distances)
+
+    assert (
+        mean_distances["best"] < mean_distances["typical"] < mean_distances["worst"]
+    ), mean_distances
+
+
+def test_multiplexed_selector_cycles_through_full_set(dbc, gate_config):
+    message = dbc.get_message_by_name(MUX_ANCHOR_MESSAGE)
+    bracket = gate_config.entropy_brackets["typical"]
+
+    selector_ids = set()
+    for signal in message.signals:
+        if signal.multiplexer_ids:
+            selector_ids.update(signal.multiplexer_ids)
+
+    mutator = PayloadMutator(message, bracket, random.Random(3))
+    seen = set()
+    for _ in range(len(selector_ids)):
+        mutator.next_payload()
+        seen.add(mutator.selector_value)
+
+    assert seen == selector_ids
+
+
+def test_multiplexed_selector_never_repeats_consecutively(dbc, gate_config):
+    message = dbc.get_message_by_name(MUX_ANCHOR_MESSAGE)
+    bracket = gate_config.entropy_brackets["typical"]
+
+    mutator = PayloadMutator(message, bracket, random.Random(4))
+    previous_selector = None
+    for _ in range(20):
+        mutator.next_payload()
+        current_selector = mutator.selector_value
+        if previous_selector is not None:
+            assert current_selector != previous_selector
+        previous_selector = current_selector
+
+
+def test_energy_meter_temperature_reaches_at_least_seven_selectors(dbc, gate_config):
+    message = dbc.get_message_by_name(MUX_ANCHOR_MESSAGE)
+    bracket = gate_config.entropy_brackets["typical"]
+
+    mutator = PayloadMutator(message, bracket, random.Random(5))
+    seen = set()
+    for _ in range(50):
+        mutator.next_payload()
+        seen.add(mutator.selector_value)
+
+    assert len(seen) >= 7
