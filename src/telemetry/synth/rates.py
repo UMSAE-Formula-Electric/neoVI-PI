@@ -83,12 +83,20 @@ def _resolve_sender(message) -> Optional[str]:
 def _resolve_bus(sender: Optional[str], config: GateConfig) -> str:
     """`bus_assignment.by_ecu[sender]`, falling back to
     `bus_assignment.default_bus` for a message with no declared sender or a
-    sender not present in the by_ecu map."""
+    sender not present in the by_ecu map. Raises `RateModelError` (rather
+    than returning `None`) when neither resolves, so a future config that
+    drops `default_bus` fails loudly here instead of crashing later with a
+    bare `KeyError: None` from the per-bus fps dictionaries (WR-01)."""
     by_ecu = config.bus_assignment.get("by_ecu", {})
     default_bus = config.bus_assignment.get("default_bus")
     if sender is not None and sender in by_ecu:
         return by_ecu[sender]
-    return default_bus
+    if default_bus is not None:
+        return default_bus
+    raise RateModelError(
+        f"no bus resolvable for sender={sender!r}: not in "
+        f"bus_assignment.by_ecu and bus_assignment.default_bus is unset"
+    )
 
 
 def _seed_period_ms(sender: Optional[str], config: GateConfig) -> float:

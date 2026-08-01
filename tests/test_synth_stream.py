@@ -131,6 +131,20 @@ def test_message_with_no_sender_gets_default_bus(dbc, gate_config):
         assert rate.bus == default_bus
 
 
+def test_resolve_bus_raises_rate_model_error_when_default_bus_unset(dbc, gate_config):
+    # WR-01: a message whose sender is absent from bus_assignment.by_ecu,
+    # on a config with no bus_assignment.default_bus fallback, must raise a
+    # named RateModelError -- not a bare `KeyError: None` deep inside the
+    # per-bus fps dictionaries. `test_message_with_no_sender_gets_default_bus`
+    # above already establishes at least one such message exists.
+    stripped_assignment = dict(gate_config.bus_assignment)
+    stripped_assignment.pop("default_bus", None)
+    broken_config = dataclasses.replace(gate_config, bus_assignment=stripped_assignment)
+
+    with pytest.raises(RateModelError, match="no bus resolvable"):
+        assign_rates(dbc, broken_config)
+
+
 def test_impossible_bus_target_raises_rate_model_error(dbc, gate_config):
     # Drop bus1's target far below its declared-cycle-time total (~1,627 fps
     # measured from this DBC) so the model cannot possibly scale any
