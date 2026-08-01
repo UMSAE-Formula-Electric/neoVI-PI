@@ -162,3 +162,8 @@ None - no external service configuration required.
 ---
 *Phase: 01-dual-path-capture-durable-archive-and-thin-live-link*
 *Completed: 2026-08-01*
+
+## Self-Check: PASSED
+
+All 13 created files found on disk (requirements.txt, 11 placeholder test files, this SUMMARY.md).
+All 3 task/summary commit hashes (5e2eb33, c5690cd, ffbaa1c) found in git log.

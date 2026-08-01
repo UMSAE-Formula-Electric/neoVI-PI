@@ -81,7 +81,7 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 - [ ] **OPS-03**: Remaining disk space is monitored and surfaced before it becomes critical
 - [ ] **OPS-04**: Captured data is segmented into discrete sessions rather than one unbounded file
 - [ ] **OPS-05**: Channels, DBC path, alarm limits, and link settings are read from configuration, not hardcoded
-- [ ] **OPS-06**: A `requirements.txt` (or equivalent) lets the system be installed on a clean machine
+- [x] **OPS-06**: A `requirements.txt` (or equivalent) lets the system be installed on a clean machine
 - [ ] **OPS-07**: A written runbook covers starting a session, checking health, and retrieving data
 
 ### Archive Retrieval
@@ -187,7 +187,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | OPS-03 | Phase 3 | Pending |
 | OPS-04 | Phase 1 | Pending |
 | OPS-05 | Phase 1 | Pending |
-| OPS-06 | Phase 1 | Pending |
+| OPS-06 | Phase 1 | Complete |
 | OPS-07 | Phase 3 | Pending |
 | SYNC-01 | Phase 8 | Pending |
 | SYNC-02 | Phase 8 | Pending |

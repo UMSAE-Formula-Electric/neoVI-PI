@@ -78,7 +78,7 @@ Plans:
   4. A frame captured on the car arrives at the ground station decoded against the DBC, having crossed the batching, COBS+CRC framing, and link layers, with no radio hardware anywhere in the chain and corrupt batches discarded and counted instead of passed upstream
   5. Channels, DBC path, and link settings are read from a config file with no source edit, and a clean machine can be provisioned from the dependency manifest
 
-**Plans**: 13 plans
+**Plans**: 2/13 plans executed
 
 > **Scope note on criterion 1:** the "duplicate implementation is gone from the repository"
 > clause is deliberately NOT delivered in Phase 1. The user chose to keep
@@ -90,11 +90,11 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Package legitimacy gate for mcap, cobs, crccheck, and python-ics (blocking human checkpoint)
+- [x] 01-01-PLAN.md — Package legitimacy gate for mcap, cobs, crccheck, and python-ics (blocking human checkpoint)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Pinned runtime manifest, slow marker, and placeholder test files for every Wave 0 gap
+- [x] 01-02-PLAN.md — Pinned runtime manifest, slow marker, and placeholder test files for every Wave 0 gap
 - [ ] 01-03-PLAN.md — `config/logger.json` and its typed fail-closed loader, including the 12-message allowlist
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -256,7 +256,7 @@ Phase 9 is hardware-gated and may slip past any later work without blocking it. 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Compression Ratio Gate | 7/7 | Complete    | 2026-08-01 |
-| 1. Dual-Path Capture — Durable Archive and Thin Live Link | 0/TBD | Not started | - |
+| 1. Dual-Path Capture — Durable Archive and Thin Live Link | 2/13 | In Progress|  |
 | 2. Python Ground Station and Dashboard Cutover | 0/TBD | Not started | - |
 | 3. Unattended On-Car Operation | 0/TBD | Not started | - |
 | 4. Wire Protocol Hardening | 0/TBD | Not started | - |

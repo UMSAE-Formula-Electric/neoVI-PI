@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 1
-current_phase_name: Dual-Path Capture — Durable Archive and Thin Live Link
-status: planning
-stopped_at: Completed 00-07-PLAN.md
-last_updated: "2026-08-01T18:01:14.601Z"
+current_phase: 01
+current_phase_name: Dual-Path Capture
+status: executing
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-08-01T19:34:35.068Z"
 last_activity: 2026-08-01
-last_activity_desc: Phase 0 complete, transitioned to Phase 1
+last_activity_desc: Phase 01 execution started
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 20
+  completed_plans: 9
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-01)
 
 **Core value:** The pit sees what the car is doing while it is doing it, and no run's data is ever lost.
-**Current focus:** Phase 1 — Dual-Path Capture — Durable Archive and Thin Live Link
+**Current focus:** Phase 01 — Dual-Path Capture
 
 ## Current Position
 
-Phase: 1 — Dual-Path Capture — Durable Archive and Thin Live Link
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-08-01 — Phase 0 complete, transitioned to Phase 1
+Phase: 01 (Dual-Path Capture) — EXECUTING
+Plan: 2 of 13
+Status: Ready to execute
+Last activity: 2026-08-01 — Phase 01 execution started
 
-Progress: [██████████] 100%
+Progress: [█████░░░░░] 45%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [██████████] 100%
 | Phase 00 P05 | 35min | 3 tasks | 6 files |
 | Phase 00 P06 | 70min | 3 tasks | 5 files |
 | Phase 00 P07 | 25min | 1 tasks | 3 files |
+| Phase 01 P02 | 12min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,7 @@ Recent decisions affecting current work:
 - [Phase ?]: No-go: typical bracket 305.13/313.55 kbit/s avg/peak vs pre-registered 120/170 kbit/s ceilings; live path carries a named 12-message critical-channel subset (74.62 kbit/s), full-rate NVMe archive unaffected
 - [Phase ?]: Worst-case bracket (344.51 kbit/s) exceeds the 200 kbit/s baseline budget; carried forward as a Phase 1 real-traffic re-check condition per D-14, not a reason to fail the gate twice
 - [Phase ?]: EMUS BMS _Ext-message modelling error (34 messages don't exist on the real standard-ID-only bus) recorded as a documented arithmetic correction (~261.85 kbit/s), not a re-run of the committed gate config
+- [Phase ?]: [Phase 1-02, 2026-08-01] python-ics pinned as python-ics==1!26.3.9 (PEP 440 epoch 1) in requirements.txt, correcting 01-RESEARCH.md's epoch-dropping illustrative install line; lz4 and zstandard pinned explicitly as mcap's transitive deps; requirements-dev.txt kept byte-identical as Phase 0 provenance record
 
 ### Pending Todos
 
@@ -120,8 +122,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-01T18:01:14.601Z
-Stopped at: Phase 0 complete, ready to plan Phase 1
+Last session: 2026-08-01T19:34:35.054Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.
