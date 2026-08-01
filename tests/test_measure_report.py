@@ -106,6 +106,7 @@ from telemetry.measure.report import (
     peak_windows,
     write_report_csv,
     _category_rollup,
+    _window_label,
 )
 from telemetry.measure.classify import CATEGORIES
 from telemetry.wire.dictionary import build_id_dictionary
@@ -205,6 +206,24 @@ def test_peak_windows_longer_than_run_returns_whole_run_average():
     # the whole-run average: 9000 bits / 0.4s = 22_500 bits/s.
     assert result["1s"]["peak_bits_per_s"] == pytest.approx(22_500.0)
     assert result["1s"]["is_whole_run_average"] is True
+
+
+def test_peak_windows_zero_duration_timeline_reports_same_average_for_every_window():
+    # WR-04: a single-batch (zero-elapsed-time) timeline must report one
+    # consistent "whole run average" across every requested window length,
+    # not `total_bits / window_s` (which would silently vary 100x between
+    # a 0.1s and a 10s request for the same run).
+    timeline = [(500_000, 4000)]
+    result = peak_windows(timeline, [0.1, 1.0, 10.0])
+
+    for window_s in (0.1, 1.0, 10.0):
+        label = _window_label(window_s)
+        assert result[label]["is_whole_run_average"] is True
+
+    values = {result[_window_label(w)]["peak_bits_per_s"] for w in (0.1, 1.0, 10.0)}
+    assert len(values) == 1, (
+        f"whole-run average must not depend on the requested window length: {result}"
+    )
 
 
 def test_bitrate_summary_exact_kbps():

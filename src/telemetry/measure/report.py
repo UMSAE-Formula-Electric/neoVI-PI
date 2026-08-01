@@ -249,12 +249,21 @@ def peak_windows(timeline: Sequence[Tuple[int, float]], windows_s: Sequence[floa
     run_duration_us = timestamps[-1] - timestamps[0]
     run_duration_s = run_duration_us / 1_000_000.0
 
+    # A zero-duration timeline (e.g. a single batch) has no real elapsed
+    # time to average bits over. Compute one whole-run average up front,
+    # independent of any one requested window length, rather than dividing
+    # by whatever window_s the loop below happens to be on -- otherwise the
+    # same run would report a different "whole run average" per
+    # peak_windows_s entry, which is internally inconsistent for a quantity
+    # whose name implies it should be one number (WR-04).
+    zero_duration_whole_run_avg = total_bits / min(windows_s) if windows_s else 0.0
+
     for window_s in windows_s:
         label = _window_label(window_s)
         window_us = window_s * 1_000_000.0
 
         if run_duration_us <= 0 or window_us >= run_duration_us:
-            avg = total_bits / run_duration_s if run_duration_s > 0 else (total_bits / window_s)
+            avg = total_bits / run_duration_s if run_duration_s > 0 else zero_duration_whole_run_avg
             result[label] = {"peak_bits_per_s": avg, "is_whole_run_average": True}
             continue
 
