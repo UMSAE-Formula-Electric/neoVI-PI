@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "seed": 42,
-  "duration_s": 5.0,
+  "duration_s": 100.0,
   "batch_frames": 100,
   "worst_n": 10,
   "peak_windows_s": [0.1, 1.0, 10.0],
