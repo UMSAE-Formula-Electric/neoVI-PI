@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "seed": 42,
+  "duration_s": 5.0,
+  "batch_frames": 100,
+  "worst_n": 10,
+  "peak_windows_s": [0.1, 1.0, 10.0],
+
+  "entropy_brackets": {
+    "_note": "MODELLED, not measured. D-02: three brackets reported as a band. Dither probabilities/bit counts are a human-authored model of payload behaviour, confirmed at the 00-04 checkpoint. Payload entropy is exactly the quantity this gate exists to measure, and synthetic data has only the entropy this model gives it -- see 00-THRESHOLD.md 'What this threshold is not'.",
+    "best": {
+      "analog_dither_bits": 1,
+      "analog_dither_prob": 0.05,
+      "discrete_change_prob": 0.002,
+      "counter_increments": true
+    },
+    "typical": {
+      "analog_dither_bits": 2,
+      "analog_dither_prob": 0.50,
+      "discrete_change_prob": 0.010,
+      "counter_increments": true
+    },
+    "worst": {
+      "analog_dither_bits": 4,
+      "analog_dither_prob": 1.00,
+      "discrete_change_prob": 0.100,
+      "counter_increments": true
+    }
+  },
+
+  "bus_targets": {
+    "_note": "PARTIALLY MODELLED. load_pct and target_fps for bus1/bus2 come from telemetry_conversation.md's measured real bus loads (bus1 ~70%/~2,900 fps, bus2 ~20%/~830 fps, combined ~3,730-4,000 fps per PROJECT.md/CLAUDE.md prose) -- NOT derivable from epbr2026_DBC_v1.0.dbc. Direct DBC measurement (tests/test_dbc_ground_truth.py) finds only 19 of 128 messages declare GenMsgCycleTime, summing to ~1,690.67 fps; the remaining 109 messages' contribution is assumed via default_period_ms_by_ecu, not known. The combined total_fps this config assumes is therefore confirmed:false: it could land anywhere between the DBC-derivable ~1,691 fps floor and the prose-cited ~3,730-4,000 fps figure. See 00-THRESHOLD.md pre-registered known risk: at 3,730-4,000 fps the CFR's fixed 6-byte header alone costs ~179-192 kbit/s, already exceeding the 120 kbit/s pass bar before any payload byte.",
+    "confirmed": false,
+    "bus1": {
+      "load_pct": 70,
+      "target_fps": 2900
+    },
+    "bus2": {
+      "load_pct": 20,
+      "target_fps": 830
+    }
+  },
+
+  "bus_assignment": {
+    "method": "by_ecu_sender",
+    "confirmed": false,
+    "_note": "MODELLED, not measured. epbr2026_DBC_v1.0.dbc has one BU_: node line and no per-message bus attribute at all -- nothing in this repository states which of the 128 messages rides HSCAN (bus1) versus HSCAN2 (bus2). This ECU-sender proxy is a human-authored placeholder confirmed at the 00-04 checkpoint (RESEARCH.md Open Question 1 / Assumption A4), not a DBC-derived finding. It must be surfaced as a caveat in every report this config produces.",
+    "by_ecu": {
+      "VEHICLE_CONTROL_UNIT": "bus1",
+      "MOTOR_CONTROLLER": "bus1",
+      "INERTIAL_MEASUREMENT_UNIT": "bus1",
+      "SENSOR_CONTROL_UNIT": "bus1",
+      "EMUS_BMS": "bus2",
+      "ACCUMULATOR_CONTROL_UNIT": "bus2",
+      "ENERGY_METER": "bus2",
+      "U2C": "bus2"
+    },
+    "default_bus": "bus1"
+  },
+
+  "default_period_ms_by_ecu": {
+    "_note": "MODELLED, not measured. These are assigned seed periods for the 109 (of 128) messages that declare no GenMsgCycleTime, scaled at runtime by plan 00-05's rate model so each bus's per-ECU totals hit bus_targets.<bus>.target_fps. A uniform 100 ms (10 Hz) seed is used for every ECU pending real per-message rate knowledge -- this is a placeholder proportional weight, not a measured or claimed real rate for any individual message.",
+    "confirmed": false,
+    "measured_basis": {
+      "total_messages": 128,
+      "cycle_time_bearing_message_count": 19,
+      "cycle_time_bearing_sum_fps": 1690.6666666666667,
+      "undeclared_cycle_time_message_count": 109,
+      "prose_cited_combined_fps_low": 3730,
+      "prose_cited_combined_fps_high": 4000,
+      "prose_source": "telemetry_conversation.md / CLAUDE.md (bus1 ~2,900 fps + bus2 ~830 fps); NOT derivable from epbr2026_DBC_v1.0.dbc"
+    },
+    "seed_period_ms_by_ecu": {
+      "VEHICLE_CONTROL_UNIT": 100,
+      "MOTOR_CONTROLLER": 100,
+      "INERTIAL_MEASUREMENT_UNIT": 100,
+      "SENSOR_CONTROL_UNIT": 100,
+      "EMUS_BMS": 100,
+      "ACCUMULATOR_CONTROL_UNIT": 100,
+      "ENERGY_METER": 100,
+      "U2C": 100,
+      "NO_SENDER": 100
+    }
+  },
+
+  "thresholds": {
+    "baseline_budget_kbps": 200,
+    "gating_bracket": "typical",
+    "max_average_kbps": 120,
+    "max_peak_kbps": 170,
+    "peak_window_s": 1.0,
+    "required_average_headroom_pct": 40,
+    "required_peak_headroom_pct": 15
+  }
+}
