@@ -205,3 +205,7 @@ None — no external service configuration required.
 ---
 *Phase: 01-dual-path-capture-durable-archive-and-thin-live-link*
 *Completed: 2026-08-01*
+
+## Self-Check: PASSED
+
+All 4 created/modified source and test files, plus this SUMMARY.md, were verified present on disk. Commits `51f538d` (Task 1), `cd65f84` (Task 2), and `bdbb6a0` (docs: plan summary) were verified present in `git log --oneline --all`. `python -m pytest tests/test_framing.py tests/test_link.py -x -q --tb=short` (29 passed) and `python -m pytest -q -m "not slow"` (231 passed, 4 skipped — all remaining skips are placeholders explicitly owned by future plans 01-09/01-10/01-12/01-13) were both re-confirmed green before this summary was finalized.
