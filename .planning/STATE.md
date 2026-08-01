@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Dual-Path Capture
 status: executing
-stopped_at: Completed 01-04-PLAN.md (tracer)
-last_updated: "2026-08-01T19:54:50.347Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-08-01T20:10:12.837Z"
 last_activity: 2026-08-01
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 20
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 01 (Dual-Path Capture) — EXECUTING
-Plan: 4 of 13
+Plan: 5 of 13
 Status: Ready to execute
 Last activity: 2026-08-01 — Phase 01 execution started
 
-Progress: [██████░░░░] 55%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -68,6 +68,7 @@ Progress: [██████░░░░] 55%
 | Phase 01 P02 | 12min | 2 tasks | 15 files |
 | Phase 01 P03 | 20min | 1 tasks | 5 files |
 | Phase 01 P04 | 55min | 1 tasks | 17 files |
+| Phase 01 P05 | 55min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,9 @@ Recent decisions affecting current work:
 - [Phase ?]: Tracer (01-04): CRC-16 trailer placed inside the COBS envelope, not outside as RESEARCH.md Pattern 7 sketched, to preserve LINK-01's delimiter resync property
 - [Phase ?]: Tracer (01-04): one shared, encoding-less MCAP schema plus one channel per configured channel name (/can/{name}), verified against real mcap==1.4.0 Writer signatures
 - [Phase ?]: Tracer (01-04): recomputed critical-subset bit rate with the batcher's 1-byte length prefix is 81.94 kbit/s (was 74.62 kbit/s), still well under the 120 kbit/s pass bar
+- [Phase ?]: recover_session catches (mcap.exceptions.EndOfFile, struct.error) as one pair -- struct.error is not an mcap exception type and would silently escape an mcap-only except clause
+- [Phase ?]: Session naming fallback sanity floor: a clock reporting a UTC year before 2020 is treated as implausible (CM4 has no RTC battery)
+- [Phase ?]: Counter-derived session names use zero-padded counter-NNNNNNNN so they sort in creation order and reseed from the highest existing counter directory rather than zero when the state file is lost
 
 ### Pending Todos
 
@@ -128,8 +132,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-01T19:54:50.333Z
-Stopped at: Completed 01-04-PLAN.md (tracer)
+Last session: 2026-08-01T20:10:12.823Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.

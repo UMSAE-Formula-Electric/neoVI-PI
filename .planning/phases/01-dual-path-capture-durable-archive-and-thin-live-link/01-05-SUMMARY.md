@@ -204,3 +204,7 @@ None - no external service configuration required. `docs/power-pull-test.md` its
 ---
 *Phase: 01-dual-path-capture-durable-archive-and-thin-live-link*
 *Completed: 2026-08-01*
+
+## Self-Check: PASSED
+
+All 6 created/modified source and doc files (`src/telemetry/archive/reader.py`, `tests/crash_writer_child.py`, `docs/power-pull-test.md`, `src/telemetry/archive/session.py`, `tests/test_archive_crash_recovery.py`, `tests/test_session.py`) and this SUMMARY.md were verified present on disk. All four commits (`40724e5`, `fabcf20`, `9a935fe`, `1c80329`) were verified present in `git log --oneline --all`. `python -m pytest tests/test_archive_crash_recovery.py tests/test_session.py -x -q --tb=short` (18 passed) and `python -m pytest -q -m "not slow"` (175 passed, 8 Wave-0 placeholder skips, 0 failures) were both re-confirmed green before this summary was finalized.
