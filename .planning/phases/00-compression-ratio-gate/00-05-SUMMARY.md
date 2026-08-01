@@ -183,3 +183,7 @@ None - no external service configuration required.
 ---
 *Phase: 00-compression-ratio-gate*
 *Completed: 2026-07-31*
+
+## Self-Check: PASSED
+
+All 7 files (3 created, 4 modified) found on disk; all 4 commits (`a95fa8b`, `cffd22a`, `7514e74`, `6f36dcc`) found in git history. Full suite `python -m pytest -q` — 87 tests passing, zero regressions.

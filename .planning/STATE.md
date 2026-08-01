@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 00
 current_phase_name: Compression Ratio Gate
 status: executing
-stopped_at: Completed 00-04-PLAN.md
-last_updated: "2026-08-01T03:29:05.068Z"
+stopped_at: Completed 00-05-PLAN.md
+last_updated: "2026-08-01T03:49:21.875Z"
 last_activity: 2026-07-31
 last_activity_desc: Phase 00 execution started
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-07-30)
 ## Current Position
 
 Phase: 00 (Compression Ratio Gate) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-07-31 — Phase 00 execution started
 
-Progress: [██████░░░░] 57%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [██████░░░░] 57%
 | Phase 00 P02 | 20min | 2 tasks | 8 files |
 | Phase 00 P03 | 25min | 2 tasks | 2 files |
 | Phase 00 P04 | 20min | 2 tasks | 4 files |
+| Phase 00 P05 | 35min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 0-03, 2026-08-01] The structural checksum rule measures 12 candidate messages on this DBC (heartbeats, fault codes, SOH values), not the empty bucket the plan anticipated -- reported as an inspectable, non-empty candidate list per T-00-10 rather than forced to an assumed-empty count; likely false positives per RESEARCH.md's flagged Assumption A2 risk, to be hand-reviewed when GATE-02's report is written in plan 00-06.
 - [Phase ?]: [Phase 0-04, 2026-07-31] Pre-registered the D-13 pass threshold (option-a: 200 kbit/s baseline, 120/170 kbit/s average/peak caps, 40%/15% headroom, typical bracket gates) in 00-THRESHOLD.md and checked in every D-12 modelling assumption to config/gate.json behind a typed loader (src/telemetry/measure/config.py) that raises GateConfigError rather than defaulting on malformed input.
 - [Phase ?]: [Phase 0-04, 2026-07-31] User added a fifth confirmed:false assumption beyond the plan's original four: total bus frame rate. Verified against cantools that only 19/128 DBC messages declare GenMsgCycleTime (summing to ~1,690.67 fps); the prose-cited ~3,730-4,000 fps combined figure is not DBC-derivable. Recorded in gate.json's bus_targets/default_period_ms_by_ecu and surfaced in 00-THRESHOLD.md alongside the pre-registered 6-byte/frame CFR header-floor risk (179-192 kbit/s at the prose rate vs 81 kbit/s at the DBC floor), which is explicitly not grounds to move the bar if it fires.
+- [Phase ?]: [Phase 0-05, 2026-07-31] Resolved the plan's abbreviated default_period_ms_by_ecu[sender] lookup against the actual gate.json shape (nested one level deeper at default_period_ms_by_ecu.seed_period_ms_by_ecu, NO_SENDER not _default as the fallback key); rate model achieves bus1 2900.0005 fps / bus2 830.0050 fps against 2900/830 targets (both within 0.001%).
+- [Phase ?]: [Phase 0-05, 2026-07-31] Confirmed empirically that cantools message.encode(strict=False) disables the declared physical min/max check but still enforces the raw bit-width range; entropy mutation domain is therefore 2**length (or signed two's-complement range), not the signal's declared min/max.
+- [Phase ?]: [Phase 0-05, 2026-07-31] Rule-3 deviation: updated tests/test_wire_roundtrip.py's two SyntheticFrameSource call sites (old seed= keyword) to the new (db, dictionary, config, bracket_name) signature via a new session-scoped gate_config fixture in tests/conftest.py, since this plan's own interface contract removed the seed parameter. src/telemetry/measure/cli.py's equivalent call site is deliberately left for 00-06-PLAN.md, which already owns widening it.
 
 ### Pending Todos
 
@@ -106,8 +110,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-01T03:29:05.048Z
-Stopped at: Completed 00-04-PLAN.md
+Last session: 2026-08-01T03:49:21.861Z
+Stopped at: Completed 00-05-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` (or `/gsd-execute-phase 00`) to continue with plan 00-02.
