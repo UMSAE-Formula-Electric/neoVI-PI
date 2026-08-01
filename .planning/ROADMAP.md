@@ -13,7 +13,7 @@ The project starts with a cheap, offline measurement that decides whether the wh
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 0: Compression Ratio Gate** - Measure real bytes/frame against a captured log and decide go/no-go on full-bus streaming
+- [x] **Phase 0: Compression Ratio Gate** - Measure real bytes/frame against a captured log and decide go/no-go on full-bus streaming (completed 2026-08-01)
 - [ ] **Phase 1: Dual-Path Capture — Durable Archive and Thin Live Link** - One logger, fan-out to a never-drop archive and a never-block telemetry path, end to end over loopback with no radio
 - [ ] **Phase 2: Python Ground Station and Dashboard Cutover** - One Python process on the pit laptop decodes the link and serves the browser; Node retired
 - [ ] **Phase 3: Unattended On-Car Operation** - The car logs on power-up with no keyboard, screen, or login, and says so
@@ -39,7 +39,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The report states the resulting average and peak bit rate for the combined ~4,000 frames/s bus, directly comparable to the ~200–250 kbit/s usable radio budget
   4. A written go/no-go decision records either "full-bus streaming is viable" or names the specific critical-channel subset that will be streamed instead, and that decision is the input every later phase's link scope is built against
 
-**Plans**: 7/7 plans executed
+**Plans**: 7/7 plans complete
 
 Plans:
 **Wave 1**
@@ -216,7 +216,7 @@ Phase 9 is hardware-gated and may slip past any later work without blocking it. 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Compression Ratio Gate | 7/7 | In Progress|  |
+| 0. Compression Ratio Gate | 7/7 | Complete    | 2026-08-01 |
 | 1. Dual-Path Capture — Durable Archive and Thin Live Link | 0/TBD | Not started | - |
 | 2. Python Ground Station and Dashboard Cutover | 0/TBD | Not started | - |
 | 3. Unattended On-Car Operation | 0/TBD | Not started | - |

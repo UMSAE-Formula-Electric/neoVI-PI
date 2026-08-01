@@ -24,6 +24,7 @@ The pit sees what the car is doing *while it is doing it*, and no run's data is 
 - ✓ Browser dashboard displays live current values grouped by channel and message, with search, per-message/per-signal visibility toggles, min/max range bars, and auto-reconnect — existing (`can-dashboard/dashboard.html`)
 - ✓ Transmit test CAN frames on a chosen bus for bench loopback — existing, but hardcoded
 - ✓ Synthetic data generator for dashboard testing without hardware — existing (`can-dashboard/simulate.js`)
+- ✓ Compression ratio measured against the planned encoding and ruled on in writing — Phase 0 (`00-DECISION.md`, `00-REPORT.json`)
 
 ### Active
 
@@ -38,10 +39,11 @@ The pit sees what the car is doing *while it is doing it*, and no run's data is 
 
 **Telemetry link (live path)**
 
-- [ ] Compress raw CAN frames to ~5–8 bytes/frame (delta timestamps, arbitration-ID dictionary, payload XOR against last frame for same ID)
 - [ ] Frame the compressed stream for a dumb byte-oriented serial pipe (resync after corruption, no assumption of message boundaries)
 - [ ] Abstract the link so the same stream runs over loopback, UDP/Wi-Fi, or an RFD900x serial port without touching the compression or framing layers
 - [ ] Ground-station receiver: deframe → decompress → DBC decode → feed the display
+- [ ] Live path carries the named critical-channel subset, not the full bus — membership read from a config allowlist at startup, never baked into code
+- [ ] Dictionary/allowlist version negotiation so a car and a pit laptop on different subset revisions cannot silently decode to wrong values
 
 **Live display**
 
@@ -72,12 +74,19 @@ Known debt carried in: two parallel logger implementations, commented-out transm
 **RF and link design.** Recorded in `telemetry_conversation.md` at the repo root. Key conclusions that shape the software:
 
 - Both buses run classic CAN at 500 kbps — bus 1 at ~70% load (~2,900 frames/s), bus 2 at ~20% (~830 frames/s), combined ~3,700–4,000 frames/s.
-- Naive 24-byte wire records would need ~780 kbit/s. Compressed to 5–8 bytes/frame that becomes ~130–160 kbit/s average, peaking ~220 kbit/s.
-- An RFD900x at 500 kbit/s air rate yields ~200–250 kbit/s usable — so the **full bus fits over 900 MHz with roughly 40% headroom.** The radio is therefore the primary full-bus link, not a critical-channels fallback.
+- Naive 24-byte wire records would need ~780 kbit/s.
 - The neoVI PI's onboard CM4 Wi-Fi is effectively 1×1 (the two antenna paths are an RF switch, not two chains), so Wi-Fi diversity would have required an external USB radio on the car. The RFD900x sidesteps this.
 - Link margin at 300 m is roughly 48 dB even at the degraded 500 kbit/s sensitivity — range is not the binding constraint. Bandwidth is.
 
-**Unverified assumption.** The 4:1–8:1 compression ratio is estimated, not measured. It should be validated early against a real log file — noisy analog channels whose low bits dither will compress worse than assumed, and the whole "full bus fits" conclusion rests on this number.
+**Superseded by measurement (Phase 0).** The prose above originally concluded that compression to 5–8 bytes/frame would yield ~130–160 kbit/s average and that the **full bus fits over 900 MHz with roughly 40% headroom**, making the radio a primary full-bus link rather than a critical-channels fallback. Phase 0 measured the planned encoding and **disconfirmed that conclusion**:
+
+- Measured **10.22 bytes/frame all-in** (typical entropy bracket), not 5–8.
+- Measured **305.13 kbit/s average / 313.55 kbit/s 1-second peak** against a pre-registered ceiling of 120 / 170 kbit/s — a failure by ~2.5×.
+- The binding constraint is the fixed **6 B/frame CFR header**, which at ~3,730–4,000 frames/s costs ~179–192 kbit/s on its own, before any payload byte. Payload compressibility was never the deciding variable.
+
+The live path therefore carries a **named 12-message critical-channel subset (74.62 kbit/s)**, not the full bus. The full-rate NVMe archive is unaffected — "no run's data is ever lost" is untouched by this outcome. See `phases/00-compression-ratio-gate/00-DECISION.md` for the signed verdict and `00-REPORT.json` for the measurement.
+
+**Known modelling caveat carried into Phase 1.** Phase 0's stream was synthesized from `epbr2026_DBC_v1.0.dbc` (decision D-01), not captured from the car. Two inputs remain `confirmed: false` — the per-message bus assignment and the total bus frame rate. Separately, the team confirmed the EMUS BMS runs **standard-ID only**, so the 34 `_Ext` messages the model included are not on the real bus; removing them lowers the modelled typical bracket to ~261.85 kbit/s, which does not change the verdict. Phase 1's first bench or track session should re-measure against real captured traffic.
 
 ## Constraints
 
@@ -97,7 +106,9 @@ Known debt carried in: two parallel logger implementations, commented-out transm
 | Live link is lossy and unacknowledged | Archive completeness comes from the local NVMe writer, which never depends on the radio. Removes retransmit, ARQ, and gap-backfill entirely — the single largest available scope reduction. | — Pending |
 | Compress raw frames on the car, decode DBC on the ground station | Bandwidth is scarce on the car and free on the laptop. Inverts the existing architecture, which decodes on the car and ships decoded signals. | — Pending |
 | Transport abstracted behind a swappable link | RFD900x is not purchased and testing season is close. Loopback and UDP/Wi-Fi stand-ins let the full chain be built and tested now. | — Pending |
-| 900 MHz (RFD900x) over 2.4/5 GHz Wi-Fi | ~34 dB total link advantage, firmware diversity, no consumer USB hardware on the car — and the compressed full bus still fits. | — Pending |
+| 900 MHz (RFD900x) over 2.4/5 GHz Wi-Fi | ~34 dB total link advantage, firmware diversity, no consumer USB hardware on the car. The original rationale also cited "and the compressed full bus still fits" — Phase 0 disconfirmed that clause, but the link-budget and hardware reasons stand on their own and the 74.62 kbit/s subset fits comfortably. | — Pending |
+| Live path carries a critical-channel subset, not the full bus | Phase 0 measured 305.13 kbit/s against a pre-registered 120 kbit/s ceiling. The 6 B/frame CFR header floor alone exceeds the bar at full bus rate, so no payload tuning closes the gap. Subset is 12 messages at 74.62 kbit/s. | ✓ Signed — [00-DECISION.md](phases/00-compression-ratio-gate/00-DECISION.md) |
+| Subset membership is a config allowlist, not code | The verdict (D-14) and the encoded byte layout (D-05) are both expensive to reverse; subset *membership* must not be. Membership changes should cost a config edit plus a restart of both ends, which keeps the list tunable once the team learns what the pit engineer actually watches. | — Pending (Phase 1 builds it, Phase 4 versions it) |
 | Whole-stack rebuild rather than bolting transport onto the existing code | The existing seams (same-machine pipe, decode-on-car) are in the wrong places for this system. | — Pending |
 | Ground station is Python end-to-end; retire the Node server | No JS equivalent to `cantools` exists, so DBC decode must be Python. `server.js` is a ~20-line WebSocket server, so porting it to Python `websockets` collapses the pipeline into one process and removes the same-machine constraint. `dashboard.html` survives nearly unchanged. | ✓ Good |
 | MCAP as the on-car archive format | Crash-safe append-only. Vector BLF's append mode is an open bug (python-can #1751) and MDF4 has no append at all — both are wrong as a live write target. Convert post-session for tool compatibility. | — Pending |
@@ -122,4 +133,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-30 after initialization*
+*Last updated: 2026-08-01 after Phase 0*

@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 00
-current_phase_name: Compression Ratio Gate
-status: executing
+current_phase: 1
+current_phase_name: Dual-Path Capture — Durable Archive and Thin Live Link
+status: planning
 stopped_at: Completed 00-07-PLAN.md
-last_updated: "2026-08-01T16:18:12.089Z"
+last_updated: "2026-08-01T18:01:14.601Z"
 last_activity: 2026-08-01
-last_activity_desc: Phase 00 execution started
+last_activity_desc: Phase 0 complete, transitioned to Phase 1
 progress:
   total_phases: 1
   completed_phases: 1
@@ -20,17 +20,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-30)
+See: .planning/PROJECT.md (updated 2026-08-01)
 
 **Core value:** The pit sees what the car is doing while it is doing it, and no run's data is ever lost.
-**Current focus:** Phase 00 — Compression Ratio Gate
+**Current focus:** Phase 1 — Dual-Path Capture — Durable Archive and Thin Live Link
 
 ## Current Position
 
-Phase: 00 (Compression Ratio Gate) — EXECUTING
-Plan: 2 of 7
-Status: Ready to execute
-Last activity: 2026-08-01 — Phase 00 execution started
+Phase: 1 — Dual-Path Capture — Durable Archive and Thin Live Link
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-01 — Phase 0 complete, transitioned to Phase 1
 
 Progress: [██████████] 100%
 
@@ -38,7 +38,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 7
 - Average duration: —
 - Total execution time: —
 
@@ -46,7 +46,7 @@ Progress: [██████████] 100%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 0 | 7 | - | - |
 
 **Recent Trend:**
 
@@ -105,8 +105,10 @@ None yet.
 - **RFD900x not purchased.** Procurement is a standing parallel-track action starting now, not gated by software sequencing. Phase 9 cannot start until hardware arrives.
 - **Requirement count corrected.** REQUIREMENTS.md originally stated 55 v1 requirements; the actual count is 57. Traceability and coverage figures now reflect 57.
 - **Testing season is weeks away.** Phase ordering assumes work may stop at any phase boundary with a usable subset on the car.
-- **Worktree parallelism degraded to sequential.** HEAD is on branch `add-pedal-percent-msg`, diverged from `origin/HEAD`, so `worktree.base-check` reports `head-diverged-from-fork` and Phase 0 plans run one at a time on the main working tree (#683). To restore parallel worktrees, run `gsd-tools worktree set-baseref` (sets `worktree.baseRef:"head"`).
-- **00-VALIDATION.md is still an unfilled template.** Every `{placeholder}` is intact — no test infrastructure, sampling rate, or per-task verification map was written. `workflow.nyquist_validation` is on. Run `/gsd-validate-phase 0` to fill it. Every task in the 7 plans does carry an `<automated>` verify, so the underlying contract is satisfiable.
+- **Worktree parallelism degraded to sequential.** HEAD is on branch `add-pedal-percent-msg`, diverged from `origin/HEAD`, so `worktree.base-check` reports `head-diverged-from-fork` and plans run one at a time on the main working tree (#683). This will slow Phase 1, which is large enough to have genuinely parallel waves. To restore parallel worktrees, run `gsd-tools worktree set-baseref` (sets `worktree.baseRef:"head"`).
+- **[Phase 0] 00-VALIDATION.md is still an unfilled template.** Every `{placeholder}` is intact. `workflow.nyquist_validation` is on. Non-blocking — every task in the 7 plans carries an `<automated>` verify, and phase verification passed 4/4 without it. Run `/gsd-validate-phase 0` to fill it. The `verify:post` nyquist and security hooks were both declined at the Phase 0 boundary; `/gsd-secure-phase 0` is likewise still available.
+- **[Phase 0] The classifier's 12 checksum-bucket candidates were never hand-reviewed.** RESEARCH.md Assumption A2 predicted false positives (heartbeats, fault codes, SOH values). Reported as an inspectable candidate list with per-assignment reasons rather than asserted correct — auditable without re-running anything.
+- **[Phase 0 → 1] The gate's numbers rest on a modelled stream, not captured traffic.** Bus assignment and total frame rate both carry `confirmed: false`, and the EMUS `_Ext` correction was recorded arithmetically rather than re-measured. Phase 1's first bench or track session should re-run the gate against a real captured log — which needs the deferred real-log reader for the D-08 frame-source interface, scope Phase 1 must absorb.
 
 ## Deferred Items
 
@@ -118,14 +120,19 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-01T16:18:12.078Z
-Stopped at: Completed 00-07-PLAN.md
+Last session: 2026-08-01T18:01:14.601Z
+Stopped at: Phase 0 complete, ready to plan Phase 1
 Resume file: None
 
-**Resume with:** `/gsd-autonomous` (or `/gsd-execute-phase 00`) to continue with plan 00-02.
+**Resume with:** `/gsd-autonomous` to continue with Phase 1.
 
-Plan 00-01 completed in this session — Python 3.12.10 (native Windows CPython) was confirmed on
-PATH at session start, so the previously-blocking precondition is resolved and no longer applies
-to later plans. Task 1's package-legitimacy checkpoint was approved in a prior session; Tasks 2
-and 3 executed cleanly with two documented Rule 1 corrections to RESEARCH.md's DBC Ground Truth
-figures (see 00-01-SUMMARY.md). `pytest tests/ -x` runs green (8 tests). Next up: 00-02.
+Phase 0 closed with a signed **no-go**: the live path carries a named 12-message critical-channel
+subset (74.62 kbit/s), not the full bus. Verification passed 4/4 must-haves with GATE-01/02/03 all
+traced. Code review found 0 critical / 5 warning / 3 info; all 5 warnings were fixed as
+validation-only hardening and the published report still reproduces byte-identically at
+`config_hash 1dcefe671220`. Test suite 118 → 127 passing.
+
+PROJECT.md was reconciled against the measurement at this transition — the "full bus fits with
+roughly 40% headroom" claim, the "5–8 bytes/frame" target, and the "unverified assumption" note
+were all superseded rather than left standing. Two new Active requirements were added for the
+config-driven subset allowlist and its version negotiation.
