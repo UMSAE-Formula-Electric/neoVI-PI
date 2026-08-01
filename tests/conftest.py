@@ -16,6 +16,8 @@ import cantools
 import pytest
 from pathlib import Path
 
+from telemetry.measure.config import GateConfig, load_gate_config
+
 DBC_FILENAME = "epbr2026_DBC_v1.0.dbc"
 
 
@@ -40,3 +42,12 @@ def dbc(dbc_path: Path):
         raise RuntimeError(
             f"Could not load DBC at resolved path {dbc_path!s}: {exc}"
         ) from exc
+
+
+@pytest.fixture(scope="session")
+def gate_config() -> GateConfig:
+    """The checked-in `config/gate.json`, loaded exactly once per test
+    session via the typed loader (`src/telemetry/measure/config.py`) — the
+    single source of every rate-model, entropy-bracket, and bus-target
+    assumption a test needs, never duplicated as a literal in a test file."""
+    return load_gate_config(GateConfig.default_path())
