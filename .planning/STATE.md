@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Dual-Path Capture
 status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-08-01T20:24:32.487Z"
+stopped_at: Completed 01-07-PLAN.md
+last_updated: "2026-08-01T20:37:58.352Z"
 last_activity: 2026-08-01
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 20
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 01 (Dual-Path Capture) — EXECUTING
-Plan: 6 of 13
+Plan: 7 of 13
 Status: Ready to execute
 Last activity: 2026-08-01 — Phase 01 execution started
 
-Progress: [███████░░░] 65%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Progress: [███████░░░] 65%
 | Phase 01 P04 | 55min | 1 tasks | 17 files |
 | Phase 01 P05 | 55min | 3 tasks | 6 files |
 | Phase 01 P06 | 35min | 2 tasks | 4 files |
+| Phase 01-dual-path-capture-durable-archive-and-thin-live-link P07 | 40min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 1-06, 2026-08-01] ArchiveWriter.close() now routes its final sync through the same _flush_and_sync() helper add() uses, so flush_count correctly accounts for it; both cadence trackers reset together on every sync so a count-triggered sync also restarts the elapsed-time window
 - [Phase ?]: [Phase 1-06, 2026-08-01] ArchiveRunner's inter-module sentinel is named STOP (public), not new_logger.py's file-local _STOP convention, since the producer and consumer of the sentinel live in different modules; a writer exception is logged critical, recorded on FanOutCounters.archive_write_failure, and re-raised after stop_event is set
 - [Phase ?]: [Phase 1-06, 2026-08-01] Empirically reverified this session: a single ArchiveWriter.add() call under the default cadence leaves the file at 0 bytes on disk (Python's own io.BufferedWriter holds unflushed small writes); with flush_every_records=1 the same record produces a non-zero file immediately readable via recover_session while the writer is still open
+- [Phase ?]: 01-07: CAP-06 telemetry precheck reuses UnknownFrameId/PayloadTooLong from wire.dictionary/wire.encoder rather than a new exception family; the actual CFR Encoder is not called from FanOut
+- [Phase ?]: 01-07: FanOut gains optional dictionary= (default None) to stay backward compatible with 01-04/01-06's existing FanOut() call sites
+- [Phase ?]: 01-07: telemetry-path error log rate limiting keys on (frame_id, is_extended) only, not per error type
 
 ### Pending Todos
 
@@ -136,8 +140,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-01T20:24:32.473Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-08-01T20:37:58.336Z
+Stopped at: Completed 01-07-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.

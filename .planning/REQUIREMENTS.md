@@ -145,7 +145,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | CAP-01 | Phase 1 | Pending |
 | CAP-02 | Phase 1 | Pending |
 | CAP-03 | Phase 1 | Pending |
-| CAP-04 | Phase 1 | Pending |
+| CAP-04 | Phase 1 | Complete |
 | CAP-05 | Phase 1 | Pending |
 | CAP-06 | Phase 1 | Pending |
 | ARCH-01 | Phase 1 | Pending |

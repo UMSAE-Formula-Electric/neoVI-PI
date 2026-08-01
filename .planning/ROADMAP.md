@@ -105,7 +105,7 @@ Plans:
 
 - [x] 01-05-PLAN.md — Crash-recovery read path, session naming fallback, and the physical power-pull procedure
 - [x] 01-06-PLAN.md — Archive writer flush cadence, sync accounting, and the drain thread
-- [ ] 01-07-PLAN.md — Fan-out hardening: divergent overflow, exact discard counting, errors with frame context
+- [x] 01-07-PLAN.md — Fan-out hardening: divergent overflow, exact discard counting, errors with frame context
 - [ ] 01-08-PLAN.md — Framing corruption and resync proofs, plus the UDP link
 - [ ] 01-09-PLAN.md — python-ics hardware capture source, proven with no device attached
 
