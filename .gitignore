@@ -26,3 +26,6 @@ env/
 node_modules/
 # Ignore IDE specific files
 .vscode/
+# Captured session archives are run artifacts, never committed to git
+sessions/
+*.mcap

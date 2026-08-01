@@ -1,6 +1,7 @@
 # Phase-0-scoped dev manifest (Compression Ratio Gate).
-# Superseded by the full requirements.txt that Phase 1 owns under OPS-06 —
-# do not extend this file with runtime dependencies; it exists only to pin
-# the two packages Phase 0's tooling and test suite need.
+# requirements.txt is now the authoritative manifest for the whole project.
+# This file is retained unchanged as the Phase 0 record — do not extend it
+# with runtime dependencies; its two pins are cross-checked against
+# requirements.txt for drift (see tests/test_requirements_pinned in 01-03).
 cantools==42.0.3
 pytest==9.1.1
