@@ -194,6 +194,38 @@ def test_unknown_threshold_gating_bracket_raises(tmp_path, base_config_dict):
         load_gate_config(path)
 
 
+def test_default_period_ms_by_ecu_missing_seed_period_map_raises(tmp_path, base_config_dict):
+    mutated = copy.deepcopy(base_config_dict)
+    del mutated["default_period_ms_by_ecu"]["seed_period_ms_by_ecu"]
+    path = _write_config(tmp_path, mutated)
+    with pytest.raises(GateConfigError, match="seed_period_ms_by_ecu"):
+        load_gate_config(path)
+
+
+def test_default_period_ms_by_ecu_missing_no_sender_fallback_raises(tmp_path, base_config_dict):
+    mutated = copy.deepcopy(base_config_dict)
+    del mutated["default_period_ms_by_ecu"]["seed_period_ms_by_ecu"]["NO_SENDER"]
+    path = _write_config(tmp_path, mutated)
+    with pytest.raises(GateConfigError, match="NO_SENDER"):
+        load_gate_config(path)
+
+
+def test_default_period_ms_by_ecu_non_numeric_seed_period_raises(tmp_path, base_config_dict):
+    mutated = copy.deepcopy(base_config_dict)
+    mutated["default_period_ms_by_ecu"]["seed_period_ms_by_ecu"]["NO_SENDER"] = "not-a-number"
+    path = _write_config(tmp_path, mutated)
+    with pytest.raises(GateConfigError, match="NO_SENDER"):
+        load_gate_config(path)
+
+
+def test_default_period_ms_by_ecu_non_positive_seed_period_raises(tmp_path, base_config_dict):
+    mutated = copy.deepcopy(base_config_dict)
+    mutated["default_period_ms_by_ecu"]["seed_period_ms_by_ecu"]["NO_SENDER"] = 0
+    path = _write_config(tmp_path, mutated)
+    with pytest.raises(GateConfigError, match="NO_SENDER"):
+        load_gate_config(path)
+
+
 def test_malformed_json_raises(tmp_path):
     path = tmp_path / "gate.json"
     path.write_text("{not valid json", encoding="utf-8")

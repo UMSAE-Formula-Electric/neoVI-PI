@@ -60,6 +60,14 @@ REQUIRED_THRESHOLD_KEYS = {
 # whose remaining keys are meaningful data (bracket names, bus names, etc).
 _BLOCK_METADATA_KEYS = {"_note", "confirmed", "method", "default_bus", "by_ecu"}
 
+# The seed_period_ms_by_ecu fallback key `telemetry.synth.rates._seed_period_ms`
+# unconditionally falls back to for a message with no declared (or unmapped)
+# sender. Duplicated here rather than imported from `telemetry.synth.rates`
+# to avoid a config<->rates import cycle (rates.py imports `GateConfig` from
+# this module); the two modules' meanings are pinned together by
+# tests/test_gate_config.py.
+_NO_SENDER_FALLBACK_KEY = "NO_SENDER"
+
 
 class GateConfigError(Exception):
     """Raised for any malformed, incomplete, or internally inconsistent
@@ -211,6 +219,42 @@ def _parse_bus_target(name: str, value: object) -> BusTarget:
     return BusTarget(load_pct=float(load_pct), target_fps=float(value["target_fps"]))
 
 
+def _parse_default_period_ms_by_ecu(value: object) -> dict:
+    """Validates the `default_period_ms_by_ecu` block's nested
+    `seed_period_ms_by_ecu` map -- the seed periods
+    `telemetry.synth.rates._seed_period_ms` consumes at measurement time.
+    Requires the `NO_SENDER` fallback key (every message with no declared
+    or unmapped sender resolves to it) and that every value is a positive
+    number, so a malformed or trimmed map fails loudly here with a named
+    `GateConfigError` rather than a raw `KeyError`/`TypeError`/`ValueError`
+    from deep inside the rate model (WR-02)."""
+    if not isinstance(value, dict):
+        raise GateConfigError(
+            f"default_period_ms_by_ecu must be a JSON object, got {value!r}"
+        )
+
+    seed_map = value.get("seed_period_ms_by_ecu")
+    if not isinstance(seed_map, dict):
+        raise GateConfigError(
+            "default_period_ms_by_ecu.seed_period_ms_by_ecu must be a JSON "
+            f"object, got {seed_map!r}"
+        )
+
+    if _NO_SENDER_FALLBACK_KEY not in seed_map:
+        raise GateConfigError(
+            "default_period_ms_by_ecu.seed_period_ms_by_ecu is missing the "
+            f"required fallback key {_NO_SENDER_FALLBACK_KEY!r}"
+        )
+
+    for ecu, period_ms in seed_map.items():
+        _require_positive_number(
+            period_ms,
+            f"default_period_ms_by_ecu.seed_period_ms_by_ecu[{ecu!r}]",
+        )
+
+    return value
+
+
 def _parse_thresholds(value: object) -> Thresholds:
     if not isinstance(value, dict):
         raise GateConfigError(f"thresholds must be a JSON object, got {value!r}")
@@ -353,11 +397,7 @@ def load_gate_config(path) -> GateConfig:
             f"bus_targets ({sorted(bus_targets)})"
         )
 
-    default_period_ms_by_ecu = raw["default_period_ms_by_ecu"]
-    if not isinstance(default_period_ms_by_ecu, dict):
-        raise GateConfigError(
-            f"default_period_ms_by_ecu must be a JSON object, got {default_period_ms_by_ecu!r}"
-        )
+    default_period_ms_by_ecu = _parse_default_period_ms_by_ecu(raw["default_period_ms_by_ecu"])
 
     thresholds = _parse_thresholds(raw["thresholds"])
 
