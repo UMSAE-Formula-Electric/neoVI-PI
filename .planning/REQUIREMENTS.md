@@ -185,7 +185,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | OPS-01 | Phase 3 | Pending |
 | OPS-02 | Phase 3 | Pending |
 | OPS-03 | Phase 3 | Pending |
-| OPS-04 | Phase 1 | Pending |
+| OPS-04 | Phase 1 | Complete |
 | OPS-05 | Phase 1 | Pending |
 | OPS-06 | Phase 1 | Complete |
 | OPS-07 | Phase 3 | Pending |

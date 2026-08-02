@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Dual-Path Capture
 status: executing
-stopped_at: Completed 01-09-PLAN.md
-last_updated: "2026-08-02T00:43:31.934Z"
+stopped_at: Completed 01-10-PLAN.md
+last_updated: "2026-08-02T01:06:40.388Z"
 last_activity: 2026-08-01
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 20
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 01 (Dual-Path Capture) — EXECUTING
-Plan: 9 of 13
+Plan: 10 of 13
 Status: Ready to execute
 Last activity: 2026-08-01 — Phase 01 execution started
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ Progress: [████████░░] 80%
 | Phase 01-dual-path-capture-durable-archive-and-thin-live-link P07 | 40min | 2 tasks | 2 files |
 | Phase 01-dual-path-capture-durable-archive-and-thin-live-link P08 | 20min | 2 tasks | 4 files |
 | Phase 01 P09 | 30min | 2 tasks | 2 files |
+| Phase 01 P10 | 55min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 01-08: CRC-inside-COBS delimiter-safety regression pinned by test (exhaustive batch_seq search for a CRC trailer containing a zero byte); UdpLink added, proven against LoopbackLink via one shared parameterised suite; LoopbackLink.close() given a real closed-state contract (send-after-close now raises) to satisfy LINK-03's shared-suite requirement
 - [Phase ?]: 01-08: Winsock's recvfrom raises WSAEMSGSIZE on an oversized UDP datagram instead of POSIX's silent truncation -- UdpLink.recv() now catches errno.EMSGSIZE and returns None; the deployment target (Linux/CM4) is unaffected, this is a dev-box-only (Windows) code path
 - [Phase ?]: hardware_source: SDK object injected via constructor arg defaulting to a lazily-imported real ics module; SDK's own RuntimeError type caught (never the builtin, since ics.RuntimeError does not subclass it); timestamp unit/epoch carried forward as a named UNCONFIRMED constant pending hardware bring-up
+- [Phase ?]: [Phase 1-10, 2026-08-02] TelemetryPipeline closes batches on whichever of frame count, max age, or the CFR delta-t window (BatchWindowExceeded) comes first, re-encoding the triggering frame as the first record of the next batch rather than dropping it
+- [Phase ?]: [Phase 1-10, 2026-08-02] cli.py installs signal handlers before any resource construction (before config load), resolving a self-contradicting ordering in the plan's own action text; --duration-s is enforced by an independent threading.Timer since HardwareFrameSource blocks internally between polls
+- [Phase ?]: [Phase 1-10, 2026-08-02] mark_done is gated on writer.close() succeeding AND FanOutCounters.archive_write_failure being false; synthetic mode tags every frame with the first configured channel since SyntheticFrameSource models per-message rate/entropy, not per-bus separation
 
 ### Pending Todos
 
@@ -145,8 +149,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-02T00:43:31.919Z
-Stopped at: Completed 01-09-PLAN.md
+Last session: 2026-08-02T01:06:40.373Z
+Stopped at: Completed 01-10-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.
