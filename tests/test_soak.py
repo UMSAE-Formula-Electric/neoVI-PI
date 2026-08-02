@@ -348,23 +348,114 @@ def test_sustained_combined_bus_load_zero_archive_drops(
         f"-- a PASS here does not mean it is fast enough on hardware either."
     )
 
-    print(
-        json.dumps(
-            {
-                "frames_submitted": fan_out.counters.frames_submitted,
-                "wall_clock_s": wall_clock_s,
-                "achieved_fps": achieved_fps,
-                "combined_target_fps": combined_target_fps,
-                "archive_drops": archive_drops,
-                "archive_high_water_mark": fan_out.counters.archive_high_water_mark,
-                "telemetry_high_water_mark": fan_out.counters.telemetry_high_water_mark,
-                "telemetry_discard_count": fan_out.counters.telemetry_discard_count,
-                "telemetry_filtered_count": fan_out.counters.telemetry_filtered_count,
-                "telemetry_enqueued": fan_out.counters.telemetry_enqueued,
-                "pipeline_frames_sent": pipeline_counters.frames_sent,
-                "pipeline_batches_sent": pipeline_counters.batches_sent,
-                "pipeline_bytes_sent": pipeline_counters.bytes_sent,
-            },
-            indent=2,
-        )
-    )
+    # --- the structured record (phase success criterion 3's own artifact) --
+    # Nested by concern rather than one flat 13-key dict: `provenance` names
+    # the machine and explicitly disclaims the CM4 target;
+    # `configuration` pins the queue depths and flush/batch cadence the run
+    # actually used, since a timing number is meaningless without the knobs
+    # that produced it; `throughput`/`archive`/`telemetry`/`pipeline` each
+    # carry their own high-water marks and counters; `fan_out_submit` and the
+    # per-stage sections under `archive`/`pipeline` report median AND p95,
+    # never a mean alone, per 01-RESEARCH.md Open Question 2.
+    def _stage_stats(durations_s):
+        return {
+            "count": len(durations_s),
+            "median_s": statistics.median(durations_s) if durations_s else None,
+            "p95_s": _percentile(durations_s, 95),
+        }
+
+    archive_wall_clock_s = wall_archive_drained - wall_start
+    pipeline_wall_clock_s = wall_archive_drained - wall_start
+
+    soak_record = {
+        "provenance": {
+            "platform": platform.platform(),
+            "python_version": sys.version,
+            "measured_on": (
+                "x86-64 dev hardware -- NOT the CM4's Cortex-A72 target. No "
+                "figure in this record was measured on the deployment core; "
+                "01-VALIDATION.md lists the CM4 soak run as a manual-only "
+                "verification this record does not replace."
+            ),
+            "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
+        },
+        "configuration": {
+            "duration_s_configured": duration_s,
+            "archive_queue_depth": logger_config.archive.queue_depth,
+            "archive_flush_every_records": logger_config.archive.flush_every_records,
+            "archive_flush_every_s": logger_config.archive.flush_every_s,
+            "telemetry_queue_depth": logger_config.telemetry.queue_depth,
+            "telemetry_batch_frames": logger_config.telemetry.batch_frames,
+            "telemetry_batch_max_age_s": logger_config.telemetry.batch_max_age_s,
+            "combined_target_fps": combined_target_fps,
+        },
+        "throughput": {
+            "frames_submitted": fan_out.counters.frames_submitted,
+            "wall_clock_s": wall_clock_s,
+            "achieved_fps": achieved_fps,
+        },
+        "archive": {
+            "drops": archive_drops,
+            "high_water_mark": fan_out.counters.archive_high_water_mark,
+            "overflow": fan_out.counters.archive_overflow,
+            "write_failure": fan_out.counters.archive_write_failure,
+            "records_written": writer.records_written,
+            "flush_count": writer.flush_count,
+            "flush_and_sync_s": _stage_stats(flush_durations_s),
+            "records_per_second": (
+                writer.records_written / archive_wall_clock_s
+                if archive_wall_clock_s > 0
+                else None
+            ),
+        },
+        "telemetry": {
+            "high_water_mark": fan_out.counters.telemetry_high_water_mark,
+            "discard_count": fan_out.counters.telemetry_discard_count,
+            "filtered_count": fan_out.counters.telemetry_filtered_count,
+            "enqueued": fan_out.counters.telemetry_enqueued,
+            "unknown_id_count": fan_out.counters.telemetry_unknown_id_count,
+            "payload_too_long_count": fan_out.counters.telemetry_payload_too_long_count,
+            "unexpected_error_count": fan_out.counters.telemetry_unexpected_error_count,
+            "error_log_suppressed_count": fan_out.counters.telemetry_error_log_suppressed_count,
+        },
+        "pipeline": {
+            "frames_sent": pipeline_counters.frames_sent,
+            "batches_sent": pipeline_counters.batches_sent,
+            "bytes_sent": pipeline_counters.bytes_sent,
+            "batches_per_second": (
+                pipeline_counters.batches_sent / pipeline_wall_clock_s
+                if pipeline_wall_clock_s > 0
+                else None
+            ),
+            "bytes_per_second": (
+                pipeline_counters.bytes_sent / pipeline_wall_clock_s
+                if pipeline_wall_clock_s > 0
+                else None
+            ),
+            "unknown_id_count": pipeline_counters.unknown_id_count,
+            "payload_too_long_count": pipeline_counters.payload_too_long_count,
+            "unexpected_cfr_error_count": pipeline_counters.unexpected_cfr_error_count,
+            "framing_error_count": pipeline_counters.framing_error_count,
+            "link_send_failure_count": pipeline_counters.link_send_failure_count,
+            "encode_s": _stage_stats(encode_durations_s),
+            "framing_s": _stage_stats(framing_durations_s),
+            "link_send_s": _stage_stats(send_durations_s),
+        },
+        "fan_out_submit": _stage_stats(submit_durations_s),
+    }
+
+    record_path = tmp_path / "soak_record.json"
+    record_path.write_text(json.dumps(soak_record, indent=2))
+    print(json.dumps(soak_record, indent=2))
+
+    reparsed = json.loads(record_path.read_text())
+    for section in (
+        "provenance",
+        "configuration",
+        "throughput",
+        "archive",
+        "telemetry",
+        "pipeline",
+        "fan_out_submit",
+    ):
+        assert section in reparsed, f"soak record file is missing its {section!r} section"
