@@ -124,7 +124,15 @@ Plans:
 **Goal**: The pit engineer opens a browser and watches the car's live signals arriving over the new link, served by one Python process
 **Mode:** mvp
 **Depends on**: Phase 1
-**Requirements**: GND-02, GND-03, GND-04, GND-05
+**Requirements**: GND-02, GND-03, GND-04, GND-05, CAP-01
+
+> **CAP-01 lands here, not in Phase 1.** Phase 1 delivered its "single implementation captures
+> both buses" half; the "duplicate implementation is removed from the repository" half was
+> deliberately deferred by user decision (`01-CONTEXT.md` § Deferred Ideas) to keep the legacy
+> loggers for rollback safety. Phase 2 deletes `src/neoVI_logger.py`, `src/new_logger.py`,
+> `src/references.py`, and `src/neoVI_sender.py` alongside the Node server (GND-03), so all
+> legacy retirement lands together. `REQUIREMENTS.md` already records this; the requirement
+> list above now matches it.
 **Success Criteria** (what must be TRUE):
 
   1. A single Python process on the pit laptop receives the link, decodes signals, holds current state, and serves the browser dashboard — no second process, no same-machine pipe
