@@ -15,12 +15,12 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 
 ### Capture
 
-- [x] **CAP-01**: A single logger implementation captures both CAN buses concurrently; the duplicate implementation is removed from the repository
-- [ ] **CAP-02**: Capture sustains ~4,000 frames/s combined across both buses for a full session without dropping frames on the archive path
+- [ ] **CAP-01**: A single logger implementation captures both CAN buses concurrently; the duplicate implementation is removed from the repository
+- [x] **CAP-02**: Capture sustains ~4,000 frames/s combined across both buses for a full session without dropping frames on the archive path
 - [x] **CAP-03**: Capture fans out to two independent consumers whose overflow policies differ — the archive consumer never drops, the telemetry consumer never blocks
 - [x] **CAP-04**: The telemetry consumer is structurally incapable of applying backpressure to the capture thread or the archive path
-- [ ] **CAP-05**: Frames the telemetry path discards are counted and reported, not silently dropped
-- [ ] **CAP-06**: Hardware and decode errors are logged with frame context rather than silently swallowed
+- [x] **CAP-05**: Frames the telemetry path discards are counted and reported, not silently dropped
+- [x] **CAP-06**: Hardware and decode errors are logged with frame context rather than silently swallowed
 
 ### Archive
 
@@ -142,12 +142,12 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | GATE-01 | Phase 0 | Complete |
 | GATE-02 | Phase 0 | Complete |
 | GATE-03 | Phase 0 | Complete |
-| CAP-01 | Phase 1 | Complete |
-| CAP-02 | Phase 1 | Pending |
-| CAP-03 | Phase 1 | Pending |
+| CAP-01 | Phase 1 | Pending |
+| CAP-02 | Phase 1 | Complete |
+| CAP-03 | Phase 1 | Complete |
 | CAP-04 | Phase 1 | Complete |
-| CAP-05 | Phase 1 | Pending |
-| CAP-06 | Phase 1 | Pending |
+| CAP-05 | Phase 1 | Complete |
+| CAP-06 | Phase 1 | Complete |
 | ARCH-01 | Phase 1 | Complete |
 | ARCH-02 | Phase 1 | Complete |
 | ARCH-03 | Phase 1 | Pending |
@@ -207,6 +207,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 
 - **OPS-05** (config not hardcoded) lands in Phase 1 for channels, DBC path, and link settings. The alarm-limits portion of the same sentence is delivered by **ALRM-05** in Phase 7, when alarm limits first exist.
 - **CAP-02** (no dropped frames at full rate) is proven in Phase 1 as a property of the capture path; **TEST-03** in Phase 5 makes that proof a repeatable automated soak that also reports transmitted and dropped counts on the live path.
+- **CAP-01 is deliberately left Pending at the Phase 1 → 2 boundary (user decision, 01-CONTEXT.md `<deferred>`).** Phase 1 satisfies its "single implementation captures both buses" half; its "duplicate implementation removed from the repository" half is not met — `src/neoVI_logger.py`, `src/new_logger.py`, `src/references.py`, and `src/neoVI_sender.py` are kept through Phase 1 for rollback safety. This requirement completes in Phase 2, which already retires the Node server (GND-03), so all legacy deletion lands together. (A prior plan marked this row Complete in error; corrected in 01-13.)
 - **Phase 9 (RFD900x Radio Integration) carries no requirements by design** — every v1 requirement is satisfiable with loopback, PTY, or UDP transports, so unpurchased radio hardware cannot block v1 completion.
 
 ---
