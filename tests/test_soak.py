@@ -17,15 +17,31 @@ CAP-02's own sustained-rate figure is measured here on x86-64 dev hardware,
 never on the CM4's Cortex-A72 target -- `01-VALIDATION.md` lists running
 this same test on the CM4 as a manual-only verification this run does not
 replace (see the achieved-fps assertion's own failure message below).
+
+Per-stage timing (fan-out submit, archive flush/sync, telemetry encode /
+framing / link send) is instrumented entirely from this test file, by
+wrapping the bound methods and module-level functions the production code
+already calls -- no production module is modified to add it. Every timed
+distribution reports a median and a 95th-percentile figure, not a mean
+alone, per `01-RESEARCH.md` Open Question 2: a mean hides exactly the kind
+of intermittent stall this measurement exists to surface. The whole run is
+emitted as one JSON record -- to the test's captured stdout and to a file
+under `tmp_path` -- carrying its own machine/measured-on provenance, so a
+timing figure pulled from this file never travels without the fact that it
+was measured off-target (Phase 0 was bitten three separate times by prose
+figures that outlived their own context).
 """
 
 import json
 import os
 import platform
 import queue
+import statistics
+import sys
 import threading
 import time
 from collections import Counter
+from datetime import datetime, timezone
 
 import pytest
 
@@ -34,6 +50,7 @@ from telemetry.archive.runner import STOP, ArchiveRunner
 from telemetry.archive.writer import ArchiveWriter
 from telemetry.capture.fanout import CapturedFrame, FanOut
 from telemetry.link.loopback import LoopbackLink
+from telemetry.logger import pipeline as pipeline_module
 from telemetry.logger.config import resolve_allowlist
 from telemetry.logger.pipeline import TelemetryPipeline, TelemetryPipelineCounters
 from telemetry.synth.generator import SyntheticFrameSource
@@ -68,8 +85,23 @@ def _soak_duration_s() -> float:
     return value
 
 
+def _percentile(data, pct: int):
+    """The `pct`-th percentile (1-99) of `data`, or `None` for an empty
+    sample. `statistics.quantiles(data, n=100, method="inclusive")` returns
+    99 cut points for the 1st through 99th percentile in order, so `pct`
+    maps to index `pct - 1`; a single-point sample has nothing to
+    interpolate between, so it is returned directly rather than raising."""
+    if not data:
+        return None
+    if len(data) == 1:
+        return data[0]
+    quantiles = statistics.quantiles(data, n=100, method="inclusive")
+    index = max(1, min(99, pct)) - 1
+    return quantiles[index]
+
+
 def test_sustained_combined_bus_load_zero_archive_drops(
-    dbc, gate_config, logger_config, tmp_path
+    dbc, gate_config, logger_config, tmp_path, monkeypatch
 ):
     """CAP-02/CAP-03/CAP-05/CAP-06, driven through the real production
     assembly at the combined bus target rate. See module docstring for the
@@ -113,14 +145,86 @@ def test_sustained_combined_bus_load_zero_archive_drops(
         flush_every_records=logger_config.archive.flush_every_records,
         flush_every_s=logger_config.archive.flush_every_s,
     )
+    # Archive writer flush/sync timing (ArchiveWriter._flush_and_sync is
+    # ArchiveRunner's private, its cadence's own bookkeeping helper --
+    # wrapped here rather than in production code; matches the existing
+    # tests/test_archive_writer.py convention of assigning directly to
+    # `writer._fsync` for the same purpose).
+    flush_durations_s = []
+    _original_flush_and_sync = writer._flush_and_sync
+
+    def _timed_flush_and_sync():
+        t0 = time.perf_counter()
+        try:
+            _original_flush_and_sync()
+        finally:
+            flush_durations_s.append(time.perf_counter() - t0)
+
+    writer._flush_and_sync = _timed_flush_and_sync
+
     archive_runner = ArchiveRunner(fan_out.archive_queue, writer, fan_out.counters, stop_event)
     archive_runner.start()
 
     link = LoopbackLink()
+
+    # Telemetry pipeline per-stage timing: encode (Encoder.encode), framing
+    # (wire.batcher.pack_batch + framing.cobs_frame.frame, both imported as
+    # bare names into telemetry.logger.pipeline's own module namespace, so
+    # they must be patched there rather than on any instance), and send
+    # (Link.send). All three wrap the exact bound method / module function
+    # the production TelemetryPipeline already calls -- no production
+    # module is modified to add this.
+    encode_durations_s = []
+    framing_durations_s = []
+    send_durations_s = []
+
+    encoder = Encoder(dictionary)
+    _original_encode = encoder.encode
+
+    def _timed_encode(frame, batch_base_timestamp_us):
+        t0 = time.perf_counter()
+        try:
+            return _original_encode(frame, batch_base_timestamp_us)
+        finally:
+            encode_durations_s.append(time.perf_counter() - t0)
+
+    encoder.encode = _timed_encode
+
+    _original_pack_batch = pipeline_module.pack_batch
+    _original_cobs_frame = pipeline_module.cobs_frame
+
+    def _timed_pack_batch(*args, **kwargs):
+        t0 = time.perf_counter()
+        try:
+            return _original_pack_batch(*args, **kwargs)
+        finally:
+            framing_durations_s.append(time.perf_counter() - t0)
+
+    def _timed_cobs_frame(*args, **kwargs):
+        t0 = time.perf_counter()
+        try:
+            return _original_cobs_frame(*args, **kwargs)
+        finally:
+            framing_durations_s.append(time.perf_counter() - t0)
+
+    monkeypatch.setattr(pipeline_module, "pack_batch", _timed_pack_batch)
+    monkeypatch.setattr(pipeline_module, "cobs_frame", _timed_cobs_frame)
+
+    _original_send = link.send
+
+    def _timed_send(data):
+        t0 = time.perf_counter()
+        try:
+            return _original_send(data)
+        finally:
+            send_durations_s.append(time.perf_counter() - t0)
+
+    link.send = _timed_send
+
     pipeline_counters = TelemetryPipelineCounters()
     pipeline = TelemetryPipeline(
         telemetry_queue=fan_out.telemetry_queue,
-        encoder=Encoder(dictionary),
+        encoder=encoder,
         link=link,
         dict_version=dictionary.dict_version,
         batch_frames=logger_config.telemetry.batch_frames,
@@ -131,12 +235,15 @@ def test_sustained_combined_bus_load_zero_archive_drops(
     pipeline.start()
 
     expected_archive_records = []
+    submit_durations_s = []
 
     wall_start = time.perf_counter()
     for raw_frame in source.frames():
         channel = frame_key_to_channel[(raw_frame.frame_id, raw_frame.is_extended)]
         captured = CapturedFrame(channel=channel, frame=raw_frame)
+        t0 = time.perf_counter()
         fan_out.submit(captured)
+        submit_durations_s.append(time.perf_counter() - t0)
         expected_archive_records.append((f"/can/{channel}", raw_frame))
     wall_submission_done = time.perf_counter()
 
