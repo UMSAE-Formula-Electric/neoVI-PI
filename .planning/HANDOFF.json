@@ -1,59 +1,66 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-01T21:06:14.757Z",
+  "timestamp": "2026-08-02T02:00:24.016Z",
   "phase": "01",
   "phase_name": "dual-path-capture-durable-archive-and-thin-live-link",
   "phase_dir": ".planning/phases/01-dual-path-capture-durable-archive-and-thin-live-link",
-  "plan": 9,
-  "task": 1,
+  "plan": 13,
+  "task": 2,
   "total_tasks": 2,
   "status": "paused",
-  "completed_tasks": [],
-  "remaining_tasks": [
+  "completed_tasks": [
     {
       "id": 1,
-      "name": "SDK seam, config-driven channel resolution, and fail-fast device open",
-      "status": "in_progress",
-      "progress": "All required context read (plan, RESEARCH.md, CONTEXT.md, frame_source.py, fanout.py, new_logger.py, logger/config.py, config/logger.json, existing test_fanout.py/conftest.py conventions). The three SDK facts the task requires (extended-ID flag, timestamp unit, poll return shape) were investigated live against the installed `ics` 1!26.3.9 package this session -- see decisions_made. No src/telemetry/capture/hardware_source.py written yet. tests/test_hardware_source.py is still 01-02's placeholder skip. No commit made for this plan."
+      "name": "Sustained full-rate load through the real capture path",
+      "status": "done",
+      "commit": "171535c"
     },
     {
       "id": 2,
-      "name": "The poll loop, frame construction, and hardware error accounting",
-      "status": "not_started"
+      "name": "Per-stage timing and the reported soak record",
+      "status": "in_progress",
+      "progress": "Module docstring and imports (statistics, sys, datetime/timezone, telemetry.logger.pipeline as pipeline_module) added to tests/test_soak.py, uncommitted. None of the actual instrumentation code (submit/flush/encode/framing/send timing wraps, _percentile helper, structured JSON record build/write/reparse) has been written yet. File is syntactically valid; Task 1's test still passes as-is."
     }
   ],
+  "remaining_tasks": [],
   "blockers": [],
   "async_jobs": [],
   "human_actions_pending": [],
   "decisions": [
     {
-      "decision": "Extended-ID flag ESTABLISHED with confidence: `StatusBitField & ics.SPY_STATUS_XTD_FRAME` (0x4), not `ics.SPY_STATUS_EXTENDED` (0x80000000).",
-      "rationale": "SPY_STATUS_XTD_FRAME sits in the coherent low-order per-frame flag family (SPY_STATUS_GLOBAL_ERR=0x1, TX_MSG=0x2, XTD_FRAME=0x4, REMOTE_FRAME=0x8, CRC_ERROR=0x10 -- sequential single-bit flags describing one specific frame). SPY_STATUS_EXTENDED sits in a separate high-bit tier (0x20000000/0x40000000/0x80000000) alongside SPY_STATUS_CANFD/HIGH_SPEED/INIT_MESSAGE -- device/mode-level flags, not per-frame identity -- and SPY_STATUS_CANFD and SPY_STATUS_INIT_MESSAGE both equal 0x20000000 (overloaded/context-dependent), which rules that tier out as a reliable simple per-frame flag space. Corroborated by symmetry with src/new_logger.py's existing working TX code, which already sets `msg.StatusBitField = ics.SPY_STATUS_XTD_FRAME` to mark an outgoing frame extended on the exact same field of the exact same SpyMessage type sent to the exact same hardware -- same field, same bit, set on TX and expected back on RX. Verified live via `ics.SPY_STATUS_XTD_FRAME` etc. in this session (see context_notes for the exact values captured).",
+      "decision": "Split synthetic frames across the two configured channels via each message's real assigned bus from the D-03 rate model (source.rates[i].bus -> logger_config.channels[j].name via matching .bus field), not an i%2 alternation.",
+      "rationale": "More faithful to 'genuinely combined bus load' -- it is the same bus assignment the rate model itself used to hit config/gate.json's per-bus target_fps, unlike test_dual_bus_capture's simpler alternating split which was fine for a 2-message subset but would be arbitrary across the full 128-message DBC.",
       "phase": "01"
     },
     {
-      "decision": "Poll return shape ESTABLISHED with confidence: `ics.get_messages(device)` returns `(tuple_of_SpyMessage, error_count)`.",
-      "rationale": "Confirmed directly from the installed module's own docstring/example this session (`ics.get_messages.__doc__`): 'Returns: tuple of two items. First item is a tuple of SpyMessage and second is the error count.' Matches src/new_logger.py's existing `msgs, error_count = ics.get_messages(device)` usage exactly -- no ambiguity here.",
+      "decision": "[Rule 1 - Bug] Implemented the exact FanOutCounters conservation identity (frames_submitted == filtered + unknown_id + payload_too_long + unexpected_error + enqueued) instead of the plan's literal 'discard + enqueued + filtered == submitted' wording.",
+      "rationale": "Traced through telemetry/capture/fanout.py's submit(): telemetry_enqueued increments on every successful deque.append(), INCLUDING appends that evict an older already-counted entry (deque(maxlen=N) drop-oldest); telemetry_discard_count is a subset flag on those same append events, not a disjoint bucket. Summing discard+enqueued+filtered therefore double-counts by telemetry_discard_count whenever it's nonzero, so the plan's literal equation only holds when discard==0 -- which contradicts critical constraint 5 (telemetry-path drops are EXPECTED, never asserted to zero). The identity actually implemented is exactly true by construction regardless of discard (every submitted frame falls into exactly one of those five FanOut.submit() outcomes). telemetry_discard_count is reported as a plain number (107 observed in the first passing run), never asserted to a specific value. Must be documented explicitly in 01-13-SUMMARY.md's Deviations section.",
       "phase": "01"
     },
     {
-      "decision": "Timestamp unit/epoch NOT established with confidence -- must be implemented behind a named constant explicitly labelled UNCONFIRMED in both code and the eventual SUMMARY, and routed to the hardware bring-up check per the plan's own instruction. Do NOT resolve this by guessing.",
-      "rationale": "Two genuinely conflicting/incomplete signals found this session, neither resolvable without real hardware: (1) `SpyMessage.TimeSystem`'s own docstring (captured live via help(ics.SpyMessage)) reads verbatim 'TimeSystem is loaded with the value received from the timeGetTime call in the WIN32 multimedia API' -- i.e. milliseconds, from a Windows-specific API, with an arbitrary system-uptime-relative epoch that wraps roughly every 49.7 days as a DWORD. The actual deployment target is Linux (CM4), so this Windows-specific docstring text may not even describe what the same attribute name reports on the real hardware -- the compiled extension could report something entirely different there. (2) src/new_logger.py's existing (unverified) legacy code formats `m.TimeSystem` with `f'{ts:.6f}'` under a CSV header of 'timestamp_s', implying an assumption that the raw value is already fractional seconds -- which directly contradicts the vendor docstring's 'milliseconds from timeGetTime' description (though it is NOT actually a contradiction in the strictest sense: an integer millisecond count formatted with 6 decimal places just displays trailing zeros and LOOKS like seconds.microseconds without being wrong data -- this is itself an ambiguity, not a resolved fact). (3) A second candidate API exists, `ics.get_timestamp_for_msg(device, msg)`, whose own docstring/example (captured live) returns a bare `Float` with no unit or epoch documented at all (example output 354577568.9145524 -- plausible as seconds since an arbitrary/hardware-relative epoch given the magnitude, but this is inference, not a vendor statement). RESEARCH.md's own Assumption A2 already flagged this exact area ('python-ics's hardware timestamp (m.TimeSystem) ... not directly compared for accuracy/resolution this session') as untested. This is precisely the kind of fact the plan says must be carried forward as a labelled assumption, not promoted to fact.",
+      "decision": "achieved_fps wall-clock window spans from before the submission loop starts through archive_runner.join() returning (archive path fully drained), excluding writer.close()'s one-time MCAP footer-finalize cost.",
+      "rationale": "close() is a fixed per-session cost, not part of repeating per-frame throughput -- including it would understate the sustained rate for a reason unrelated to the archive path's actual per-frame capacity.",
       "phase": "01"
     },
     {
-      "decision": "Exception-type landmine found and must be respected in Task 2 (and reused in Task 1's device-open path): `ics.RuntimeError` is NOT a subclass of the Python builtin `RuntimeError`.",
-      "rationale": "Verified live this session: `issubclass(ics.RuntimeError, RuntimeError)` returns `False`; `ics.RuntimeError.__mro__` is `(ics.ics.RuntimeError, Exception, BaseException, object)` -- it inherits directly from `Exception`, bypassing the builtin `RuntimeError` entirely. Confirmed this is the actual exception type raised by real calls in this environment: `ics.find_devices()` with no driver present raised `<class 'ics.ics.RuntimeError'>` (message: \"Error: find_devices(): Failed to Retrieve address of function 'icsneoFindDevices': Windows Error #127 for library 'icsneo40.dll'\"). The plan's Task 2 behavior block requires 'an exception raised by the SDK's message-poll call is caught by its own type' -- a bare `except RuntimeError:` would silently NOT catch this and let it propagate uncaught, which is exactly the failure mode CAP-06 exists to prevent. The implementation must catch the exception type off the injected SDK object itself (e.g. `sdk.RuntimeError`), never the builtin, so the fake SDK used in tests and the real `ics` module both work identically through the same seam.",
+      "decision": "combined_target_fps is computed from config/gate.json's bus_targets (2900 + 830 = 3730.0), never a hardcoded literal like '~4000'.",
+      "rationale": "Phase 0's own recorded lesson: prose figures drift from the config that actually produced them. The config is the single source of truth for the target.",
+      "phase": "01"
+    },
+    {
+      "decision": "All per-stage timing instrumentation (submit, flush/sync, encode, framing, send) will live entirely in tests/test_soak.py, by wrapping bound methods and monkeypatching module-level functions -- no production module is touched.",
+      "rationale": "This plan's files_modified is tests/test_soak.py only. Matches the existing repo convention already used in tests/test_archive_writer.py (writer._fsync = lambda fd: sync_calls.append(fd)) -- not a new pattern for this codebase.",
       "phase": "01"
     }
   ],
   "uncommitted_files": [
+    "tests/test_soak.py",
     ".planning/config.json",
     ".planning/research/.cache/039f73bf8b7485e764beb68bcf9eace25a31c3b02be8ce78b550a7577e16e544.json",
     ".planning/research/.cache/24c44f49528cedb9638f0dc9161ab30deb09b37e138667f7ba35a2bf12ede402.json",
     ".planning/research/.cache/44d5926c4c2f1aa097c845d4cac067e5b3c1dbcb6ab9781934e2c5f3fd5f3f62.json",
     ".planning/research/.cache/e0ed6d935ca88b7c67fe0d29fb058c3c30478f35cb8c0ae70462f647cc4182dd.json"
   ],
-  "next_action": "Resume /gsd-execute-phase 1 (or re-invoke the 01-09 plan executor directly). Start by writing src/telemetry/capture/hardware_source.py Task 1 (SDK seam via a constructor arg defaulting to a lazily-imported real `ics` module; config-driven channel resolution with a named error on an unresolvable symbolic constant; net-ID-to-channel-name map; fail-fast device-open by serial-or-first with CAP-06 context logging before raising; a module-level test asserting no module under telemetry imports vspyx) and tests/test_hardware_source.py (replacing the 01-02 placeholder skip) covering every bullet in the plan's Task 1 <behavior> block, using the SDK facts and the RuntimeError landmine recorded in decisions_made above. Do not re-derive the three SDK facts from scratch -- they are already established/labelled above.",
-  "context_notes": "This is a genuinely clean pause point: zero code written, zero files modified, zero commits made for plan 01-09 -- pausing occurred entirely during the research/context-gathering portion of Task 1, before any Write/Edit call. Exact values captured live this session for reference: ics.NETID_HSCAN=1, ics.NETID_HSCAN2=42 (both match config/logger.json's channel entries); ics.SPY_STATUS_GLOBAL_ERR=0x1, TX_MSG=0x2, XTD_FRAME=0x4, REMOTE_FRAME=0x8, CRC_ERROR=0x10, CANFD=0x20000000, INIT_MESSAGE=0x20000000, HIGH_SPEED=0x40000000, EXTENDED=0x80000000; ics.find_devices()/open_device()/close_device()/get_messages()/get_timestamp_for_msg() docstrings all captured via help()/`.__doc__` in this session and cross-checked against src/new_logger.py's existing usage. The dev environment genuinely has no neoVI driver installed (find_devices() raises immediately, confirming 01-RESEARCH.md Pattern 5's fail-fast claim). Existing repo conventions confirmed for the module to be written: config-driven loader pattern already exists at src/telemetry/logger/config.py (LoggerConfig.channels gives name/netid/bus per entry -- netid is the string form e.g. 'NETID_HSCAN', to be resolved via getattr against the injected SDK object); FanOut/CapturedFrame contract already exists at src/telemetry/capture/fanout.py (CapturedFrame(channel, frame), frame is a RawFrame(timestamp_us, frame_id, is_extended, payload)); test style precedent is tests/test_fanout.py (plain functions, no test classes, fixtures from tests/conftest.py: dbc, logger_config, gate_config, all session-scoped). Per the invoking prompt's critical_constraints: do NOT delete/modify src/new_logger.py, src/neoVI_logger.py, src/references.py, or src/neoVI_sender.py (CAP-01's removal clause is deferred to Phase 2); do NOT mark CAP-01/CAP-06/OPS-05 complete in REQUIREMENTS.md when this plan finishes, since 01-10 (CAP-01, OPS-05), 01-11/01-12 (OPS-05), and 01-13 (CAP-06) also claim those IDs -- the plan's own success_criteria section says this explicitly."
+  "next_action": "Resume /gsd-execute-phase 1 (or re-invoke the 01-13 plan executor directly). Open tests/test_soak.py, add `monkeypatch` to the test function's fixture parameters, then implement in order: (1) a module-level _percentile(data, pct) helper using statistics.quantiles(data, n=100, method='inclusive')[pct-1] guarded for len(data)<2; (2) wrap each fan_out.submit(captured) call in the existing submission loop with time.perf_counter() timing into submit_durations_s; (3) right after constructing writer (before archive_runner.start()), wrap writer._flush_and_sync into flush_durations_s; (4) pull the inline Encoder(dictionary) out to a local `encoder` variable, wrap encoder.encode into encode_durations_s, then pass encoder=encoder into TelemetryPipeline(...); (5) monkeypatch.setattr(pipeline_module, 'pack_batch'/'cobs_frame', timed wrappers) both appending into framing_durations_s; (6) wrap link.send into send_durations_s; (7) replace the final print(json.dumps({...})) block with a full nested record (provenance/configuration/throughput/archive/telemetry/pipeline/fan_out_submit sections per 01-13-PLAN.md Task 2's action text), write it to tmp_path/'soak_record.json', print it, reparse the file and assert every top-level section key is present. Then run `python -m pytest tests/test_soak.py -x -q --tb=short -s` and the full `python -m pytest -q`, commit Task 2 (feat(01-13): per-stage timing and the reported soak record), then do the plan-level closeout: write 01-13-SUMMARY.md (documenting the Rule-1 deviation above), self-check, state.advance-plan/update-progress/record-metric/add-decision/record-session, roadmap.update-plan-progress 01, requirements.mark-complete CAP-02 CAP-03 CAP-05 CAP-06 (this is the LAST plan of the phase -- 01-07/01-10 summaries already confirm they deferred exactly these four IDs to 01-13 as last claimant), final metadata commit, then return the PLAN COMPLETE format -- this closes the entire phase.",
+  "context_notes": "Plan 01-13 is the LAST plan of Phase 1. The full design for Task 2 was worked out completely before pausing (see .continue-here.md's <remaining_work> for the exact implementation order and every record field) -- resuming is finishing already-decided code, not re-deriving the approach. Task 1's soak test (committed 171535c) already passes: on this dev box, frames_submitted=18689 over wall_clock_s~0.4755 gives achieved_fps~39303.5 against a combined_target_fps of 3730.0 (config/gate.json bus1 2900 + bus2 830) -- comfortably above target. archive_high_water_mark=16689 against archive queue_depth=50000 (no overflow). telemetry_high_water_mark=1000 (hit the configured cap). telemetry_discard_count=107 (expected/nonzero per critical constraint 5, not a failure). telemetry_filtered_count=14139, telemetry_enqueued=4550. pipeline_frames_sent=4443, pipeline_batches_sent=76, pipeline_bytes_sent=50527. Full quick suite (-m 'not slow') reconfirmed green: 282 passed, 1 deselected, immediately after Task 1's commit. No blockers, no human action pending -- this is a clean pause mid-mechanical-instrumentation-work, not a decision point."
 }
