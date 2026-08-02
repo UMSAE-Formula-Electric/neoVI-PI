@@ -5,12 +5,12 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Dual-Path Capture — Durable Archive and Thin Live Link
 status: executing
-stopped_at: Completed 01-13-PLAN.md -- Phase 01 all 13 plans complete, ready for phase transition
-last_updated: "2026-08-02T11:53:25.722Z"
+stopped_at: Phase 2 UI-SPEC approved
+last_updated: "2026-08-02T18:28:04.598Z"
 last_activity: 2026-08-02
 last_activity_desc: Completed 01-13 (sustained load soak + per-stage timing record)
 progress:
-  total_phases: 2
+  total_phases: 3
   completed_phases: 2
   total_plans: 20
   completed_plans: 20
@@ -159,8 +159,10 @@ need hardware that is not available in the dev session. Items are persisted in
 
 1. **Physical power-pull durability test** (ARCH-02/ARCH-03) — `docs/power-pull-test.md`. A SIGKILL
    proxy cannot prove fsync correctness; the OS page cache survives a process kill.
+
 2. **CM4-target soak** (CAP-02) — every throughput figure to date (42,880.6 fps) is x86-64 dev
    hardware, never the Cortex-A72.
+
 3. **Real dual-bus hardware capture** (CAP-01) — also the only way to confirm or correct
    `TIME_SYSTEM_TO_MICROSECONDS_UNCONFIRMED`.
 
@@ -178,9 +180,9 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-02T11:53:25.708Z
-Stopped at: Completed 01-13-PLAN.md -- Phase 01 all 13 plans complete, ready for phase transition
-Resume file: None
+Last session: 2026-08-02T18:28:04.577Z
+Stopped at: Phase 2 UI-SPEC approved
+Resume file: .planning/phases/02-python-ground-station-and-dashboard-cutover/02-UI-SPEC.md
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.
 
