@@ -147,6 +147,27 @@ None yet.
 - **[Phase 0] The classifier's 12 checksum-bucket candidates were never hand-reviewed.** RESEARCH.md Assumption A2 predicted false positives (heartbeats, fault codes, SOH values). Reported as an inspectable candidate list with per-assignment reasons rather than asserted correct — auditable without re-running anything.
 - **[Phase 0 → 1] The gate's numbers rest on a modelled stream, not captured traffic.** Bus assignment and total frame rate both carry `confirmed: false`, and the EMUS `_Ext` correction was recorded arithmetically rather than re-measured. Phase 1's first bench or track session should re-run the gate against a real captured log — which needs the deferred real-log reader for the D-08 frame-source interface, scope Phase 1 must absorb.
 
+## Deferred Verification
+
+| Phase | State | Resume |
+|-------|-------|--------|
+| 1 | verification_deferred_human | /gsd-verify-work 1 |
+
+Phase 1 passed 5/5 must-haves in software (287 tests, 0 open code-review findings) but three items
+need hardware that is not available in the dev session. Items are persisted in
+`.planning/phases/01-dual-path-capture-durable-archive-and-thin-live-link/01-UAT.md`:
+
+1. **Physical power-pull durability test** (ARCH-02/ARCH-03) — `docs/power-pull-test.md`. A SIGKILL
+   proxy cannot prove fsync correctness; the OS page cache survives a process kill.
+2. **CM4-target soak** (CAP-02) — every throughput figure to date (42,880.6 fps) is x86-64 dev
+   hardware, never the Cortex-A72.
+3. **Real dual-bus hardware capture** (CAP-01) — also the only way to confirm or correct
+   `TIME_SYSTEM_TO_MICROSECONDS_UNCONFIRMED`.
+
+Per explicit user decision on 2026-08-02, the autonomous run continued to Phase 2 rather than
+halting — Phase 2 has no hardware dependency. Phase 1 remains formally unverified until
+`/gsd-verify-work 1` passes.
+
 ## Deferred Items
 
 Items acknowledged and carried forward from previous milestone close:
