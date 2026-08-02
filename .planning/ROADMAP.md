@@ -140,7 +140,14 @@ Plans:
   3. A browser opened mid-session immediately shows every signal's current value instead of waiting for each signal to next update
   4. The Node.js server is removed from the repository and nothing in the system depends on it
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Tracer: one decoded signal travels link → state store → SSE → a connected client, in one process
+- [ ] 02-02-PLAN.md — Serve the ported dashboard over EventSource; staleness dimming and honest empty/no-results copy
+- [ ] 02-03-PLAN.md — Python simulator replacing simulate.js, driving the real wire path with no car or radio
+- [ ] 02-04-PLAN.md — Delete the Node directory and the four legacy loggers; update the instruction file; close GND-03 and CAP-01
+
 **UI hint**: yes
 
 ### Phase 3: Unattended On-Car Operation
