@@ -56,7 +56,11 @@ class UdpLink:
     socket timeout exception is caught here so it never escapes to the
     caller — `None` on timeout is the `Link` Protocol's contract and every
     caller is written against it). `close` closes the socket and is safe to
-    call more than once."""
+    call more than once. Like `send`, `recv` after `close` raises
+    `RuntimeError` rather than touching the now-closed socket — this
+    matches `LoopbackLink.recv`'s post-close behavior exactly, so LINK-03's
+    "no change to the layers above" holds for the closed-state contract
+    too, not just the open-state one."""
 
     def __init__(
         self,
@@ -90,6 +94,8 @@ class UdpLink:
         self._sock.sendto(data, self._remote_addr)
 
     def recv(self, timeout: Optional[float] = None) -> Optional[bytes]:
+        if self._closed:
+            raise RuntimeError("cannot recv on a closed UdpLink")
         self._sock.settimeout(timeout)
         try:
             data, _ = self._sock.recvfrom(self._bufsize)

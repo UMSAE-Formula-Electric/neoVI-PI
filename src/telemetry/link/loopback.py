@@ -22,7 +22,10 @@ class LoopbackLink:
     raising — the same "no data yet" signal every `Link` implementation
     gives its caller. `close()` is idempotent; `send` after `close` raises
     `RuntimeError` rather than silently queuing into a link nothing will
-    ever drain again."""
+    ever drain again — and (01-08 follow-up, see WR-04) `recv` after
+    `close` raises `RuntimeError` too, matching `UdpLink.recv`'s post-close
+    behavior exactly, rather than the internal queue's contents remaining
+    silently readable forever after the link is supposedly closed."""
 
     def __init__(self) -> None:
         self._q: "queue.Queue[bytes]" = queue.Queue()
@@ -34,6 +37,8 @@ class LoopbackLink:
         self._q.put(data)
 
     def recv(self, timeout: Optional[float] = None) -> Optional[bytes]:
+        if self._closed:
+            raise RuntimeError("cannot recv on a closed LoopbackLink")
         try:
             return self._q.get(timeout=timeout)
         except queue.Empty:

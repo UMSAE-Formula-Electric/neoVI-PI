@@ -113,6 +113,21 @@ def test_close_is_idempotent_and_send_after_close_raises(link_pair):
         sender.send(b"\x01")
 
 
+def test_recv_after_close_raises_runtime_error_on_both_implementations(link_pair):
+    """WR-04 regression: before this fix, `UdpLink.recv()` after `close()`
+    raised an unhandled `OSError` (touching an already-closed socket) while
+    `LoopbackLink.recv()` kept working (reading from an untouched internal
+    queue) -- an untested divergence in exactly the shared suite whose
+    stated purpose is proving no such divergence exists. Both
+    implementations must now agree: `recv()` after `close()` raises
+    `RuntimeError`, the same closed-state contract `send()` already had."""
+    _sender, receiver = link_pair
+    receiver.close()
+
+    with pytest.raises(RuntimeError):
+        receiver.recv(timeout=0.2)
+
+
 def _run_full_chain(dictionary, db, sender, receiver):
     """The 01-04 tracer's own chain -- encode, batch, frame, send, receive,
     deframe, decode -- run against whichever `sender`/`receiver` pair is
