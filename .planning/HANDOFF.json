@@ -1,58 +1,41 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-02T12:17:06.371Z",
-  "phase": "01",
-  "phase_name": "Dual-Path Capture — Durable Archive and Thin Live Link",
-  "phase_dir": ".planning/phases/01-dual-path-capture-durable-archive-and-thin-live-link",
-  "plan": 13,
-  "task": 2,
+  "timestamp": "2026-08-02T19:11:04.714Z",
+  "phase": "02",
+  "phase_name": "02-python-ground-station-and-dashboard-cutover",
+  "phase_dir": ".planning/phases/02-python-ground-station-and-dashboard-cutover",
+  "plan": 1,
+  "task": 1,
   "total_tasks": 2,
   "status": "paused",
-  "completed_tasks": [
-    {"id": 1, "name": "01-13 Task 1 — sustained full-rate load through the real capture path", "status": "done", "commit": "171535c"},
-    {"id": 2, "name": "01-13 Task 2 — per-stage timing wrappers", "status": "done", "commit": "55fd078"},
-    {"id": 3, "name": "01-13 Task 2 — nested structured soak record (median/p95 + provenance as a field)", "status": "done", "commit": "ba196f9"},
-    {"id": 4, "name": "01-13 requirement traceability correction (CAP-01 reverted to Pending; CAP-02/05/06 closed)", "status": "done", "commit": "dc4bde8"},
-    {"id": 5, "name": "01-13 SUMMARY + phase metadata", "status": "done", "commit": "dbeb02a"},
-    {"id": 6, "name": "Phase 01 code review — 40 files, standard depth, 1 critical / 4 warning / 2 info", "status": "done", "commit": "2a02719"},
-    {"id": 7, "name": "CR-01 fix — .done marker now gated on archive_overflow, with subprocess regression test", "status": "done", "commit": "5c8fa04"},
-    {"id": 8, "name": "WR-01 fix — lock guarding archive_high_water_mark across FanOut and ArchiveRunner", "status": "done", "commit": "0725827"},
-    {"id": 9, "name": "Code review fix report", "status": "done", "commit": "52d001b"}
-  ],
+  "completed_tasks": [],
+  "in_progress_task": {
+    "id": 1,
+    "name": "End-to-end \"one decoded signal reaches a connected client\" -- one path only",
+    "status": "in_progress",
+    "progress": "Implementation files written and import-clean; test file not yet written; nothing run or committed yet."
+  },
   "remaining_tasks": [
-    {"id": 10, "name": "WR-02 — replace bare assert in src/telemetry/wire/batcher.py:43-47 with a raise (python -O strips asserts)", "status": "not_started"},
-    {"id": 11, "name": "WR-03 — move Deframer.feed() overflow cap out of generator tail (src/telemetry/ground/deframe.py:79-104)", "status": "not_started"},
-    {"id": 12, "name": "WR-04 — UdpLink.recv() post-close divergence vs LoopbackLink (src/telemetry/link/udp.py:92-118)", "status": "not_started"},
-    {"id": 13, "name": "Regression gate — run prior-phase test suites before verification", "status": "not_started"},
-    {"id": 14, "name": "Phase 01 verification (gsd-verifier → 01-VERIFICATION.md)", "status": "not_started"},
-    {"id": 15, "name": "Phase 01 transition + mark complete in ROADMAP/STATE", "status": "not_started"},
-    {"id": 16, "name": "Phases 2–9 — entirely unplanned (discuss → plan → execute each)", "status": "not_started"}
+    {"id": 1, "name": "Finish Task 1: write tests/test_ground_server.py's Task-1 assertions, run them + test_end_to_end.py, fix issues, commit", "status": "in_progress"},
+    {"id": 2, "name": "Task 2: bounded per-client fan-out + hardened routes (TDD: drop-oldest push, SseHubCounters write-failure accounting, 404/no-content-length/dead-client tests), commit", "status": "not_started"}
   ],
-  "blockers": [
-    {"description": "WR-02/03/04 remain open from code review; all three are small, fully-specified fixes documented in 01-REVIEW.md", "type": "technical", "workaround": "Re-run /gsd-code-review 01 --fix to continue"},
-    {"description": "Phase 01 verification has NEVER been run — the phase is not marked complete in ROADMAP/STATE despite all 13 plans having SUMMARYs", "type": "technical", "workaround": "Runs automatically on resuming /gsd-autonomous"},
-    {"description": "CAP-01's 'duplicate removed from the repository' half is deliberately deferred to Phase 2 by user decision. Legacy src/neoVI_logger.py, src/new_logger.py, src/references.py, src/neoVI_sender.py are kept for rollback safety. CAP-01 must stay Pending — plan 01-12 wrongly marked it Complete and it was reverted in dc4bde8.", "type": "external", "workaround": "Re-target that clause to Phase 2, which already retires the Node server (GND-03)"},
-    {"description": "ARCH-03 is not closeable by software — the physical power-pull is manual. A SIGKILL proxy does NOT prove fsync correctness; the OS page cache survives a process kill.", "type": "human_action", "workaround": "Procedure in docs/power-pull-test.md"},
-    {"description": "python-ics timestamp unit UNCONFIRMED behind TIME_SYSTEM_TO_MICROSECONDS_UNCONFIRMED = 1000 in src/telemetry/capture/hardware_source.py. SpyMessage.TimeSystem's docstring cites the Windows-only timeGetTime(); the deployment target is Linux.", "type": "external", "workaround": "Resolve at hardware bring-up — do not guess"},
-    {"description": "Every measured number in Phase 1 is off-target hardware — x86-64 dev box, never the CM4 Cortex-A72. Latest soak: 42,880.6 fps vs a 3,730 fps combined target.", "type": "external", "workaround": "01-VALIDATION.md lists the CM4 soak, real dual-bus capture, and power-pull as manual-only verifications no automated run replaces"},
-    {"description": "RFD900x not purchased. Phase 9 cannot start until hardware arrives; procurement is a standing parallel track.", "type": "external", "workaround": "Phase 9 is isolated with zero v1 requirements so it can slip without blocking any other phase"},
-    {"description": "Worktree parallelism degraded to sequential (#683) — HEAD add-pedal-percent-msg has diverged from origin/HEAD, so plans run one at a time.", "type": "technical", "workaround": "Run: gsd-tools worktree set-baseref"},
-    {"description": "Phase 0's gate still rests on a modelled stream — bus assignment and total frame rate carry confirmed:false, and the EMUS _Ext correction (~261.85 kbit/s) was arithmetic, not a re-run. 01-12 built the real-log reader so the re-check is now runnable.", "type": "technical", "workaround": "Run the gate against a captured archive via --frame-source archive"},
-    {"description": "Two advisory Phase 0 hooks were declined and remain available: /gsd-validate-phase 0 (its VALIDATION.md is still an unfilled template) and /gsd-secure-phase 0.", "type": "technical", "workaround": "Non-blocking"}
-  ],
+  "blockers": [],
   "async_jobs": [],
-  "human_actions_pending": [
-    {"action": "Decide whether WR-02/03/04 are fixed before Phase 01 verification, or carried as known debt", "context": "All three are Warning severity; none touch the core-value data-integrity path that CR-01 did", "blocking": false},
-    {"action": "Physical power-pull test on the CM4 to close ARCH-03", "context": "No software proxy can substitute — OS page cache survives SIGKILL", "blocking": false},
-    {"action": "Confirm the python-ics timestamp unit at hardware bring-up", "context": "TIME_SYSTEM_TO_MICROSECONDS_UNCONFIRMED is a knowingly-unverified constant, named to advertise that", "blocking": false}
-  ],
+  "human_actions_pending": [],
   "decisions": [
-    {"decision": "Resumed 01-13 as a continuation rather than re-executing from Task 1", "rationale": "The safe_resume_gate fired (production commits present, no SUMMARY) but .continue-here.md documented the WIP precisely. That gate exists to catch UNdocumented partial work; documented partial work with an explicit resume instruction is the case it is meant to let through.", "phase": "01"},
-    {"decision": "Reverted CAP-01 from Complete back to Pending", "rationale": "Plan 01-12 had marked it Complete, contradicting the locked user decision in 01-CONTEXT.md deferring legacy-logger removal to Phase 2. This is a live instance of the project's #1 recorded anti-pattern (first-claimant marking) firing and being caught.", "phase": "01"},
-    {"decision": "Shipped WR-01's lock fix WITHOUT new regression coverage", "rationale": "The candidate concurrency test passed 5/5 even with the lock reverted — GIL scheduling made the race non-reproducible, so it would have shipped as false-confidence coverage. Recorded as a real, named gap instead. REVIEW.md's alternative (separate producer/consumer HWM fields merged with max() after join()) would be directly assertable if stronger proof is wanted.", "phase": "01"},
-    {"decision": "Stopped the background code-fixer mid-run and force-removed its worktree", "rationale": "User issued /gsd-pause-work. The removal ran `git worktree remove --force` in the SAME command block as the emptiness check, so an uncommitted in-progress WR-02 edit to src/telemetry/wire/batcher.py was destroyed before the check output could be read. WR-02 was unfixed before and after, so net loss is small — but see the anti-pattern table.", "phase": "01"}
+    {"decision": "Two-bus test subjects for build_message_index tests: M195_Pedal_Press_Percent (bus1 -> MAIN) and Battery_Volt_1_Overall_Param_Std (bus2 -> SENSOR)", "rationale": "Both are on config/logger.json's telemetry allowlist; verified via assign_rates(dbc, gate_config) that they resolve to bus1/bus2 respectively, and M195_Pedal_Press_Percent is already the SUBJECT_MESSAGE test_end_to_end.py uses, so reusing it keeps the two test files' fixtures aligned.", "phase": "02"},
+    {"decision": "Verified empirically (ad hoc script, not yet a checked-in test) that build_message_index over the real DBC + config/logger.json + config/gate.json produces zero (channel, id_key) collisions across all 128 DBC messages", "rationale": "De-risks test_real_dbc_message_index_has_no_collisions before writing it -- confirms the plan's collision-detection design is safe against the real DBC, not just a synthetic case.", "phase": "02"},
+    {"decision": "test_duplicate_message_id_key_raises will use synthetic minimal fake message objects (name/frame_id/senders/cycle_time/is_extended_frame attributes only) wrapped in a fake db.messages list, with a sender name absent from gate_config.bus_assignment.by_ecu so _resolve_bus falls back to bus_assignment.default_bus (='bus1' in the real gate.json) -- two fake messages sharing one frame_id then collide under the same MAIN channel", "rationale": "The real DBC has zero collisions (see above), so GroundStateError's raise path needs a synthetic forcing case; reusing the real gate_config's default_bus fallback avoids inventing a second config-loading path in the test.", "phase": "02"},
+    {"decision": "SseHubCounters guards ONLY clients_connected/clients_peak with an embedded lock (_client_count_lock); frames_dropped_oldest, client_write_failures, and write_failure_log_suppressed_count are left as unguarded simple increments", "rationale": "Matches the plan's explicit instruction and FanOutCounters' established convention: only genuinely compound read-modify-write fields (here, the max()-based peak tracking) get a lock; simple per-event increments accept rare lost-update races as diagnostic imprecision, exactly as fanout.py's non-high-water-mark counters do.", "phase": "02"},
+    {"decision": "Task 1's SseHub.broadcast() uses a plain put_nowait guarded by queue.Full (bare pass, no counting) -- the tracer's single path per the plan's own text -- and will be replaced by a drop-oldest wrapper in Task 2, not amended in place", "rationale": "PLAN.md Task 1 action text explicitly scopes the naive push to Task 1 and assigns the drop-oldest replacement to Task 2's TDD cycle; keeping them as two separate edits preserves clean atomic per-task commits.", "phase": "02"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Run /gsd-autonomous. It resumes at Phase 01 post-execution routing: optionally finish WR-02/03/04 via /gsd-code-review 01 --fix, then regression gate → gsd-verifier → 01-VERIFICATION.md → transition. Then Phases 2–9, all of which are entirely unplanned.",
-  "context_notes": "Phase 1 is CODE-complete but not CLOSED. All 13 plans have SUMMARYs and the suite is 284 passing, but phase-level verification has never run, so ROADMAP/STATE still show Phase 1 incomplete. The code review surfaced one genuine core-value bug — CR-01: a session that dropped archive frames via queue overflow could still be marked .done and exit 0, directly contradicting 'no run's data is ever lost'. That is fixed, with a subprocess-level regression test verified to fail against pre-fix code. Three Warning findings remain open and are fully specified in 01-REVIEW.md. Phases 2-9 have no CONTEXT.md, no plans, nothing."
+  "uncommitted_files": [
+    "src/telemetry/ground/state.py (new, complete per interface contract: UNMAPPED_CHANNEL, GroundStateError, MessageLocation, build_message_index, SignalStateCounters, SignalState)",
+    "src/telemetry/ground/server.py (new, Task-1 version: SSE_CLIENT_QUEUE_MAXSIZE/SSE_HEARTBEAT_S constants, SseHubCounters, SseHub with naive broadcast, make_handler_class, DashboardServer)",
+    "src/telemetry/ground/cli.py (modified: --serve/--http-host/--http-port flags; gate-config + build_message_index loaded ONLY when --serve; composite on_record; threaded serve_forever()+run_consumer_loop with cross-thread shutdown from the consumer thread's finally)",
+    ".planning/STATE.md (modified -- pre-existing diff from before this session started, not touched by this execution turn; leave as-is, do not attribute to this plan's work)",
+    ".planning/phases/02-python-ground-station-and-dashboard-cutover/02-PATTERNS.md (untracked -- pre-existing planning artifact from the plan/pattern-map step, not created by this execution turn)"
+  ],
+  "next_action": "Write tests/test_ground_server.py's Task-1 behavior block (7 tests listed in 02-01-PLAN.md's <behavior> for Task 1), then run `python -m pytest -x -q --tb=short tests/test_ground_server.py tests/test_end_to_end.py`, fix any failures via the deviation rules, then commit Task 1 (feat(02-01): ...). Continue to Task 2 per PLAN.md.",
+  "context_notes": "All three implementation files (state.py, server.py, cli.py) are written per the plan's fixed interface contract and import cleanly (verified via `python -c 'import telemetry.ground.state, telemetry.ground.server, telemetry.ground.cli'`). Full suite still collects 287 tests with no regression from the cli.py edit. What remains for Task 1 is purely the test file plus running/fixing/committing -- no further design work should be needed unless a test surfaces a real bug. Key reusable facts gathered this session: LoopbackLink/Deframer/Encoder/pack_batch/cobs_frame wiring for building a framed test batch (mirror tests/test_end_to_end.py's test_one_frame_reaches_the_archive_and_the_pit, lines ~99-197, and its SUBJECT_MESSAGE/SUBJECT_CHANNEL/SUBJECT_SIGNAL_VALUES constants at the top of that file); SSE frame format from server.py is exactly two lines per event (`data: {...}\\n` then a blank `\\n` line) since this plan deliberately omits the `event:` line -- NOT the three-line `event:`/`data:`/blank shape RESEARCH.md's own probe script used, so a reading helper must skip/handle heartbeat comment lines (`: heartbeat\\n\\n`) which are also two lines. conftest.py already provides session-scoped `dbc`, `gate_config`, and `logger_config` fixtures -- no need to construct these by hand in the new test file."
 }

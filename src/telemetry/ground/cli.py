@@ -73,6 +73,8 @@ from typing import IO, Callable, Optional, Set
 from cantools.database.errors import DecodeError as DbcDecodeError
 
 from telemetry.ground.deframe import DeframeCounters, Deframer
+from telemetry.ground.server import DashboardServer, SseHub
+from telemetry.ground.state import GroundStateError, SignalState, build_message_index
 from telemetry.link.base import Link
 from telemetry.link.loopback import LoopbackLink
 from telemetry.link.udp import UdpLink
@@ -82,6 +84,7 @@ from telemetry.logger.config import (
     LoggerConfigError,
     load_logger_config,
 )
+from telemetry.measure.config import GateConfig, GateConfigError, load_gate_config
 from telemetry.wire.dictionary import DbcLoadError, build_id_dictionary, load_dbc
 from telemetry.wire.frame_source import RawFrame
 
@@ -167,6 +170,33 @@ def _parse_args(argv=None) -> argparse.Namespace:
         "--log-level",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+    )
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help=(
+            "Also serve the live dashboard over HTTP/SSE alongside the "
+            "existing headless JSON output (GND-02). The gate config and a "
+            "DBC message index are only loaded when this flag is set -- "
+            "the headless path is unaffected either way."
+        ),
+    )
+    parser.add_argument(
+        "--http-host",
+        default="127.0.0.1",
+        help=(
+            "Host to bind the dashboard HTTP server to when --serve is set "
+            "(default: 127.0.0.1, loopback-only). Binding a non-loopback "
+            "address publishes unauthenticated live vehicle telemetry to "
+            "everyone on that network -- this server has no authentication "
+            "of any kind."
+        ),
+    )
+    parser.add_argument(
+        "--http-port",
+        type=int,
+        default=8080,
+        help="Port to bind the dashboard HTTP server to when --serve is set (default: 8080).",
     )
     return parser.parse_args(argv)
 
@@ -425,6 +455,26 @@ def main(argv=None) -> None:
             config.link.kind,
         )
 
+    # Serving-mode setup: the gate config and the DBC message index are
+    # only loaded when --serve is set (D-04) -- the headless path must
+    # behave exactly as before, including not loading the gate config at
+    # all.
+    signal_state: Optional[SignalState] = None
+    sse_hub: Optional[SseHub] = None
+    if args.serve:
+        try:
+            gate_config = load_gate_config(GateConfig.default_path())
+        except GateConfigError as exc:
+            logger.error("failed to load gate config: %s", exc)
+            raise SystemExit(1) from exc
+        try:
+            message_index = build_message_index(db, config, gate_config)
+        except GroundStateError as exc:
+            logger.error("failed to build ground station message index: %s", exc)
+            raise SystemExit(1) from exc
+        signal_state = SignalState(message_index)
+        sse_hub = SseHub()
+
     output_file: Optional[IO[str]] = None
     if args.output_file is not None:
         output_file = open(Path(args.output_file), "a", encoding="utf-8")
@@ -437,24 +487,92 @@ def main(argv=None) -> None:
         watchdog.start()
 
     def on_record(**fields) -> None:
-        _emit_record(sys.stdout, output_file, **fields)
+        _emit_record(sys.stdout, output_file, **fields)  # unchanged, GND output survives
+        if signal_state is not None and sse_hub is not None:
+            payload = signal_state.update(
+                message_name=fields["message_name"],
+                signal=fields["signal"],
+                value=fields["value"],
+                unit=fields["unit"],
+                now_ms=int(time.time() * 1000),
+            )
+            sse_hub.broadcast(payload)
 
-    try:
-        counters = run_consumer_loop(
-            link=link,
-            deframer=deframer,
-            db=db,
-            stop_event=stop_event,
-            on_record=on_record,
-            recv_timeout_s=args.recv_timeout_s,
-            health_interval_s=args.health_interval_s,
+    dashboard_server: Optional[DashboardServer] = None
+    if args.serve:
+        # Constructed after signal handlers are already installed
+        # (preserving the handlers-before-resources ordering `main()`
+        # already has at the top of this function).
+        dashboard_server = DashboardServer(
+            host=args.http_host,
+            port=args.http_port,
+            hub=sse_hub,
+            snapshot_provider=signal_state.snapshot,
         )
-    finally:
-        if watchdog is not None:
-            watchdog.cancel()
-        link.close()
-        if output_file is not None:
-            output_file.close()
+        logger.info(
+            "ground station dashboard serving on http://%s:%d%s",
+            args.http_host,
+            dashboard_server.port,
+            "/events",
+        )
+
+    consumer_counters_holder: dict = {}
+
+    if dashboard_server is not None:
+
+        def _run_consumer_and_stop_server() -> None:
+            # This is the ONLY thread from which `dashboard_server.shutdown()`
+            # is safe to call (02-RESEARCH.md Pattern 4 / Pitfall 3): calling
+            # it from the SIGINT/SIGTERM handler deadlocks, because that
+            # handler runs on the main thread, which is the same thread
+            # blocked inside `serve_forever()` below.
+            try:
+                consumer_counters_holder["counters"] = run_consumer_loop(
+                    link=link,
+                    deframer=deframer,
+                    db=db,
+                    stop_event=stop_event,
+                    on_record=on_record,
+                    recv_timeout_s=args.recv_timeout_s,
+                    health_interval_s=args.health_interval_s,
+                )
+            finally:
+                dashboard_server.shutdown()
+
+        consumer_thread = threading.Thread(
+            target=_run_consumer_and_stop_server, name="ground-consumer", daemon=False
+        )
+        try:
+            consumer_thread.start()
+            dashboard_server.serve_forever()  # blocks the main thread
+        finally:
+            consumer_thread.join()
+            dashboard_server.server_close()
+            if watchdog is not None:
+                watchdog.cancel()
+            link.close()
+            if output_file is not None:
+                output_file.close()
+        counters = consumer_counters_holder.get("counters", GroundConsumerCounters())
+    else:
+        # Headless mode: the loop runs inline on the main thread, exactly
+        # as before, with no threading change at all.
+        try:
+            counters = run_consumer_loop(
+                link=link,
+                deframer=deframer,
+                db=db,
+                stop_event=stop_event,
+                on_record=on_record,
+                recv_timeout_s=args.recv_timeout_s,
+                health_interval_s=args.health_interval_s,
+            )
+        finally:
+            if watchdog is not None:
+                watchdog.cancel()
+            link.close()
+            if output_file is not None:
+                output_file.close()
 
     logger.info(
         "ground station stopped: batches_received=%d records_dbc_decoded=%d "
