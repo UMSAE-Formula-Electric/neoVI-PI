@@ -40,11 +40,14 @@ BATCH_HEADER_STRUCT = struct.Struct("<BBQHB")
 
 # Keep the real on-wire header size and the analytic overhead model's
 # assumed header size from silently diverging (01-CRITICAL-CONSTRAINTS #4).
-assert BATCH_HEADER_STRUCT.size == overhead.BATCH_HEADER_BYTES, (
-    f"BATCH_HEADER_STRUCT.size={BATCH_HEADER_STRUCT.size} does not match "
-    f"overhead.BATCH_HEADER_BYTES={overhead.BATCH_HEADER_BYTES} — the real "
-    f"batch header layout and the analytic overhead model have diverged"
-)
+# A plain `raise`, not `assert` -- `assert` is stripped entirely under
+# `python -O`/`PYTHONOPTIMIZE=1`, which would silently disable this guard.
+if BATCH_HEADER_STRUCT.size != overhead.BATCH_HEADER_BYTES:
+    raise RuntimeError(
+        f"BATCH_HEADER_STRUCT.size={BATCH_HEADER_STRUCT.size} does not match "
+        f"overhead.BATCH_HEADER_BYTES={overhead.BATCH_HEADER_BYTES} — the real "
+        f"batch header layout and the analytic overhead model have diverged"
+    )
 
 MAX_RECORD_BYTES = 255  # one-byte length prefix per record
 MAX_BATCH_RECORDS = 0xFFFF  # frame_count is uint16
