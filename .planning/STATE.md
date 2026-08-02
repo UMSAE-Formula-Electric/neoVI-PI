@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Dual-Path Capture
 status: executing
-stopped_at: Completed 01-10-PLAN.md
-last_updated: "2026-08-02T01:06:40.388Z"
+stopped_at: Completed 01-11-PLAN.md
+last_updated: "2026-08-02T01:32:17.038Z"
 last_activity: 2026-08-01
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 20
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 01 (Dual-Path Capture) — EXECUTING
-Plan: 10 of 13
+Plan: 11 of 13
 Status: Ready to execute
 Last activity: 2026-08-01 — Phase 01 execution started
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -74,6 +74,7 @@ Progress: [█████████░] 85%
 | Phase 01-dual-path-capture-durable-archive-and-thin-live-link P08 | 20min | 2 tasks | 4 files |
 | Phase 01 P09 | 30min | 2 tasks | 2 files |
 | Phase 01 P10 | 55min | 2 tasks | 3 files |
+| Phase 01 P11 | 90min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 1-10, 2026-08-02] TelemetryPipeline closes batches on whichever of frame count, max age, or the CFR delta-t window (BatchWindowExceeded) comes first, re-encoding the triggering frame as the first record of the next batch rather than dropping it
 - [Phase ?]: [Phase 1-10, 2026-08-02] cli.py installs signal handlers before any resource construction (before config load), resolving a self-contradicting ordering in the plan's own action text; --duration-s is enforced by an independent threading.Timer since HardwareFrameSource blocks internally between polls
 - [Phase ?]: [Phase 1-10, 2026-08-02] mark_done is gated on writer.close() succeeding AND FanOutCounters.archive_write_failure being false; synthetic mode tags every frame with the first configured channel since SyntheticFrameSource models per-message rate/entropy, not per-bus separation
+- [Phase ?]: GND-01 ground station emits a 'topic' field, not 'channel' -- the wire protocol carries no per-frame channel/bus data by design, so channel disambiguation is left to consumers (Phase 6 or later) rather than invented on the wire
+- [Phase ?]: Two-process UDP test bounds both car and ground subprocesses via their own --duration-s watchdog (added to ground/cli.py), not termination signals -- Popen.terminate() on Windows never reaches a child's Python signal handlers
 
 ### Pending Todos
 
@@ -149,8 +152,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-02T01:06:40.373Z
-Stopped at: Completed 01-10-PLAN.md
+Last session: 2026-08-02T01:32:17.019Z
+Stopped at: Completed 01-11-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.
