@@ -9,17 +9,28 @@ on disk, and in parallel capture fan-out -> allowlist filter -> CFR encode
 No radio, no vehicle hardware, and no network socket anywhere in this
 chain — `LoopbackLink` is the only transport involved.
 
+01-11 Task 1 widens this file with in-process tests of
+`telemetry.ground.cli.run_consumer_loop` — the headless ground station's
+own receive-decode-emit loop, driven directly against a `LoopbackLink`, no
+CLI or subprocess involved. Task 2 (a later commit) adds the phase's own
+process-level proof over a real UDP socket.
+
 `01-05` through `01-13` build outward from this slice; this file is the
 proof that the whole spine holds together on one frame before any of that
 widening starts.
 """
 
+import re
 import threading
+import time
+
+import cantools
 
 from telemetry.archive.session import mark_done, new_session
 from telemetry.archive.writer import ArchiveWriter
 from telemetry.capture.fanout import CapturedFrame, FanOut
 from telemetry.framing.cobs_frame import frame as cobs_frame
+from telemetry.ground.cli import GroundConsumerCounters, run_consumer_loop
 from telemetry.ground.deframe import Deframer
 from telemetry.link.loopback import LoopbackLink
 from telemetry.logger.config import resolve_allowlist
@@ -36,6 +47,12 @@ SUBJECT_MESSAGE = "M195_Pedal_Press_Percent"
 SUBJECT_CHANNEL = "MAIN"
 SUBJECT_SIGNAL_VALUES = {"Pedal_Press_Percent": 42}
 
+# A second, distinct allowlisted message -- used by the ground-consumer
+# tests below wherever a batch needs two different message ids in it (e.g.
+# proving one undecodable record does not stop decoding of a good one in
+# the same batch).
+OTHER_MESSAGE = "M192_Command_Message"
+
 
 def _build_subject_frame(db, timestamp_us: int) -> RawFrame:
     """Build the one `RawFrame` this test carries end to end, its payload
@@ -44,6 +61,21 @@ def _build_subject_frame(db, timestamp_us: int) -> RawFrame:
     bytes."""
     message = db.get_message_by_name(SUBJECT_MESSAGE)
     payload = message.encode(SUBJECT_SIGNAL_VALUES)
+    return RawFrame(
+        timestamp_us=timestamp_us,
+        frame_id=message.frame_id,
+        is_extended=message.is_extended_frame,
+        payload=payload,
+    )
+
+
+def _frame_for_message(db, message_name: str, timestamp_us: int) -> RawFrame:
+    """Like `_build_subject_frame`, but for any named message, all-zero
+    signal values (`strict=False` so a signal with a nonzero minimum still
+    encodes) -- used where the specific values don't matter, only that the
+    message is real and decodable."""
+    message = db.get_message_by_name(message_name)
+    payload = message.encode({s.name: 0 for s in message.signals}, strict=False)
     return RawFrame(
         timestamp_us=timestamp_us,
         frame_id=message.frame_id,
@@ -193,3 +225,323 @@ def test_corrupted_batch_is_discarded_and_counted_not_decoded(dbc, logger_config
     )
     assert deframer.counters.batches_ok == 0
     assert deframer.counters.records_decoded == 0
+
+
+# ---------------------------------------------------------------------------
+# 01-11 Task 1: the headless ground consumer's own loop, driven in-process
+# against a LoopbackLink -- no CLI, no subprocess, just
+# `telemetry.ground.cli.run_consumer_loop`.
+# ---------------------------------------------------------------------------
+
+
+def _on_record_collector(records):
+    def on_record(**fields):
+        records.append(fields)
+
+    return on_record
+
+
+def _start_ground_loop(link, deframer, db, stop_event, on_record, **kwargs):
+    """Runs `run_consumer_loop` on its own thread (it is a plain blocking
+    function, not a thread itself -- `main()` owns the only thread it needs
+    in production) and returns `(thread, counters)` so a test can both wait
+    on decoded output and inspect the counters directly once the thread is
+    joined, rather than parsing log text."""
+    counters = kwargs.pop("counters", None) or GroundConsumerCounters()
+    thread = threading.Thread(
+        target=run_consumer_loop,
+        kwargs=dict(
+            link=link,
+            deframer=deframer,
+            db=db,
+            stop_event=stop_event,
+            on_record=on_record,
+            counters=counters,
+            **kwargs,
+        ),
+        daemon=True,
+        name="test-ground-consumer-loop",
+    )
+    thread.start()
+    return thread, counters
+
+
+def test_ground_consumer_decodes_batch_to_named_signal_values(dbc, logger_config):
+    """The ground consumer's own loop turns a framed batch into a decoded
+    signal record carrying the message name, the signal name, its value,
+    and its unit taken from the DBC -- compared against the DBC-encoded
+    source values, not opaque bytes (GND-01)."""
+    dictionary = build_id_dictionary(dbc, logger_config.dbc_path)
+    subject_frame = _build_subject_frame(dbc, timestamp_us=5_000)
+
+    encoder = Encoder(dictionary)
+    cfr = encoder.encode(subject_frame, batch_base_timestamp_us=subject_frame.timestamp_us)
+    batch_payload = pack_batch(
+        dict_version=dictionary.dict_version,
+        base_timestamp_us=subject_frame.timestamp_us,
+        batch_seq=0,
+        records=[cfr],
+    )
+    framed = cobs_frame(batch_payload)
+
+    link = LoopbackLink()
+    deframer = Deframer(dictionary)
+    stop_event = threading.Event()
+    records = []
+    thread, _counters = _start_ground_loop(
+        link,
+        deframer,
+        dbc,
+        stop_event,
+        _on_record_collector(records),
+        recv_timeout_s=0.05,
+        health_interval_s=100.0,
+    )
+    try:
+        link.send(framed)
+        deadline = time.monotonic() + 2.0
+        while not records and time.monotonic() < deadline:
+            time.sleep(0.01)
+    finally:
+        stop_event.set()
+        thread.join(timeout=2.0)
+
+    assert not thread.is_alive()
+    assert len(records) == 1
+    record = records[0]
+    signal_def = dbc.get_message_by_name(SUBJECT_MESSAGE).get_signal_by_name(
+        "Pedal_Press_Percent"
+    )
+    assert record["message_name"] == SUBJECT_MESSAGE
+    assert record["signal"] == "Pedal_Press_Percent"
+    assert record["value"] == SUBJECT_SIGNAL_VALUES["Pedal_Press_Percent"]
+    assert record["unit"] == signal_def.unit
+    assert record["message_id"] == subject_frame.frame_id
+    assert record["timestamp_us"] == subject_frame.timestamp_us
+    assert record["topic"] == f"/can/{SUBJECT_MESSAGE}"
+
+
+def test_ground_consumer_counts_undecodable_message_and_continues(dbc, logger_config, caplog):
+    """A frame whose message the DBC does not describe is counted as an
+    undecodable record and logged once with its id -- and does not stop the
+    loop from decoding the next good record in the same batch. Modelled
+    directly (T-01-28): the dictionary/CFR layer resolves `id_index`
+    against `dbc.messages` and can never itself produce an id absent from
+    that same DBC, so this failure is exercised by giving the *decode* step
+    a DBC that is missing the subject message while the *dictionary* still
+    knows it -- the real-world case this guards is a stale ground DBC after
+    a car-side DBC update mid-deployment, not something reachable through
+    `telemetry.ground.cli.main()`'s own wiring (which always builds both
+    from the same loaded database)."""
+    dictionary = build_id_dictionary(dbc, logger_config.dbc_path)
+
+    stripped_db = cantools.database.can.Database(
+        messages=[m for m in dbc.messages if m.name != SUBJECT_MESSAGE],
+        nodes=dbc.nodes,
+        version=dbc.version,
+    )
+
+    subject_frame = _build_subject_frame(dbc, timestamp_us=6_000)
+    other_frame = _frame_for_message(dbc, OTHER_MESSAGE, timestamp_us=6_000)
+
+    encoder = Encoder(dictionary)
+    cfr_subject = encoder.encode(subject_frame, batch_base_timestamp_us=6_000)
+    cfr_subject_again = encoder.encode(subject_frame, batch_base_timestamp_us=6_000)
+    cfr_other = encoder.encode(other_frame, batch_base_timestamp_us=6_000)
+    batch_payload = pack_batch(
+        dict_version=dictionary.dict_version,
+        base_timestamp_us=6_000,
+        batch_seq=0,
+        # the subject message twice, to prove the second occurrence's log
+        # is suppressed rather than re-logged (T-01-18-style rate limiting)
+        records=[cfr_subject, cfr_subject_again, cfr_other],
+    )
+    framed = cobs_frame(batch_payload)
+
+    link = LoopbackLink()
+    deframer = Deframer(dictionary)
+    stop_event = threading.Event()
+    records = []
+    with caplog.at_level("WARNING"):
+        thread, counters = _start_ground_loop(
+            link,
+            deframer,
+            stripped_db,
+            stop_event,
+            _on_record_collector(records),
+            recv_timeout_s=0.05,
+            health_interval_s=100.0,
+        )
+        try:
+            link.send(framed)
+            deadline = time.monotonic() + 2.0
+            while not records and time.monotonic() < deadline:
+                time.sleep(0.01)
+            time.sleep(0.2)  # let the loop finish processing the whole batch
+        finally:
+            stop_event.set()
+            thread.join(timeout=2.0)
+
+    assert not thread.is_alive()
+    # only the "other" message's signals were emitted -- the subject
+    # message (appearing twice in this batch) was undecodable both times
+    # and the loop kept going regardless.
+    assert records, "the loop must continue past undecodable records and still emit the good one"
+    assert all(r["message_name"] == OTHER_MESSAGE for r in records)
+    assert counters.records_dbc_decode_failed == 2
+    assert counters.records_dbc_decode_log_suppressed_count == 1
+    assert counters.records_dbc_decoded == 1
+
+    undecodable_logs = [
+        r for r in caplog.records if "undecodable record" in r.getMessage()
+    ]
+    assert len(undecodable_logs) == 1, (
+        "the second occurrence of the same frame id must be suppressed, not re-logged"
+    )
+    assert f"0x{subject_frame.frame_id:X}" in undecodable_logs[0].getMessage()
+
+
+def test_ground_consumer_discards_corrupt_batch_and_keeps_running(dbc, logger_config):
+    """Corrupt batches fed into the loop increment the deframer's counters
+    and produce no decoded output at all (LINK-02) -- and the loop itself
+    survives to prove it, not merely "would have" (T-01-01)."""
+    dictionary = build_id_dictionary(dbc, logger_config.dbc_path)
+    subject_frame = _build_subject_frame(dbc, timestamp_us=8_000)
+    encoder = Encoder(dictionary)
+    cfr = encoder.encode(subject_frame, batch_base_timestamp_us=8_000)
+    batch_payload = pack_batch(
+        dict_version=dictionary.dict_version,
+        base_timestamp_us=8_000,
+        batch_seq=0,
+        records=[cfr],
+    )
+    framed = bytearray(cobs_frame(batch_payload))
+    corrupt_index = len(framed) // 2
+    framed[corrupt_index] ^= 0xFF
+
+    link = LoopbackLink()
+    deframer = Deframer(dictionary)
+    stop_event = threading.Event()
+    records = []
+    thread, _counters = _start_ground_loop(
+        link,
+        deframer,
+        dbc,
+        stop_event,
+        _on_record_collector(records),
+        recv_timeout_s=0.05,
+        health_interval_s=100.0,
+    )
+    try:
+        link.send(bytes(framed))
+        time.sleep(0.3)
+        assert thread.is_alive(), "the loop must survive a corrupt batch, not just recover afterward"
+    finally:
+        stop_event.set()
+        thread.join(timeout=2.0)
+
+    assert not thread.is_alive()
+    assert records == []
+    total_corruption = (
+        deframer.counters.cobs_failures
+        + deframer.counters.crc_failures
+        + deframer.counters.batch_format_failures
+    )
+    assert total_corruption == 1
+    assert deframer.counters.batches_ok == 0
+
+
+def test_ground_consumer_loop_exits_promptly_on_stop_event_with_silent_link(
+    dbc, logger_config
+):
+    """The loop exits on the stop event within a bounded time even when the
+    link is silent, so a terminated session does not hang the process
+    (T-01-29)."""
+    dictionary = build_id_dictionary(dbc, logger_config.dbc_path)
+    link = LoopbackLink()
+    deframer = Deframer(dictionary)
+    stop_event = threading.Event()
+    thread, _counters = _start_ground_loop(
+        link,
+        deframer,
+        dbc,
+        stop_event,
+        _on_record_collector([]),
+        recv_timeout_s=0.1,
+        health_interval_s=100.0,
+    )
+    try:
+        time.sleep(0.3)  # let the loop sit idle on a genuinely silent link
+        started = time.monotonic()
+    finally:
+        stop_event.set()
+        thread.join(timeout=2.0)
+    elapsed = time.monotonic() - started
+
+    assert not thread.is_alive()
+    assert elapsed < 1.0, "a silent link must not delay shutdown beyond roughly one recv timeout"
+
+
+def test_ground_consumer_link_health_reports_batches_and_records(dbc, logger_config, caplog):
+    """The consumer's periodic link-health line reports batches received,
+    batches discarded by each failure class, records decoded, and records
+    that failed to decode."""
+    dictionary = build_id_dictionary(dbc, logger_config.dbc_path)
+    subject_frame = _build_subject_frame(dbc, timestamp_us=9_000)
+    encoder = Encoder(dictionary)
+    cfr = encoder.encode(subject_frame, batch_base_timestamp_us=9_000)
+    good_batch = pack_batch(
+        dict_version=dictionary.dict_version,
+        base_timestamp_us=9_000,
+        batch_seq=0,
+        records=[cfr],
+    )
+    good_framed = cobs_frame(good_batch)
+    corrupt_framed = bytearray(good_framed)
+    corrupt_framed[len(corrupt_framed) // 2] ^= 0xFF
+
+    link = LoopbackLink()
+    deframer = Deframer(dictionary)
+    stop_event = threading.Event()
+    records = []
+    with caplog.at_level("INFO"):
+        thread, counters = _start_ground_loop(
+            link,
+            deframer,
+            dbc,
+            stop_event,
+            _on_record_collector(records),
+            recv_timeout_s=0.05,
+            health_interval_s=0.0,  # force a health line on essentially every iteration
+        )
+        try:
+            link.send(good_framed)
+            deadline = time.monotonic() + 2.0
+            while not records and time.monotonic() < deadline:
+                time.sleep(0.01)
+            link.send(bytes(corrupt_framed))
+            time.sleep(0.3)
+        finally:
+            stop_event.set()
+            thread.join(timeout=2.0)
+
+    assert not thread.is_alive()
+    assert counters.batches_received == 2
+    assert counters.records_dbc_decoded == 1
+    total_corruption = (
+        deframer.counters.cobs_failures
+        + deframer.counters.crc_failures
+        + deframer.counters.batch_format_failures
+    )
+    assert total_corruption == 1
+
+    health_lines = [
+        r.getMessage() for r in caplog.records if r.getMessage().startswith("link-health:")
+    ]
+    assert health_lines, "at least one link-health line must be logged"
+    last = health_lines[-1]
+    assert "batches_received=2" in last
+    assert "records_decoded=1" in last
+    assert "records_decode_failed=0" in last
+    assert re.search(r"discarded\[cobs=\d+ crc=\d+ batch_format=\d+", last)
+    assert "elapsed_s=" in last
