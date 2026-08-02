@@ -461,3 +461,40 @@ def test_cli_missing_config_path_exits_nonzero_naming_the_path(tmp_path):
 
     assert result.returncode != 0
     assert str(missing_path) in result.stderr
+
+
+def test_cli_archive_overflow_leaves_no_done_marker_and_exits_nonzero(tmp_path):
+    """CR-01 regression: CAP-03 treats a full archive queue as fatal
+    ("archive queue never drops... a full queue is fatal"), and ARCH-05's
+    whole contract for `.done` is that its presence means the archive is
+    complete and trustworthy. A session that structurally lost a frame to
+    `archive_overflow` must never be left with a `.done` marker or a zero
+    exit code, even though the `ArchiveWriter` itself never saw an I/O
+    failure and closes cleanly. `archive.queue_depth=1` plus
+    `flush_every_records=1` (an fsync on every record) makes the archive
+    consumer thread reliably slower than the synthetic capture loop
+    producing frames, so the second frame submitted overflows the queue
+    deterministically rather than racily.
+    """
+    config_data = json.loads((REPO_ROOT / "config" / "logger.json").read_text())
+    config_data["archive"]["queue_depth"] = 1
+    config_data["archive"]["flush_every_records"] = 1
+    overflow_config_path = tmp_path / "overflow_logger.json"
+    overflow_config_path.write_text(json.dumps(config_data))
+
+    archive_root = tmp_path / "sessions"
+    result = _run_cli(
+        archive_root, config_path=overflow_config_path, duration_s=1.0
+    )
+
+    assert result.returncode != 0, result.stderr
+
+    session_dirs = [p for p in archive_root.iterdir() if p.is_dir()]
+    assert len(session_dirs) == 1
+    session_dir = session_dirs[0]
+    assert not (session_dir / ".done").exists()
+
+    summary = json.loads(result.stdout)
+    assert summary["archive_overflow"] is True
+    assert summary["archive_write_failure"] is False
+    assert summary["archive_marked_done"] is False

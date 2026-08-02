@@ -445,7 +445,10 @@ def _run_session(config, args, db, dictionary, allowlist, stop_event) -> int:
     archive_closed_cleanly = False
     try:
         writer.close()
-        archive_closed_cleanly = not fan_out.counters.archive_write_failure
+        archive_closed_cleanly = (
+            not fan_out.counters.archive_write_failure
+            and not fan_out.counters.archive_overflow
+        )
     except Exception:
         logger.critical("archive writer failed to close cleanly", exc_info=True)
 
@@ -455,9 +458,10 @@ def _run_session(config, args, db, dictionary, allowlist, stop_event) -> int:
     else:
         logger.warning(
             "session %s left WITHOUT a .done marker -- the archive did "
-            "not close cleanly (archive_write_failure=%s)",
+            "not close cleanly (archive_write_failure=%s archive_overflow=%s)",
             session.session_name,
             fan_out.counters.archive_write_failure,
+            fan_out.counters.archive_overflow,
         )
 
     summary = _build_summary(
