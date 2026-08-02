@@ -195,3 +195,7 @@ None -- no external service configuration required.
 ---
 *Phase: 01-dual-path-capture-durable-archive-and-thin-live-link*
 *Completed: 2026-08-02*
+
+## Self-Check: PASSED
+
+`src/telemetry/ground/cli.py`, `tests/test_end_to_end.py`, and this SUMMARY.md were verified present on disk. All three commits (`a50f4d5` Task 1, `1243476` Task 2, `5d8af9b` this summary) were verified present in `git log --oneline --all`. `python -m pytest tests/test_end_to_end.py -x -q --tb=short` (8 passed) and `python -m pytest -q -m "not slow"` (269 passed, 2 skipped -- both remaining skips are placeholders explicitly owned by 01-12/01-13) were both re-confirmed green before this summary was finalized, including 3 standalone re-runs and 2 full-suite re-runs of the two-process test specifically to confirm the queue-depth fix eliminated the flake.
