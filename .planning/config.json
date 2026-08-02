@@ -30,7 +30,7 @@
     "ai_integration_phase": true,
     "api_coverage_gate": true,
     "human_verify_mode": "end-of-phase",
-    "context_guard_mode": "warn",
+    "context_guard_mode": "auto",
     "text_mode": false,
     "research_before_questions": false,
     "discuss_mode": "discuss",
@@ -46,7 +46,9 @@
     "post_planning_gaps": true,
     "security_enforcement": true,
     "security_asvs_level": 1,
-    "security_block_on": "high"
+    "security_block_on": "high",
+    "_auto_chain_active": false,
+    "test_command": "python -m pytest -x -q --tb=short"
   },
   "ship": {
     "pr_body_sections": [
