@@ -1,6 +1,6 @@
 """
 Requirements covered: ARCH-01, ARCH-05, CAP-03, CAP-04, LINK-01, LINK-02,
-LINK-03, LINK-04, GND-01, OPS-04.
+LINK-03, LINK-04, GND-01, OPS-04, OPS-05.
 
 The 01-04 tracer: one CAN frame travels the complete Phase 1 path, end to
 end, with production code at every layer — capture fan-out -> MCAP archive
@@ -9,20 +9,27 @@ on disk, and in parallel capture fan-out -> allowlist filter -> CFR encode
 No radio, no vehicle hardware, and no network socket anywhere in this
 chain — `LoopbackLink` is the only transport involved.
 
-01-11 Task 1 widens this file with in-process tests of
-`telemetry.ground.cli.run_consumer_loop` — the headless ground station's
-own receive-decode-emit loop, driven directly against a `LoopbackLink`, no
-CLI or subprocess involved. Task 2 (a later commit) adds the phase's own
-process-level proof over a real UDP socket.
+01-11 widens this file two ways: in-process tests of
+`telemetry.ground.cli.run_consumer_loop` (the headless ground station's own
+receive-decode-emit loop, driven directly against a `LoopbackLink`), and the
+phase's own success-criterion-4 proof at the *process* level — two real
+subprocesses (the car-side logger and the headless ground station) connected
+over one real loopback UDP socket, with no radio, no vehicle hardware, and
+no second machine involved.
 
 `01-05` through `01-13` build outward from this slice; this file is the
 proof that the whole spine holds together on one frame before any of that
 widening starts.
 """
 
+import json
+import os
 import re
+import subprocess
+import sys
 import threading
 import time
+from pathlib import Path
 
 import cantools
 
@@ -34,6 +41,8 @@ from telemetry.ground.cli import GroundConsumerCounters, run_consumer_loop
 from telemetry.ground.deframe import Deframer
 from telemetry.link.loopback import LoopbackLink
 from telemetry.logger.config import resolve_allowlist
+from telemetry.measure.config import GateConfig, load_gate_config
+from telemetry.synth.rates import assign_rates
 from telemetry.wire.batcher import pack_batch
 from telemetry.wire.dictionary import build_id_dictionary
 from telemetry.wire.encoder import Encoder
@@ -52,6 +61,9 @@ SUBJECT_SIGNAL_VALUES = {"Pedal_Press_Percent": 42}
 # proving one undecodable record does not stop decoding of a good one in
 # the same batch).
 OTHER_MESSAGE = "M192_Command_Message"
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SRC_DIR = REPO_ROOT / "src"
 
 
 def _build_subject_frame(db, timestamp_us: int) -> RawFrame:
@@ -545,3 +557,253 @@ def test_ground_consumer_link_health_reports_batches_and_records(dbc, logger_con
     assert "records_decode_failed=0" in last
     assert re.search(r"discarded\[cobs=\d+ crc=\d+ batch_format=\d+", last)
     assert "elapsed_s=" in last
+
+
+# ---------------------------------------------------------------------------
+# 01-11 Task 2: phase success criterion 4, at the process level -- two real
+# subprocesses (the car-side logger, the headless ground station) connected
+# over one real loopback UDP socket. No radio hardware, no vehicle
+# hardware, and no second machine anywhere in this test: two Python
+# processes, one loopback interface.
+# ---------------------------------------------------------------------------
+
+_LISTENING_RE = re.compile(r"listening on udp://([\d.]+):(\d+)")
+
+
+def _udp_link_config(*, local_port, remote_host, remote_port):
+    return {
+        "kind": "udp",
+        "udp": {
+            "local_host": "127.0.0.1",
+            "local_port": local_port,
+            "remote_host": remote_host,
+            "remote_port": remote_port,
+            "recv_bufsize": 8192,
+        },
+    }
+
+
+def _write_config(tmp_path, name, link_block, *, telemetry_queue_depth=None):
+    config = json.loads((REPO_ROOT / "config" / "logger.json").read_text())
+    config["link"] = link_block
+    if telemetry_queue_depth is not None:
+        config["telemetry"]["queue_depth"] = telemetry_queue_depth
+    path = tmp_path / name
+    path.write_text(json.dumps(config))
+    return path
+
+
+def _spawn_ground(tmp_path, *, duration_s, health_interval_s=1.0, recv_timeout_s=0.2):
+    # remote_port=0: an ephemeral, OS-assigned loopback port -- discovered
+    # below by reading the process's own reported listening address, never
+    # hardcoded (a fixed port would make this suite fail on any machine
+    # where that port happens to be in use). See telemetry.ground.cli's
+    # module docstring for why the ground station binds the "remote" half
+    # of the shared udp config block, not the "local" half.
+    config_path = _write_config(
+        tmp_path,
+        "ground_logger.json",
+        _udp_link_config(local_port=0, remote_host="127.0.0.1", remote_port=0),
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(SRC_DIR)
+    argv = [
+        sys.executable,
+        "-u",
+        "-m",
+        "telemetry.ground.cli",
+        "--config",
+        str(config_path),
+        "--duration-s",
+        str(duration_s),
+        "--health-interval-s",
+        str(health_interval_s),
+        "--recv-timeout-s",
+        str(recv_timeout_s),
+    ]
+    return subprocess.Popen(
+        argv,
+        cwd=str(REPO_ROOT),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
+
+
+def _drain_stream(stream, sink, ready_event=None, ready_holder=None):
+    """Continuously reads lines from `stream` into `sink` for as long as
+    the process is alive -- run on a background thread so a subprocess's
+    stdout/stderr pipe never fills up and blocks the child while the main
+    thread is doing something else (waiting for the readiness line, running
+    the car process, etc). If `ready_event` is given, sets it the first
+    time a line matches `_LISTENING_RE`, storing `(host, port)` in
+    `ready_holder`."""
+    for line in iter(stream.readline, ""):
+        sink.append(line.rstrip("\n"))
+        if ready_event is not None and not ready_event.is_set():
+            match = _LISTENING_RE.search(line)
+            if match:
+                ready_holder.append((match.group(1), int(match.group(2))))
+                ready_event.set()
+    stream.close()
+
+
+def test_two_process_capture_to_pit_run_over_udp_no_radio_present(tmp_path, dbc, logger_config):
+    """Phase success criterion 4, proved at the process level: a frame
+    captured by the car-side logger CLI (a real OS subprocess) arrives at
+    the headless ground station CLI (a second, separate real OS
+    subprocess), decoded against the DBC, having crossed batching, CRC-16,
+    COBS, and a real UDP socket -- with messages from both configured
+    channels present, the car's archive complete and marked done with zero
+    drops, and the ground station's own link-health output reporting zero
+    batches discarded on this clean loopback run.
+
+    No radio hardware, no vehicle hardware, and no second machine are
+    involved anywhere in this test: two Python processes, one loopback
+    network interface (127.0.0.1).
+    """
+    ground_duration_s = 6.0
+    car_duration_s = 3.0
+
+    ground_stdout: list = []
+    ground_stderr: list = []
+    ready_event = threading.Event()
+    ready_holder: list = []
+
+    ground_proc = _spawn_ground(tmp_path, duration_s=ground_duration_s)
+    stdout_thread = threading.Thread(
+        target=_drain_stream, args=(ground_proc.stdout, ground_stdout), daemon=True
+    )
+    stderr_thread = threading.Thread(
+        target=_drain_stream,
+        args=(ground_proc.stderr, ground_stderr, ready_event, ready_holder),
+        daemon=True,
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+
+    car_result = None
+    try:
+        assert ready_event.wait(timeout=10.0), (
+            "ground station never reported its bound listening port within 10s "
+            f"(stderr so far: {ground_stderr!r})"
+        )
+        ground_host, ground_port = ready_holder[0]
+
+        # The car sends to the ground process's real, just-discovered
+        # bound port -- the ground process is already listening before the
+        # car starts sending.
+        #
+        # telemetry.queue_depth is raised well above the shipped default
+        # (1000) for this test's car config specifically: --source
+        # synthetic's frames() (telemetry/synth/generator.py) yields an
+        # entire duration's worth of events with no real-time pacing at
+        # all, so this test's whole allowlisted stream (~2,000 frames for
+        # a 3s run) lands in the telemetry deque far faster than
+        # TelemetryPipeline can drain, batch, and send it in real time --
+        # confirmed directly (a 3s run against the shipped queue_depth=1000
+        # measured telemetry_discard_count=288, i.e. drop-oldest evicting
+        # ~14% of the allowlisted stream, including all of it for the
+        # rarest allowlisted message often enough to flake this assertion).
+        # A production run against real hardware paces frames at the bus's
+        # own real rate and never approaches this queue depth; this
+        # override exists only to make a synthetic-source subprocess test
+        # deterministic, not to change any shipped default.
+        car_config_path = _write_config(
+            tmp_path,
+            "car_logger.json",
+            _udp_link_config(local_port=0, remote_host=ground_host, remote_port=ground_port),
+            telemetry_queue_depth=10_000,
+        )
+
+        archive_root = tmp_path / "sessions"
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(SRC_DIR)
+        car_result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "telemetry.logger.cli",
+                "--config",
+                str(car_config_path),
+                "--source",
+                "synthetic",
+                "--archive-root",
+                str(archive_root),
+                "--duration-s",
+                str(car_duration_s),
+            ],
+            cwd=str(REPO_ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        assert car_result.returncode == 0, car_result.stderr
+        car_summary = json.loads(car_result.stdout)
+        assert car_summary["archive_drops"] == 0
+        assert car_summary["archive_marked_done"] is True
+        # The raised telemetry.queue_depth (see the config comment above)
+        # must actually have eliminated the deque-overflow drops it exists
+        # to prevent -- otherwise the two-bus assertion below is just
+        # getting lucky.
+        assert car_summary["telemetry_discard_count"] == 0
+
+        session_dirs = [p for p in archive_root.iterdir() if p.is_dir()]
+        assert len(session_dirs) == 1
+        assert (session_dirs[0] / ".done").exists()
+
+        # Give the ground process a little more time to receive, decode,
+        # and log its final health line after the car has stopped sending.
+        time.sleep(1.5)
+    finally:
+        if ground_proc.poll() is None:
+            try:
+                ground_proc.wait(timeout=ground_duration_s + 5.0)
+            except subprocess.TimeoutExpired:
+                ground_proc.kill()
+                ground_proc.wait(timeout=5.0)
+        stdout_thread.join(timeout=5.0)
+        stderr_thread.join(timeout=5.0)
+
+    assert ground_proc.returncode == 0, "\n".join(ground_stderr)
+
+    decoded_records = [json.loads(line) for line in ground_stdout if line.strip()]
+    assert decoded_records, "the ground process must have decoded at least one signal record"
+    # a substantial, nonzero fraction arrived -- UDP's own unacknowledged
+    # loss is a modelled feature of the real radio link, not asserted
+    # against here; every transmitted frame arriving is not asserted.
+    assert len(decoded_records) > 5
+
+    allowlisted_names = set(
+        json.loads((REPO_ROOT / "config" / "logger.json").read_text())["telemetry"]["allowlist"]
+    )
+    for record in decoded_records:
+        assert record["message_name"] in allowlisted_names
+
+    # Two-bus coverage: at least one decoded message belongs to each of
+    # config/logger.json's two configured channels. The wire protocol
+    # itself carries no per-frame channel field (see telemetry.ground.cli's
+    # module docstring), so this is computed here, independently, via the
+    # same DBC-derived bus_assignment.by_ecu mapping
+    # telemetry.synth.rates.assign_rates already uses for the synthetic
+    # generator itself -- not something the ground CLI emits.
+    gate_config = load_gate_config(GateConfig.default_path())
+    name_to_bus = {r.name: r.bus for r in assign_rates(dbc, gate_config)}
+    bus_to_channel = {c.bus: c.name for c in logger_config.channels}
+    decoded_channels = {
+        bus_to_channel.get(name_to_bus.get(record["message_name"])) for record in decoded_records
+    }
+    decoded_channels.discard(None)
+    assert decoded_channels == set(bus_to_channel.values()), (
+        f"expected decoded messages from both configured channels "
+        f"({sorted(bus_to_channel.values())}), got {sorted(decoded_channels)}"
+    )
+
+    health_lines = [line for line in ground_stderr if "link-health:" in line]
+    assert health_lines, "the ground process must log at least one link-health line"
+    last_health = health_lines[-1]
+    assert "discarded[cobs=0 crc=0 batch_format=0 buffer_overflow=0]" in last_health, last_health
