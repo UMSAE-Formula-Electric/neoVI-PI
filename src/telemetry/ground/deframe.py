@@ -79,9 +79,21 @@ class Deframer:
     def feed(self, data: bytes) -> Iterator[List[RawFrame]]:
         """Feed newly-arrived bytes. Yields one `list[RawFrame]` per
         complete, successfully-decoded batch found in the accumulated
-        stream. Never raises — every failure is counted and skipped."""
+        stream. Never raises — every failure is counted and skipped.
+
+        Every recovered batch is collected into a local list, and the
+        T-01-05 buffer-overflow cap is checked and applied, *before* this
+        method's only `yield` statement runs. A generator's body only
+        executes up to its next `yield` on each `next()` call, so if the
+        overflow check lived after a `yield` inside the delimiter-scanning
+        loop (as it once did, in a tail position reachable only once the
+        generator was exhausted), a caller that never fully drains the
+        generator would silently skip it. Structuring it this way makes the
+        check run unconditionally on every `feed()` call, regardless of how
+        much (if any) of the returned generator the caller consumes."""
         self._buffer.extend(data)
 
+        recovered_batches: List[List[RawFrame]] = []
         while True:
             delimiter_index = self._buffer.find(0x00)
             if delimiter_index == -1:
@@ -92,7 +104,7 @@ class Deframer:
                 continue
             recovered = self._process_segment(segment)
             if recovered is not None:
-                yield recovered
+                recovered_batches.append(recovered)
 
         if len(self._buffer) > self._max_buffer_bytes:
             logger.warning(
@@ -102,6 +114,8 @@ class Deframer:
             )
             self.counters.buffer_overflow_count += 1
             self._buffer = bytearray()
+
+        yield from recovered_batches
 
     def _process_segment(self, segment: bytes) -> Optional[List[RawFrame]]:
         try:

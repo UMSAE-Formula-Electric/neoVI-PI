@@ -602,3 +602,42 @@ def test_undelimited_stream_exceeding_max_buffer_is_discarded_and_counted_withou
         # worth of bytes beyond the cap -- proving memory does not grow
         # with continued feeding of an undelimited stream.
         assert len(deframer._buffer) <= max_buffer_bytes + len(chunk)
+
+
+def test_buffer_overflow_check_runs_even_when_generator_is_only_partially_consumed(dictionary, dbc):
+    """WR-03 regression: `feed()`'s T-01-05 overflow check must run
+    unconditionally on every call, not only once a caller fully drains the
+    returned generator to `StopIteration`. If the check instead lived as
+    generator tail code reachable only after the last `yield` inside the
+    delimiter-scanning loop, a caller that partially consumes the generator
+    (here, one `next()` call, stopping before the second recovered batch)
+    would never trigger it.
+
+    Builds a stream with two complete, valid, delimiter-terminated batches
+    (so `feed()` has more than one item to yield) followed by an
+    undelimited tail exceeding `max_buffer_bytes`. Calling `next()` exactly
+    once must still trip the overflow guard, proving the check does not
+    depend on the caller reaching exhaustion."""
+    max_buffer_bytes = 200
+    payload_a, records_a = _build_batch(dictionary, dbc, 3, batch_seq=0)
+    payload_b, _records_b = _build_batch(dictionary, dbc, 3, batch_seq=1)
+    frame_a = cobs_frame(payload_a)
+    frame_b = cobs_frame(payload_b)
+
+    tail = bytes([1, 2, 3, 4] * 64)  # 256 bytes, no zero byte anywhere
+    assert 0 not in tail
+    assert len(tail) > max_buffer_bytes
+
+    stream = frame_a + frame_b + tail
+    deframer = Deframer(dictionary, max_buffer_bytes=max_buffer_bytes)
+
+    gen = deframer.feed(stream)
+    first_recovered = next(gen)  # deliberately partial consumption
+
+    assert len(first_recovered) == len(records_a)
+    assert deframer.counters.buffer_overflow_count == 1, (
+        "the T-01-05 overflow check did not run after a single next() "
+        "call -- it must run unconditionally per feed() call, not only "
+        "once the generator is fully drained to StopIteration"
+    )
+    assert len(deframer._buffer) == 0
