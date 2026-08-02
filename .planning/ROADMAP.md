@@ -113,7 +113,7 @@ Plans:
 
 - [x] 01-10-PLAN.md — Car-side telemetry pipeline and logger CLI with a shutdown counters report
 - [x] 01-11-PLAN.md — Headless ground station and the two-process capture-to-pit run over UDP
-- [ ] 01-12-PLAN.md — Archive replay frame source and a real-log input path for the Phase 0 gate
+- [x] 01-12-PLAN.md — Archive replay frame source and a real-log input path for the Phase 0 gate
 
 **Wave 6** *(blocked on Wave 5 completion)*
 

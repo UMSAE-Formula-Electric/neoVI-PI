@@ -15,7 +15,7 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 
 ### Capture
 
-- [ ] **CAP-01**: A single logger implementation captures both CAN buses concurrently; the duplicate implementation is removed from the repository
+- [x] **CAP-01**: A single logger implementation captures both CAN buses concurrently; the duplicate implementation is removed from the repository
 - [ ] **CAP-02**: Capture sustains ~4,000 frames/s combined across both buses for a full session without dropping frames on the archive path
 - [x] **CAP-03**: Capture fans out to two independent consumers whose overflow policies differ — the archive consumer never drops, the telemetry consumer never blocks
 - [x] **CAP-04**: The telemetry consumer is structurally incapable of applying backpressure to the capture thread or the archive path
@@ -142,13 +142,13 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | GATE-01 | Phase 0 | Complete |
 | GATE-02 | Phase 0 | Complete |
 | GATE-03 | Phase 0 | Complete |
-| CAP-01 | Phase 1 | Pending |
+| CAP-01 | Phase 1 | Complete |
 | CAP-02 | Phase 1 | Pending |
 | CAP-03 | Phase 1 | Pending |
 | CAP-04 | Phase 1 | Complete |
 | CAP-05 | Phase 1 | Pending |
 | CAP-06 | Phase 1 | Pending |
-| ARCH-01 | Phase 1 | Pending |
+| ARCH-01 | Phase 1 | Complete |
 | ARCH-02 | Phase 1 | Complete |
 | ARCH-03 | Phase 1 | Pending |
 | ARCH-04 | Phase 1 | Complete |
@@ -186,7 +186,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | OPS-02 | Phase 3 | Pending |
 | OPS-03 | Phase 3 | Pending |
 | OPS-04 | Phase 1 | Complete |
-| OPS-05 | Phase 1 | Pending |
+| OPS-05 | Phase 1 | Complete |
 | OPS-06 | Phase 1 | Complete |
 | OPS-07 | Phase 3 | Pending |
 | SYNC-01 | Phase 8 | Pending |

@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Dual-Path Capture
 status: executing
-stopped_at: Completed 01-11-PLAN.md
-last_updated: "2026-08-02T01:32:17.038Z"
+stopped_at: Completed 01-12-PLAN.md
+last_updated: "2026-08-02T01:47:34.318Z"
 last_activity: 2026-08-01
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 20
-  completed_plans: 18
+  completed_plans: 19
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 01 (Dual-Path Capture) — EXECUTING
-Plan: 11 of 13
+Plan: 12 of 13
 Status: Ready to execute
 Last activity: 2026-08-01 — Phase 01 execution started
 
-Progress: [█████████░] 90%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -75,6 +75,7 @@ Progress: [█████████░] 90%
 | Phase 01 P09 | 30min | 2 tasks | 2 files |
 | Phase 01 P10 | 55min | 2 tasks | 3 files |
 | Phase 01 P11 | 90min | 2 tasks | 2 files |
+| Phase 01-dual-path-capture-durable-archive-and-thin-live-link P12 | 55min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 1-10, 2026-08-02] mark_done is gated on writer.close() succeeding AND FanOutCounters.archive_write_failure being false; synthetic mode tags every frame with the first configured channel since SyntheticFrameSource models per-message rate/entropy, not per-bus separation
 - [Phase ?]: GND-01 ground station emits a 'topic' field, not 'channel' -- the wire protocol carries no per-frame channel/bus data by design, so channel disambiguation is left to consumers (Phase 6 or later) rather than invented on the wire
 - [Phase ?]: Two-process UDP test bounds both car and ground subprocesses via their own --duration-s watchdog (added to ground/cli.py), not termination signals -- Popen.terminate() on Windows never reaches a child's Python signal handlers
+- [Phase ?]: Archive-mode gate runs report a single 'measured' bracket (outside BRACKET_NAMES); duration_s/achieved_bus_fps come from the archive's own timestamps, never gate.json; provenance/limitation text is fully replaced (T-01-30), not appended, for a real-log report.
 
 ### Pending Todos
 
@@ -152,8 +154,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-02T01:32:17.019Z
-Stopped at: Completed 01-11-PLAN.md
+Last session: 2026-08-02T01:47:34.301Z
+Stopped at: Completed 01-12-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.
