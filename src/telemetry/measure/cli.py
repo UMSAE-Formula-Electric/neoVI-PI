@@ -14,6 +14,18 @@ Mirrors `src/new_logger.py::main`'s argparse shape and its `log()`-to-stderr
 convention — this tool's reports are file artifacts, not stdout, so stdout
 carries exactly one line (the gating-bracket summary) for any future
 scripting that pipes this CLI's output.
+
+`--frame-source archive` (plan 01-12) widens this CLI with a second frame
+source alongside the default synthetic model: `--archive-path` names a
+captured session `.mcap` archive, replayed through
+`telemetry.capture.replay_source.ArchiveReplaySource`, and measured under a
+single `"measured"` bracket instead of the three modelled entropy brackets.
+This is the discharge of `00-DECISION.md`'s worst-case-bracket section's
+named Phase 1 condition — "re-run this gate against real captured bus
+traffic at Phase 1's first bench or track session" — the instrument half of
+it, not the re-check itself: running this against a real bench/track
+session still needs the car. The default (no `--frame-source` flag)
+synthetic path is unchanged byte-for-byte; this is additive only.
 """
 
 import argparse
@@ -24,6 +36,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict
 
+from telemetry.capture.replay_source import ArchiveReplaySource
 from telemetry.wire.decoder import Decoder
 from telemetry.wire.dictionary import DbcLoadError, build_id_dictionary, load_dbc
 from telemetry.wire.encoder import Encoder
@@ -48,6 +61,16 @@ DEFAULT_DBC_PATH = str(Path(__file__).resolve().parents[3] / DBC_FILENAME)
 
 REPORT_JSON_FILENAME = "00-REPORT.json"
 REPORT_CSV_FILENAME = "00-REPORT.csv"
+
+# The single bracket key a `--frame-source archive` run's report carries,
+# in place of the three modelled entropy brackets (best/typical/worst) --
+# there is no entropy model to bracket when the payload came from a real
+# capture, so this name is deliberately not one of BRACKET_NAMES.
+MEASURED_BRACKET_NAME = "measured"
+
+FRAME_SOURCE_SYNTHETIC = "synthetic"
+FRAME_SOURCE_ARCHIVE = "archive"
+FRAME_SOURCES = (FRAME_SOURCE_SYNTHETIC, FRAME_SOURCE_ARCHIVE)
 
 
 def log(*args, **kwargs):
@@ -115,6 +138,23 @@ def main():
         help="Restrict the stream to this message name (repeatable).",
     )
     p.add_argument(
+        "--frame-source",
+        default=FRAME_SOURCE_SYNTHETIC,
+        dest="frame_source",
+        choices=list(FRAME_SOURCES),
+        help=(
+            "Which FrameSource to measure: 'synthetic' (default, D-01 "
+            "modelled stream) or 'archive' (a captured session .mcap "
+            "replayed via ArchiveReplaySource -- requires --archive-path)."
+        ),
+    )
+    p.add_argument(
+        "--archive-path",
+        default=None,
+        dest="archive_path",
+        help="Path to a captured session .mcap archive (required when --frame-source archive).",
+    )
+    p.add_argument(
         "--fail-on-roundtrip-mismatch",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -126,6 +166,13 @@ def main():
         ),
     )
     args = p.parse_args()
+
+    if args.frame_source == FRAME_SOURCE_ARCHIVE and not args.archive_path:
+        log(
+            "[ERROR] --frame-source archive requires --archive-path naming "
+            "a captured session .mcap file"
+        )
+        raise SystemExit(1)
 
     if args.duration_s is not None and args.duration_s <= 0:
         # WR-05: config.py's loader enforces duration_s > 0 for the
@@ -172,34 +219,55 @@ def main():
     duration_overridden = args.duration_s is not None
     duration_s = args.duration_s if duration_overridden else config.duration_s
 
-    brackets_to_run = args.brackets or list(BRACKET_NAMES)
     ablations_to_run = args.ablations or list(ABLATIONS)
 
     classifications = classify_database(db)
     rates = assign_rates(db, config)
-    achieved_bus_fps = bus_totals(rates)
 
     start = time.monotonic()
     ablation_measurements: Dict[str, Dict[str, StreamMeasurement]] = {}
 
-    for bracket_name in brackets_to_run:
-        # Materialized exactly once per bracket and reused across every
-        # ablation below: the ablations are only comparable if they encode
-        # identical frames, and regenerating the stream once per ablation
-        # would multiply the dominant cost of the run.
-        source = SyntheticFrameSource(
-            db=db,
-            dictionary=dictionary,
-            config=config,
-            bracket_name=bracket_name,
-            duration_s=duration_s,
-            only_message_names=args.only_message,
-        )
-        frames = list(source.frames())
+    archive_provenance = None  # set below only when --frame-source archive
+
+    if args.frame_source == FRAME_SOURCE_ARCHIVE:
+        # A real captured session replaces the per-bracket synthetic
+        # materialization entirely: there is no entropy bracket to sweep
+        # when the payload came from a real capture, so this is a single
+        # bracket keyed MEASURED_BRACKET_NAME, run through every requested
+        # ablation exactly as the synthetic path does.
+        brackets_to_run = [MEASURED_BRACKET_NAME]
+        archive_path = Path(args.archive_path).resolve()
+        replay_source = ArchiveReplaySource(archive_path, channel_filter=None)
+        frames = list(replay_source.frames())
+        if not frames:
+            log(f"[ERROR] archive at {archive_path} produced zero frames")
+            raise SystemExit(1)
         log(
-            f"Bracket {bracket_name}: materialized {len(frames)} frames "
+            f"Archive {archive_path}: replayed {len(frames)} frames "
             f"(elapsed={time.monotonic() - start:.2f}s)"
         )
+
+        # duration_s/achieved_bus_fps come from the archive's own recorded
+        # timestamps, never the modelled config -- a real capture's
+        # duration and rate are facts of the log, not an assumption to
+        # override from the command line.
+        timestamps_us = [frame.timestamp_us for frame in frames]
+        duration_s = (max(timestamps_us) - min(timestamps_us)) / 1_000_000.0
+        if duration_s <= 0:
+            log(
+                f"[ERROR] archive at {archive_path} spans <= 0 seconds "
+                f"({len(frames)} frame(s)) -- cannot compute a bit rate"
+            )
+            raise SystemExit(1)
+        achieved_bus_fps = replay_source.measured_frame_rates_hz()
+
+        archive_session_name = archive_path.parent.name
+        archive_provenance = {
+            "archive_path": str(archive_path),
+            "archive_session_name": archive_session_name,
+            "archive_truncated": replay_source.truncated,
+            "archive_record_count": replay_source.record_count,
+        }
 
         per_ablation: Dict[str, StreamMeasurement] = {}
         for ablation_name in ablations_to_run:
@@ -209,11 +277,82 @@ def main():
             measurement = measure_stream(frames, encoder, decoder, config.batch_frames)
             per_ablation[ablation_name] = measurement
             log(
-                f"Bracket {bracket_name} ablation {ablation_name}: "
+                f"Bracket {MEASURED_BRACKET_NAME} ablation {ablation_name}: "
                 f"{measurement.bytes_per_frame:.3f} clean bytes/frame "
                 f"(elapsed={time.monotonic() - start:.2f}s)"
             )
-        ablation_measurements[bracket_name] = per_ablation
+        ablation_measurements[MEASURED_BRACKET_NAME] = per_ablation
+    else:
+        brackets_to_run = args.brackets or list(BRACKET_NAMES)
+        achieved_bus_fps = bus_totals(rates)
+
+        for bracket_name in brackets_to_run:
+            # Materialized exactly once per bracket and reused across every
+            # ablation below: the ablations are only comparable if they
+            # encode identical frames, and regenerating the stream once per
+            # ablation would multiply the dominant cost of the run.
+            source = SyntheticFrameSource(
+                db=db,
+                dictionary=dictionary,
+                config=config,
+                bracket_name=bracket_name,
+                duration_s=duration_s,
+                only_message_names=args.only_message,
+            )
+            frames = list(source.frames())
+            log(
+                f"Bracket {bracket_name}: materialized {len(frames)} frames "
+                f"(elapsed={time.monotonic() - start:.2f}s)"
+            )
+
+            per_ablation: Dict[str, StreamMeasurement] = {}
+            for ablation_name in ablations_to_run:
+                options = ablation_options(ablation_name)
+                encoder = Encoder(dictionary, options)
+                decoder = Decoder(dictionary, options)
+                measurement = measure_stream(frames, encoder, decoder, config.batch_frames)
+                per_ablation[ablation_name] = measurement
+                log(
+                    f"Bracket {bracket_name} ablation {ablation_name}: "
+                    f"{measurement.bytes_per_frame:.3f} clean bytes/frame "
+                    f"(elapsed={time.monotonic() - start:.2f}s)"
+                )
+            ablation_measurements[bracket_name] = per_ablation
+
+    if args.frame_source == FRAME_SOURCE_ARCHIVE:
+        duration_s_source = "archive_measured"
+        input_provenance = (
+            f"Every frame in this report was replayed from a captured "
+            f"session archive at {archive_provenance['archive_path']} "
+            f"(session {archive_provenance['archive_session_name']!r}) via "
+            f"telemetry.capture.replay_source.ArchiveReplaySource -- this "
+            f"is real captured vehicle traffic, not a modelled stream."
+        )
+        known_limitation = (
+            "This report measures one recorded session's traffic, from one "
+            "car, in one operating condition -- it is not a statistical "
+            "claim about every possible drive. It discharges the "
+            "instrument half of 00-DECISION.md's worst-case-bracket "
+            "condition; whether this session's real entropy profile "
+            "materially differs from the three-bracket synthetic model is "
+            "for a human to read off the numbers below, against the "
+            "unchanged pre-registered threshold."
+        )
+    else:
+        duration_s_source = "cli_override" if duration_overridden else "gate_config"
+        input_provenance = (
+            f"Every frame in this report is synthesized from {DBC_FILENAME} "
+            "(D-01) via telemetry.synth.generator.SyntheticFrameSource -- "
+            "this is a modelled stream, not a captured vehicle log."
+        )
+        known_limitation = (
+            "Payload entropy is exactly the quantity this gate exists to "
+            "measure, and synthetic data has only the entropy the model in "
+            "config/gate.json's entropy_brackets gives it. The compensating "
+            "controls are the three-bracket (best/typical/worst) band "
+            "reported below and the D-14 worst-case re-check against real "
+            "captured traffic in Phase 1."
+        )
 
     meta = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -224,7 +363,9 @@ def main():
         "seed": config.seed,
         "seed_source": "cli_override" if seed_overridden else "gate_config",
         "duration_s": duration_s,
-        "duration_s_source": "cli_override" if duration_overridden else "gate_config",
+        "duration_s_source": duration_s_source,
+        "frame_source": args.frame_source,
+        "archive": archive_provenance,
         "batch_frames": config.batch_frames,
         "worst_n": config.worst_n,
         "peak_windows_s": config.peak_windows_s,
@@ -245,19 +386,8 @@ def main():
         },
         "only_message": args.only_message,
         "fail_on_roundtrip_mismatch": args.fail_on_roundtrip_mismatch,
-        "input_provenance": (
-            f"Every frame in this report is synthesized from {DBC_FILENAME} "
-            "(D-01) via telemetry.synth.generator.SyntheticFrameSource -- "
-            "this is a modelled stream, not a captured vehicle log."
-        ),
-        "known_limitation": (
-            "Payload entropy is exactly the quantity this gate exists to "
-            "measure, and synthetic data has only the entropy the model in "
-            "config/gate.json's entropy_brackets gives it. The compensating "
-            "controls are the three-bracket (best/typical/worst) band "
-            "reported below and the D-14 worst-case re-check against real "
-            "captured traffic in Phase 1."
-        ),
+        "input_provenance": input_provenance,
+        "known_limitation": known_limitation,
         "bus_assignment_caveat": (
             "bus_assignment.confirmed is False: epbr2026_DBC_v1.0.dbc names "
             "no per-message bus, so which of these messages rides bus1 vs "

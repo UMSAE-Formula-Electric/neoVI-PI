@@ -10,8 +10,11 @@ complete records, structurally satisfies `FrameSource`, feeds
 `Encoder.encode` unmodified, and reports measured per-channel frame rates
 from the archive's own timestamps.
 
-Task 2 (filled by this same plan, in a later commit) proves the
-measurement CLI's real-log input path.
+Task 2 proves the measurement CLI's real-log input path: run against a
+small real archive, the report is keyed under a single measured bracket
+with provenance naming the archive and session, achieved-fps figures come
+from the archive's own timestamps, and the existing synthetic default path
+(no `--frame-source archive` flag) is unaffected.
 
 Every archive fixture below is written through the real `ArchiveWriter` /
 `new_session` / `mark_done` lifecycle, and every frame carries a real DBC
@@ -20,12 +23,19 @@ against the format `ArchiveWriter` actually produces and every frame is
 guaranteed encodable — never a hand-built `.mcap` file or an off-DBC id.
 """
 
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from telemetry.archive.session import mark_done, new_session
 from telemetry.archive.writer import ArchiveWriter
 from telemetry.capture.fanout import CapturedFrame
 from telemetry.capture.replay_source import ArchiveReplaySource
+from telemetry.measure import cli
 from telemetry.wire.dictionary import build_id_dictionary
 from telemetry.wire.encoder import Encoder
 from telemetry.wire.frame_source import RawFrame
@@ -189,3 +199,145 @@ def test_measured_frame_rates_empty_archive_reports_zero(tmp_path):
 
     source = ArchiveReplaySource(path)
     assert source.measured_frame_rates_hz() == {}
+
+
+# ---------------------------------------------------------------------------
+# Task 2: the compression gate's real-log input path (D-14 discharge)
+# ---------------------------------------------------------------------------
+
+
+def _run_cli_subprocess(repo_root: Path, out_dir: Path, *extra_args):
+    """Runs the measurement CLI as a real subprocess (not `cli.main()`
+    in-process) so this exercises the same command line a person -- or the
+    Phase 1 first bench/track session -- would actually type."""
+    src_dir = str(repo_root / "src")
+    env = dict(os.environ)
+    env["PYTHONPATH"] = src_dir + os.pathsep + env.get("PYTHONPATH", "")
+
+    args = [
+        sys.executable,
+        "-m",
+        "telemetry.measure.cli",
+        "--out-dir",
+        str(out_dir),
+        *extra_args,
+    ]
+    return subprocess.run(args, cwd=str(repo_root), env=env, capture_output=True, text=True)
+
+
+def test_archive_frame_source_produces_a_measured_bracket_report(tmp_path, dbc, repo_root):
+    session, expected = _write_two_channel_session(tmp_path, dbc, frame_count=60)
+
+    result = _run_cli_subprocess(
+        repo_root,
+        tmp_path / "out",
+        "--frame-source",
+        "archive",
+        "--archive-path",
+        str(session.mcap_path),
+    )
+    assert result.returncode == 0, result.stderr
+
+    report = json.loads((tmp_path / "out" / cli.REPORT_JSON_FILENAME).read_text())
+
+    assert set(report["brackets"]) == {"measured"}
+    measured = report["brackets"]["measured"]
+    assert measured["aggregate"]["frame_count"] == len(expected)
+    assert measured["aggregate"]["clean_bytes_per_frame"] > 0
+
+
+def test_archive_report_provenance_names_archive_and_session_not_synthetic(tmp_path, dbc, repo_root):
+    session, _ = _write_two_channel_session(tmp_path, dbc, frame_count=60)
+
+    result = _run_cli_subprocess(
+        repo_root,
+        tmp_path / "out",
+        "--frame-source",
+        "archive",
+        "--archive-path",
+        str(session.mcap_path),
+    )
+    assert result.returncode == 0, result.stderr
+
+    report = json.loads((tmp_path / "out" / cli.REPORT_JSON_FILENAME).read_text())
+    meta = report["meta"]
+
+    assert str(session.mcap_path.resolve()) in meta["input_provenance"]
+    assert session.session_name in meta["input_provenance"]
+    assert "SyntheticFrameSource" not in meta["input_provenance"]
+    assert "synthesized" not in meta["input_provenance"]
+    assert "not a modelled stream" in meta["input_provenance"]
+
+    # T-01-30: a report that measured captured traffic must never carry the
+    # synthetic-stream input-provenance caveat ("this is a modelled stream,
+    # not a captured vehicle log") or the synthetic-entropy limitation text
+    # that belongs to a modelled report -- checked verbatim rather than by
+    # banning the word "synthetic" outright, since the real-log limitation
+    # text legitimately still names the synthetic model for comparison.
+    assert "this is a modelled stream, not a captured vehicle log" not in meta["input_provenance"]
+    assert "synthetic data has only the entropy" not in meta["known_limitation"]
+    assert "one recorded session" in meta["known_limitation"].lower()
+
+
+def test_archive_report_achieved_fps_from_archive_timestamps(tmp_path, dbc, repo_root):
+    session, expected = _write_two_channel_session(tmp_path, dbc, frame_count=200)
+
+    result = _run_cli_subprocess(
+        repo_root,
+        tmp_path / "out",
+        "--frame-source",
+        "archive",
+        "--archive-path",
+        str(session.mcap_path),
+    )
+    assert result.returncode == 0, result.stderr
+
+    report = json.loads((tmp_path / "out" / cli.REPORT_JSON_FILENAME).read_text())
+    meta = report["meta"]
+
+    source = ArchiveReplaySource(session.mcap_path)
+    expected_rates = source.measured_frame_rates_hz()
+
+    assert meta["achieved_bus_fps"] == pytest.approx(expected_rates)
+    assert meta["duration_s_source"] == "archive_measured"
+
+
+def test_default_synthetic_path_unchanged_by_a_missing_frame_source_flag(monkeypatch, tmp_path):
+    """The existing 00-06 smoke-test acceptance criterion, pinned so it
+    cannot regress unseen: a run with no `--frame-source` flag at all still
+    produces the three modelled brackets."""
+    argv = [
+        "telemetry.measure.cli",
+        "--only-message",
+        "M192_Command_Message",
+        "--duration-s",
+        "1",
+        "--out-dir",
+        str(tmp_path),
+    ]
+    monkeypatch.setattr("sys.argv", argv)
+    cli.main()
+
+    report = json.loads((tmp_path / cli.REPORT_JSON_FILENAME).read_text())
+    from telemetry.synth.entropy import BRACKET_NAMES
+
+    assert set(report["brackets"]) == set(BRACKET_NAMES)
+    assert "synthesized" in report["meta"]["input_provenance"]
+
+
+def test_archive_frame_source_without_archive_path_exits_nonzero(monkeypatch, tmp_path, capsys):
+    argv = [
+        "telemetry.measure.cli",
+        "--frame-source",
+        "archive",
+        "--out-dir",
+        str(tmp_path),
+    ]
+    monkeypatch.setattr("sys.argv", argv)
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main()
+
+    assert exc_info.value.code == 1
+    assert not (tmp_path / cli.REPORT_JSON_FILENAME).exists()
+    assert "--archive-path" in capsys.readouterr().err
