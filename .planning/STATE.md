@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 01
-current_phase_name: Dual-Path Capture
+current_phase_name: Dual-Path Capture — Durable Archive and Thin Live Link
 status: executing
-stopped_at: Completed 01-12-PLAN.md
-last_updated: "2026-08-02T01:47:34.318Z"
-last_activity: 2026-08-01
-last_activity_desc: Phase 01 execution started
+stopped_at: Completed 01-13-PLAN.md -- Phase 01 all 13 plans complete, ready for phase transition
+last_updated: "2026-08-02T11:53:25.722Z"
+last_activity: 2026-08-02
+last_activity_desc: Completed 01-13 (sustained load soak + per-stage timing record)
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 20
-  completed_plans: 19
+  completed_plans: 20
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-01)
 
 **Core value:** The pit sees what the car is doing while it is doing it, and no run's data is ever lost.
-**Current focus:** Phase 01 — Dual-Path Capture
+**Current focus:** Phase 01 — Dual-Path Capture — Durable Archive and Thin Live Link
 
 ## Current Position
 
-Phase: 01 (Dual-Path Capture) — EXECUTING
-Plan: 12 of 13
-Status: Ready to execute
-Last activity: 2026-08-01 — Phase 01 execution started
+Phase: 01 (Dual-Path Capture — Durable Archive and Thin Live Link) — ALL PLANS COMPLETE
+Plan: 13 of 13
+Status: Ready for phase transition (code review → verification → /gsd-transition)
+Last activity: 2026-08-02 — Completed 01-13 (sustained load soak + per-stage timing record)
 
-Progress: [██████████] 95%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Progress: [██████████] 95%
 | Phase 01 P10 | 55min | 2 tasks | 3 files |
 | Phase 01 P11 | 90min | 2 tasks | 2 files |
 | Phase 01-dual-path-capture-durable-archive-and-thin-live-link P12 | 55min | 2 tasks | 3 files |
+| Phase 01 P13 | 45min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,8 @@ Recent decisions affecting current work:
 - [Phase ?]: GND-01 ground station emits a 'topic' field, not 'channel' -- the wire protocol carries no per-frame channel/bus data by design, so channel disambiguation is left to consumers (Phase 6 or later) rather than invented on the wire
 - [Phase ?]: Two-process UDP test bounds both car and ground subprocesses via their own --duration-s watchdog (added to ground/cli.py), not termination signals -- Popen.terminate() on Windows never reaches a child's Python signal handlers
 - [Phase ?]: Archive-mode gate runs report a single 'measured' bracket (outside BRACKET_NAMES); duration_s/achieved_bus_fps come from the archive's own timestamps, never gate.json; provenance/limitation text is fully replaced (T-01-30), not appended, for a real-log report.
+- [Phase ?]: [Phase 1-13, 2026-08-02] Corrected the plan's discard+enqueued+filtered==submitted identity: telemetry_discard_count flags a subset of already-counted telemetry_enqueued appends (which evicted an older entry), not a fourth disjoint bucket -- summing it double-counts; corrected identity omits it from the sum and reports it separately
+- [Phase ?]: [Phase 1-13, 2026-08-02] Reverted CAP-01 to Pending in REQUIREMENTS.md: 01-12 had marked it Complete in violation of the recorded user decision (01-CONTEXT.md deferred block) to keep legacy logger files through Phase 1 for rollback safety; CAP-02/03/05/06 verified against the codebase and marked Complete as the last plan claiming them
 
 ### Pending Todos
 
@@ -154,8 +157,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-02T01:47:34.301Z
-Stopped at: Completed 01-12-PLAN.md
+Last session: 2026-08-02T11:53:25.708Z
+Stopped at: Completed 01-13-PLAN.md -- Phase 01 all 13 plans complete, ready for phase transition
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.

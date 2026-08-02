@@ -78,7 +78,7 @@ Plans:
   4. A frame captured on the car arrives at the ground station decoded against the DBC, having crossed the batching, COBS+CRC framing, and link layers, with no radio hardware anywhere in the chain and corrupt batches discarded and counted instead of passed upstream
   5. Channels, DBC path, and link settings are read from a config file with no source edit, and a clean machine can be provisioned from the dependency manifest
 
-**Plans**: 11/13 plans executed
+**Plans**: 13/13 plans executed
 
 > **Scope note on criterion 1:** the "duplicate implementation is gone from the repository"
 > clause is deliberately NOT delivered in Phase 1. The user chose to keep
@@ -117,7 +117,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 01-13-PLAN.md — Sustained full-rate soak with per-stage timing and reported counters
+- [x] 01-13-PLAN.md — Sustained full-rate soak with per-stage timing and reported counters
 
 ### Phase 2: Python Ground Station and Dashboard Cutover
 
@@ -256,7 +256,7 @@ Phase 9 is hardware-gated and may slip past any later work without blocking it. 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Compression Ratio Gate | 7/7 | Complete    | 2026-08-01 |
-| 1. Dual-Path Capture — Durable Archive and Thin Live Link | 11/13 | In Progress|  |
+| 1. Dual-Path Capture — Durable Archive and Thin Live Link | 13/13 | In Progress|  |
 | 2. Python Ground Station and Dashboard Cutover | 0/TBD | Not started | - |
 | 3. Unattended On-Car Operation | 0/TBD | Not started | - |
 | 4. Wire Protocol Hardening | 0/TBD | Not started | - |
