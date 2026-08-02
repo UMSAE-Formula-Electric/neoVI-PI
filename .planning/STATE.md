@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Dual-Path Capture
 status: executing
-stopped_at: Completed 01-08-PLAN.md
-last_updated: "2026-08-01T21:00:33.180Z"
+stopped_at: Completed 01-09-PLAN.md
+last_updated: "2026-08-02T00:43:31.934Z"
 last_activity: 2026-08-01
 last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 20
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 01 (Dual-Path Capture) — EXECUTING
-Plan: 8 of 13
+Plan: 9 of 13
 Status: Ready to execute
 Last activity: 2026-08-01 — Phase 01 execution started
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -72,6 +72,7 @@ Progress: [████████░░] 75%
 | Phase 01 P06 | 35min | 2 tasks | 4 files |
 | Phase 01-dual-path-capture-durable-archive-and-thin-live-link P07 | 40min | 2 tasks | 2 files |
 | Phase 01-dual-path-capture-durable-archive-and-thin-live-link P08 | 20min | 2 tasks | 4 files |
+| Phase 01 P09 | 30min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 01-07: telemetry-path error log rate limiting keys on (frame_id, is_extended) only, not per error type
 - [Phase ?]: 01-08: CRC-inside-COBS delimiter-safety regression pinned by test (exhaustive batch_seq search for a CRC trailer containing a zero byte); UdpLink added, proven against LoopbackLink via one shared parameterised suite; LoopbackLink.close() given a real closed-state contract (send-after-close now raises) to satisfy LINK-03's shared-suite requirement
 - [Phase ?]: 01-08: Winsock's recvfrom raises WSAEMSGSIZE on an oversized UDP datagram instead of POSIX's silent truncation -- UdpLink.recv() now catches errno.EMSGSIZE and returns None; the deployment target (Linux/CM4) is unaffected, this is a dev-box-only (Windows) code path
+- [Phase ?]: hardware_source: SDK object injected via constructor arg defaulting to a lazily-imported real ics module; SDK's own RuntimeError type caught (never the builtin, since ics.RuntimeError does not subclass it); timestamp unit/epoch carried forward as a named UNCONFIRMED constant pending hardware bring-up
 
 ### Pending Todos
 
@@ -143,8 +145,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-01T21:00:33.163Z
-Stopped at: Completed 01-08-PLAN.md
+Last session: 2026-08-02T00:43:31.919Z
+Stopped at: Completed 01-09-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.
