@@ -27,6 +27,18 @@ created: 2026-08-02
 
 ---
 
+## Visual Hierarchy
+
+**Primary focal point: the per-signal numeric value** (`.sig-value`) — right-aligned, monospace, weight 600, fixed min-width. This is what the pit engineer's eye lands on and the only reason the page exists. Every other element is wayfinding to reach it. When a layout or CSS decision trades off against value legibility, value legibility wins.
+
+**Secondary focal point: the connection status dot and text** in the sticky header. It answers "should I trust what I'm reading?" and must remain visible without scrolling at every viewport width.
+
+**Everything else is tertiary** — channel tabs, search, message-group headers, toggles, range bars. These are navigation and filtering chrome; they must never out-weight a signal value visually (no larger type, no heavier weight, no accent fill competing with the value column).
+
+This ordering is the tie-breaker for any ambiguity the rest of this contract leaves open.
+
+---
+
 ## Spacing Scale
 
 Declared values (must be multiples of 4):
@@ -103,7 +115,11 @@ Accent reserved for: active channel-tab indicator, `.msg-id` badge, per-signal t
 
 ## UI Considerations
 
-Applicable state considerations resolved: 8 covered, 1 backstop, 0 unresolved
+Applicable state considerations resolved: 9 covered, 1 backstop, 0 unresolved
+
+> Rows are grouped by category and name the elements each applies to. The `ui-consideration-probe`
+> raises 30 element×category pairs across 5 surfaces (message/signal list, connection status,
+> per-signal value, channel tabs, search input); all 8 categories it raises are addressed below.
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
@@ -116,6 +132,7 @@ Applicable state considerations resolved: 8 covered, 1 backstop, 0 unresolved
 | overflow | message list, channel tabs (list-collection, nav) | ✅ covered | Search filters the message/signal list by name or ID; channel tabs scroll horizontally (`overflow-x: auto`) when there are more channels than fit; both are existing, unchanged behavior |
 | zero-one-many | channels, messages, signals (list-collection) | ✅ covered | Zero → empty state; one channel → single tab with no ambiguity; many (up to 128 messages, 2 channels) → search + collapse-all + the stats bar's live counts keep it scannable, unchanged from the ported file |
 | long-text | message names, signal names (static-content) | ✅ covered | `.msg-name` and `.sig-name` already truncate with `text-overflow: ellipsis` in the ported CSS; no change needed |
+| empty | search input — **no-results** (form) | ✅ covered | Distinct from the "no data has arrived" empty state above and must not reuse its copy. When the filter matches nothing but data IS flowing, show "No signals match "{query}"" with a clear-search affordance — never "Waiting for CAN data…", which would tell an engineer the link is down when it is actually fine. Surfaced by the `ui-consideration-probe`'s form-element axis; the aggregated category rows above had hidden it |
 
 ---
 
