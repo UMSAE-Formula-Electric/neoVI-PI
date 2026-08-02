@@ -110,9 +110,15 @@ class ArchiveRunner:
             self._write(item)
 
     def _record_high_water_mark(self) -> None:
-        self._counters.archive_high_water_mark = max(
-            self._counters.archive_high_water_mark, self._archive_queue.qsize()
-        )
+        # This field is the one exception to FanOutCounters being
+        # single-writer/lock-free (see telemetry.capture.fanout's module
+        # docstring): this thread and FanOut.submit()'s capture thread both
+        # perform this read-max-write concurrently for the whole session,
+        # so it is guarded by the counters object's own lock.
+        with self._counters._archive_hwm_lock:
+            self._counters.archive_high_water_mark = max(
+                self._counters.archive_high_water_mark, self._archive_queue.qsize()
+            )
 
     def _write(self, captured: CapturedFrame) -> None:
         try:

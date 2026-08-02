@@ -48,13 +48,23 @@ capture thread has stopped (e.g. after `join()`), so no lock guards it —
 single-item `deque.append()` and `Queue.put_nowait()` are each
 individually safe under the GIL, and there is no read-modify-write across
 threads while capture is running.
+
+One field is the deliberate exception: `archive_high_water_mark` is a
+read-modify-write (`max(current, qsize())`) performed from *two* threads
+for the entire duration of a session — this module's capture thread via
+`submit()`, and `telemetry.archive.runner.ArchiveRunner`'s consumer thread
+via its own `_record_high_water_mark()`, both against the same shared
+`FanOutCounters` instance. A bare `max()`-then-assign there is a classic
+race (one thread's larger write can be clobbered by the other's stale
+read), so that single field is guarded by `FanOutCounters._archive_hwm_lock`
+— every other field keeps the lock-free, single-writer discipline above.
 """
 
 import logging
 import queue
 import threading
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Deque, FrozenSet, NamedTuple, Optional, Tuple
 
 from telemetry.wire.dictionary import IdDictionary, UnknownFrameId
@@ -109,6 +119,13 @@ class FanOutCounters:
     # re-logged.
     telemetry_error_log_suppressed_count: int = 0
 
+    # Guards ONLY `archive_high_water_mark` -- see the module docstring's
+    # threading note. Excluded from `repr`/`==` so this stays a plain data
+    # holder everywhere else (log lines, tests) as before.
+    _archive_hwm_lock: threading.Lock = field(
+        default_factory=threading.Lock, repr=False, compare=False
+    )
+
 
 class FanOut:
     """One capture step's fan-out to two independent consumers."""
@@ -158,9 +175,10 @@ class FanOut:
             return
 
         self.counters.archive_enqueued += 1
-        self.counters.archive_high_water_mark = max(
-            self.counters.archive_high_water_mark, self.archive_queue.qsize()
-        )
+        with self.counters._archive_hwm_lock:
+            self.counters.archive_high_water_mark = max(
+                self.counters.archive_high_water_mark, self.archive_queue.qsize()
+            )
 
         key: AllowlistKey = (captured.frame.frame_id, captured.frame.is_extended)
         if key not in self.telemetry_allowlist:
