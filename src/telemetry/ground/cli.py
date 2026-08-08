@@ -502,13 +502,36 @@ def main(argv=None) -> None:
     if args.serve:
         # Constructed after signal handlers are already installed
         # (preserving the handlers-before-resources ordering `main()`
-        # already has at the top of this function).
-        dashboard_server = DashboardServer(
-            host=args.http_host,
-            port=args.http_port,
-            hub=sse_hub,
-            snapshot_provider=signal_state.snapshot,
-        )
+        # already has at the top of this function). Guarded exactly like
+        # every other startup failure mode above (config/DBC/gate-config/
+        # message-index loads): `ThreadingHTTPServer.__init__` calls
+        # `bind()`/`listen()` and raises a plain `OSError` (e.g. "address
+        # already in use" -- a routine operator mistake when re-running
+        # against a port a previous invocation still holds), which would
+        # otherwise exit via an unhandled traceback instead of the
+        # consistent, logged `SystemExit(1)` path, and leak `link`,
+        # `output_file`, and `watchdog` (already opened/started earlier in
+        # this same function) unclosed/uncancelled.
+        try:
+            dashboard_server = DashboardServer(
+                host=args.http_host,
+                port=args.http_port,
+                hub=sse_hub,
+                snapshot_provider=signal_state.snapshot,
+            )
+        except OSError as exc:
+            logger.error(
+                "failed to bind dashboard server to %s:%d: %s",
+                args.http_host,
+                args.http_port,
+                exc,
+            )
+            link.close()
+            if output_file is not None:
+                output_file.close()
+            if watchdog is not None:
+                watchdog.cancel()
+            raise SystemExit(1) from exc
         logger.info(
             "ground station dashboard serving on http://%s:%d%s",
             args.http_host,
