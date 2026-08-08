@@ -52,10 +52,10 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 ### Ground Station
 
 - [x] **GND-01**: The ground station receives the framed stream, decompresses it, and decodes signals against the DBC
-- [ ] **GND-02**: The ground station runs as a single process serving both the decode pipeline and the browser dashboard
+- [x] **GND-02**: The ground station runs as a single process serving both the decode pipeline and the browser dashboard
 - [ ] **GND-03**: The Node.js server is retired and removed from the repository
-- [ ] **GND-04**: The ground station maintains current signal state and pushes updates to connected browsers
-- [ ] **GND-05**: A newly connected browser receives a full state snapshot rather than waiting for each signal to next update
+- [x] **GND-04**: The ground station maintains current signal state and pushes updates to connected browsers
+- [x] **GND-05**: A newly connected browser receives a full state snapshot rather than waiting for each signal to next update
 
 ### Live Display
 
@@ -161,10 +161,10 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | LINK-05 | Phase 5 | Pending |
 | LINK-06 | Phase 5 | Pending |
 | GND-01 | Phase 1 | Complete |
-| GND-02 | Phase 2 | Pending |
+| GND-02 | Phase 2 | Complete |
 | GND-03 | Phase 2 | Pending |
-| GND-04 | Phase 2 | Pending |
-| GND-05 | Phase 2 | Pending |
+| GND-04 | Phase 2 | Complete |
+| GND-05 | Phase 2 | Complete |
 | PROTO-01 | Phase 4 | Pending |
 | PROTO-02 | Phase 4 | Pending |
 | PROTO-03 | Phase 4 | Pending |

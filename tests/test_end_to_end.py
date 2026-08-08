@@ -1,6 +1,6 @@
 """
 Requirements covered: ARCH-01, ARCH-05, CAP-03, CAP-04, LINK-01, LINK-02,
-LINK-03, LINK-04, GND-01, OPS-04, OPS-05.
+LINK-03, LINK-04, GND-01, GND-02, GND-04, GND-05, OPS-04, OPS-05.
 
 The 01-04 tracer: one CAN frame travels the complete Phase 1 path, end to
 end, with production code at every layer — capture fan-out -> MCAP archive
@@ -17,6 +17,13 @@ subprocesses (the car-side logger and the headless ground station) connected
 over one real loopback UDP socket, with no radio, no vehicle hardware, and
 no second machine involved.
 
+02-02 Task 3 widens this file a third way: ONE ground-station subprocess run
+with `--serve`, proving GND-02's claim -- decode pipeline and browser
+dashboard served by a single process, not merely two things that happen to
+both exist -- by sending it a real UDP frame and observing the same decoded
+signal on stdout AND over its own `/events` SSE stream AND its own `/` route
+serving the dashboard.
+
 `01-05` through `01-13` build outward from this slice; this file is the
 proof that the whole spine holds together on one frame before any of that
 widening starts.
@@ -25,10 +32,12 @@ widening starts.
 import json
 import os
 import re
+import socket
 import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 import cantools
@@ -807,3 +816,229 @@ def test_two_process_capture_to_pit_run_over_udp_no_radio_present(tmp_path, dbc,
     assert health_lines, "the ground process must log at least one link-health line"
     last_health = health_lines[-1]
     assert "discarded[cobs=0 crc=0 batch_format=0 buffer_overflow=0]" in last_health, last_health
+
+
+# ---------------------------------------------------------------------------
+# 02-02 Task 3: GND-02's single-process claim, at the process level -- ONE
+# ground-station subprocess run with --serve, receiving a real UDP frame and
+# simultaneously emitting the decoded signal on stdout, over its own
+# `/events` SSE stream, and serving its own dashboard at `/` -- distinct
+# from the two-process test above, which never exercises --serve at all.
+# ---------------------------------------------------------------------------
+
+_DASHBOARD_RE = re.compile(r"dashboard serving on http://([\d.]+):(\d+)")
+
+
+def _spawn_ground_serving(tmp_path, *, duration_s, health_interval_s=1.0, recv_timeout_s=0.2):
+    """Like `_spawn_ground`, but with `--serve` and an ephemeral HTTP port
+    (`--http-port 0`) -- the ONE ground-station subprocess this test proves
+    serves both the decode pipeline and the browser dashboard. The UDP
+    remote port is also ephemeral (`remote_port=0`), discovered the same
+    way `_spawn_ground` already does."""
+    config_path = _write_config(
+        tmp_path,
+        "ground_serving_logger.json",
+        _udp_link_config(local_port=0, remote_host="127.0.0.1", remote_port=0),
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(SRC_DIR)
+    argv = [
+        sys.executable,
+        "-u",
+        "-m",
+        "telemetry.ground.cli",
+        "--config",
+        str(config_path),
+        "--duration-s",
+        str(duration_s),
+        "--health-interval-s",
+        str(health_interval_s),
+        "--recv-timeout-s",
+        str(recv_timeout_s),
+        "--serve",
+        "--http-host",
+        "127.0.0.1",
+        "--http-port",
+        "0",
+    ]
+    return subprocess.Popen(
+        argv,
+        cwd=str(REPO_ROOT),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
+
+
+def _drain_stream_multi(stream, sink, watches):
+    """Like `_drain_stream`, but watches several independent regex patterns
+    on the same stream at once -- this test's single ground-station process
+    reports its UDP listening address and its HTTP dashboard address on two
+    separate stderr lines, and both must be discovered from the process's
+    own output, never hardcoded. `watches` is a list of
+    `(regex, ready_event, ready_holder)` tuples; each fires independently
+    the first time its own pattern matches, exactly like `_drain_stream`'s
+    single-pattern case."""
+    for line in iter(stream.readline, ""):
+        sink.append(line.rstrip("\n"))
+        for regex, ready_event, ready_holder in watches:
+            if not ready_event.is_set():
+                match = regex.search(line)
+                if match:
+                    ready_holder.append((match.group(1), int(match.group(2))))
+                    ready_event.set()
+    stream.close()
+
+
+def _read_one_sse_event(response, timeout_s: float = 5.0) -> dict:
+    """A local copy of `tests/test_ground_server.py`'s helper of the same
+    name and shape (no cross-test-module import convention exists in this
+    repo) -- bounded by wall-clock `timeout_s`, never an unconditional
+    `readline()` loop with no deadline, per 02-RESEARCH.md's verified
+    idiom. The wire framing read here is the same generic-`message`,
+    no-`event:`-line, two-lines-per-frame shape `telemetry.ground.server`
+    documents: a `data:` (or `:`-prefixed heartbeat comment) line followed
+    by its terminating blank line."""
+    deadline = time.monotonic() + timeout_s
+    while True:
+        if time.monotonic() > deadline:
+            raise TimeoutError(f"no SSE event received within {timeout_s}s")
+        line = response.readline()
+        if not line:
+            continue
+        text = line.decode("utf-8").rstrip("\n")
+        if text.startswith(":"):
+            response.readline()  # heartbeat comment's blank-line terminator
+            continue
+        if text.startswith("data:"):
+            response.readline()  # this event's blank-line terminator
+            return json.loads(text[len("data:") :].strip())
+
+
+def test_serving_mode_is_one_process_no_pipe(tmp_path, dbc, logger_config):
+    """One ground-station subprocess, run with `--serve`, simultaneously:
+    emits the decoded record on stdout (D-04, headless output survives
+    serving), pushes the same decoded signal to an `/events` SSE client, and
+    serves the ported dashboard at `/` -- the only test in this suite that
+    can distinguish "one process serving both" from "the decode pipeline and
+    the browser server happen to both exist", which is precisely GND-02's
+    claim (and precisely what the retired Node architecture could not do)."""
+    ground_duration_s = 6.0
+
+    ground_stdout: list = []
+    ground_stderr: list = []
+    udp_ready = threading.Event()
+    udp_holder: list = []
+    http_ready = threading.Event()
+    http_holder: list = []
+
+    proc = _spawn_ground_serving(tmp_path, duration_s=ground_duration_s)
+    stdout_thread = threading.Thread(
+        target=_drain_stream, args=(proc.stdout, ground_stdout), daemon=True
+    )
+    stderr_thread = threading.Thread(
+        target=_drain_stream_multi,
+        args=(
+            proc.stderr,
+            ground_stderr,
+            [
+                (_LISTENING_RE, udp_ready, udp_holder),
+                (_DASHBOARD_RE, http_ready, http_holder),
+            ],
+        ),
+        daemon=True,
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+
+    try:
+        assert udp_ready.wait(timeout=10.0), (
+            "ground station never reported its bound UDP listening port "
+            f"within 10s (stderr so far: {ground_stderr!r})"
+        )
+        assert http_ready.wait(timeout=10.0), (
+            "ground station never reported its bound HTTP dashboard port "
+            f"within 10s (stderr so far: {ground_stderr!r})"
+        )
+        udp_host, udp_port = udp_holder[0]
+        http_host, http_port = http_holder[0]
+
+        # A GET of the root path serves the dashboard from this same
+        # single process.
+        dashboard_response = urllib.request.urlopen(
+            f"http://{http_host}:{http_port}/", timeout=10.0
+        )
+        try:
+            assert dashboard_response.status == 200
+            dashboard_body = dashboard_response.read().decode("utf-8")
+            assert "<title>CAN Live Dashboard</title>" in dashboard_body
+        finally:
+            dashboard_response.close()
+
+        # Connect the SSE client BEFORE sending the frame, so the second
+        # event observed is a live "update", not just a later snapshot.
+        events_response = urllib.request.urlopen(
+            f"http://{http_host}:{http_port}/events", timeout=10.0
+        )
+        try:
+            snapshot_event = _read_one_sse_event(events_response)
+            assert snapshot_event["type"] == "snapshot"
+
+            dictionary = build_id_dictionary(dbc, logger_config.dbc_path)
+            subject_frame = _build_subject_frame(dbc, timestamp_us=11_000)
+            encoder = Encoder(dictionary)
+            cfr = encoder.encode(subject_frame, batch_base_timestamp_us=11_000)
+            batch_payload = pack_batch(
+                dict_version=dictionary.dict_version,
+                base_timestamp_us=11_000,
+                batch_seq=0,
+                records=[cfr],
+            )
+            framed = cobs_frame(batch_payload)
+
+            udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                udp_sock.sendto(framed, (udp_host, udp_port))
+            finally:
+                udp_sock.close()
+
+            update_event = _read_one_sse_event(events_response)
+        finally:
+            events_response.close()
+
+        message = dbc.get_message_by_name(SUBJECT_MESSAGE)
+        assert update_event["type"] == "update"
+        assert update_event["id"] == f"0x{message.frame_id:X}"
+        assert update_event["name"] == SUBJECT_MESSAGE
+        assert update_event["signal"] == "Pedal_Press_Percent"
+        assert update_event["value"] == SUBJECT_SIGNAL_VALUES["Pedal_Press_Percent"]
+
+        # Give the stdout drainer thread a moment to catch up with the
+        # process's own flush before the JSON-record assertion below.
+        deadline = time.monotonic() + 5.0
+        while not ground_stdout and time.monotonic() < deadline:
+            time.sleep(0.05)
+    finally:
+        if proc.poll() is None:
+            try:
+                proc.wait(timeout=ground_duration_s + 5.0)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=5.0)
+        stdout_thread.join(timeout=5.0)
+        stderr_thread.join(timeout=5.0)
+
+    assert proc.returncode == 0, "\n".join(ground_stderr)
+
+    decoded_records = [json.loads(line) for line in ground_stdout if line.strip()]
+    assert decoded_records, (
+        "the headless stdout JSON output must survive alongside serving (D-04)"
+    )
+    assert any(
+        record["message_name"] == SUBJECT_MESSAGE
+        and record["signal"] == "Pedal_Press_Percent"
+        and record["value"] == SUBJECT_SIGNAL_VALUES["Pedal_Press_Percent"]
+        for record in decoded_records
+    ), f"expected the decoded record on stdout too, got {decoded_records!r}"
