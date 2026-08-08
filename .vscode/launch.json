@@ -1,12 +1,15 @@
 {
     "configurations": [
         {
-            "name": "Python Debugger: Python File",
+            "name": "Python Debugger: Car-side logger (synthetic source)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
-            "args": ["--channels",
-                    "DW CAN 01"]
+            "module": "telemetry.logger.cli",
+            "args": ["--source", "synthetic", "--duration-s", "5"],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
         }
     ]
 }
