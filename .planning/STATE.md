@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: python-ground-station-and-dashboard-cutover
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-08-08T16:52:05.232Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-08-08T17:09:11.765Z"
 last_activity: 2026-08-08
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 24
-  completed_plans: 22
+  completed_plans: 23
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 02 (python-ground-station-and-dashboard-cutover) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-08-08 — Phase 02 execution started
 
-Progress: [█████████░] 92%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Progress: [█████████░] 92%
 | Phase 01 P13 | 45min | 2 tasks | 2 files |
 | Phase 02 P01 | 35min | 2 tasks | 4 files |
 | Phase 02 P02 | 25min | 3 tasks | 5 files |
+| Phase 02 P03 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -140,6 +141,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 2-02, 2026-08-08] can-dashboard/dashboard.html left in place after copying (not deleted) -- 02-04 retires the source directory once the port has proven itself on the car
 - [Phase ?]: [Phase 2-02, 2026-08-08] Staleness sweep implemented as a dedicated 1s setInterval, deliberately deviating from 02-PATTERNS.md's animation-frame-cadence suggestion (pre-authorized by the plan itself) -- a message going quiet produces no updates and therefore no rAF trigger, so only a time-based sweep can ever dim a frozen value
 - [Phase ?]: [Phase 2-02, 2026-08-08] GND-02, GND-04, GND-05 marked Complete in REQUIREMENTS.md after re-confirming no later phase-2 plan claims them (02-03 claims GND-03; 02-04 claims GND-03, CAP-01)
+- [Phase ?]: [Phase 2-03, 2026-08-08] GND-03 left Pending in REQUIREMENTS.md (also claimed by 02-04's frontmatter, which physically deletes can-dashboard/); simulate.py's build_car_link/feed_frames split lets tests/test_ground_simulate.py drive the pacing loop and link construction directly with no subprocess or socket
+- [Phase ?]: [Phase 2-03, 2026-08-08] TelemetryPipeline checks stop_event before popping its deque (lossy-at-stop by design) -- test synchronization must poll pipeline.counters.frames_sent to the fed count, not deque emptiness, before signalling stop; a queue-emptiness check produced a flaky false-empty race
 
 ### Pending Todos
 
@@ -189,8 +192,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-08T16:52:05.214Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-08-08T17:09:11.747Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.
