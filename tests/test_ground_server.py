@@ -31,8 +31,10 @@ stated rationale).
 """
 
 import json
+import queue
 import threading
 import time
+import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -42,7 +44,11 @@ import pytest
 from telemetry.framing.cobs_frame import frame as cobs_frame
 from telemetry.ground.cli import GroundConsumerCounters, run_consumer_loop
 from telemetry.ground.deframe import Deframer
-from telemetry.ground.server import DashboardServer, SseHub
+from telemetry.ground.server import (
+    SSE_CLIENT_QUEUE_MAXSIZE,
+    DashboardServer,
+    SseHub,
+)
 from telemetry.ground.state import (
     GroundStateError,
     SignalState,
@@ -102,6 +108,16 @@ def _framed_batch(dictionary, frames: List[RawFrame], base_timestamp_us: int) ->
         records=records,
     )
     return cobs_frame(batch_payload)
+
+
+def _decode_sse_bytes(frame_bytes: bytes) -> dict:
+    """Inverse of `telemetry.ground.server._sse_frame`: a `data: {...}\\n\\n`
+    frame back to its JSON payload."""
+    text = frame_bytes.decode("utf-8")
+    assert text.startswith("data: ") and text.endswith("\n\n"), (
+        f"not a data frame in the two-line generic-message shape: {text!r}"
+    )
+    return json.loads(text[len("data: ") : -2])
 
 
 def _read_one_sse_event(response, timeout_s: float = SSE_READ_TIMEOUT_S) -> dict:
@@ -435,3 +451,124 @@ def test_shutdown_from_decode_thread_returns_promptly():
 
     assert elapsed < 2.0, f"shutdown() took {elapsed:.2f}s -- expected a prompt return"
     assert not server_thread.is_alive()
+
+
+# ---------------------------------------------------------------------------
+# Task 2: bounded per-client fan-out and hardened routes -- SseHub /
+# DashboardServer only, no link involved.
+# ---------------------------------------------------------------------------
+
+
+def test_slow_client_loses_oldest_not_newest():
+    """Registering a client and broadcasting more payloads than its queue's
+    maxsize without ever draining it keeps the LAST payload broadcast and
+    drops the FIRST, with `frames_dropped_oldest` non-zero -- the
+    discriminating assertion a plain `put_nowait`-and-swallow could not
+    pass, since that keeps the OLDEST and throws away the NEWEST."""
+    hub = SseHub()
+    client_queue = hub.register()
+
+    total = SSE_CLIENT_QUEUE_MAXSIZE + 10
+    for i in range(total):
+        hub.broadcast({"type": "update", "seq": i})
+
+    drained = []
+    while True:
+        try:
+            drained.append(_decode_sse_bytes(client_queue.get_nowait()))
+        except queue.Empty:
+            break
+
+    assert drained, "expected the client queue to still hold the newest frames"
+    assert drained[-1]["seq"] == total - 1
+    assert drained[0]["seq"] != 0
+    assert hub.counters.frames_dropped_oldest > 0
+
+
+def test_broadcast_never_blocks_on_a_full_client():
+    """With one client queue deliberately left full, a broadcast returns in
+    well under a second -- catches a blocking `put()` re-introducing
+    downstream the backpressure CAP-04 exists to structurally prevent."""
+    hub = SseHub()
+    client_queue = hub.register()
+    for _ in range(SSE_CLIENT_QUEUE_MAXSIZE):
+        client_queue.put_nowait(b"filler")
+
+    start = time.monotonic()
+    hub.broadcast({"type": "update", "seq": "final"})
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 1.0, f"broadcast() took {elapsed:.2f}s against a full client queue"
+
+
+def test_unknown_path_returns_404():
+    """A request to an unlisted path returns 404 -- catches a naive
+    static-file handler resolving attacker-controlled paths (T-02-01)."""
+    hub = SseHub()
+    server = DashboardServer(host="127.0.0.1", port=0, hub=hub, snapshot_provider=lambda: {})
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.port}/../../../../etc/passwd"
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            urllib.request.urlopen(url, timeout=SSE_READ_TIMEOUT_S)
+        assert exc_info.value.code == 404
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=SSE_READ_TIMEOUT_S)
+        server.server_close()
+
+
+def test_events_response_sends_no_content_length():
+    """The `/events` response headers contain no content-length header --
+    catches a copy-paste from a static route that would make a client stop
+    reading mid-stream (02-RESEARCH.md Pitfall 5)."""
+    hub = SseHub()
+    server = DashboardServer(host="127.0.0.1", port=0, hub=hub, snapshot_provider=lambda: {})
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        response = urllib.request.urlopen(
+            f"http://127.0.0.1:{server.port}/events", timeout=SSE_READ_TIMEOUT_S
+        )
+        try:
+            assert response.headers.get("Content-Length") is None
+        finally:
+            response.close()
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=SSE_READ_TIMEOUT_S)
+        server.server_close()
+
+
+def test_dead_client_is_unregistered():
+    """Closing a client's connection, then broadcasting twice, returns
+    `hub.client_count()` to zero within a bounded wait -- catches handler
+    threads and queues accumulating for every browser tab ever opened."""
+    hub = SseHub()
+    server = DashboardServer(host="127.0.0.1", port=0, hub=hub, snapshot_provider=lambda: {})
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        response = urllib.request.urlopen(
+            f"http://127.0.0.1:{server.port}/events", timeout=SSE_READ_TIMEOUT_S
+        )
+        _read_one_sse_event(response)  # snapshot -- confirms registration happened
+
+        deadline = time.monotonic() + SSE_READ_TIMEOUT_S
+        while hub.client_count() == 0 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert hub.client_count() == 1
+
+        response.close()
+        hub.broadcast({"type": "update", "seq": 1})
+        hub.broadcast({"type": "update", "seq": 2})
+
+        deadline = time.monotonic() + SSE_READ_TIMEOUT_S
+        while hub.client_count() != 0 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert hub.client_count() == 0
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=SSE_READ_TIMEOUT_S)
+        server.server_close()
