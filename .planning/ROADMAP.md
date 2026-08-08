@@ -140,12 +140,12 @@ Plans:
   3. A browser opened mid-session immediately shows every signal's current value instead of waiting for each signal to next update
   4. The Node.js server is removed from the repository and nothing in the system depends on it
 
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 
 Plans:
 
 - [x] 02-01-PLAN.md — Tracer: one decoded signal travels link → state store → SSE → a connected client, in one process
-- [ ] 02-02-PLAN.md — Serve the ported dashboard over EventSource; staleness dimming and honest empty/no-results copy
+- [x] 02-02-PLAN.md — Serve the ported dashboard over EventSource; staleness dimming and honest empty/no-results copy
 - [ ] 02-03-PLAN.md — Python simulator replacing simulate.js, driving the real wire path with no car or radio
 - [ ] 02-04-PLAN.md — Delete the Node directory and the four legacy loggers; update the instruction file; close GND-03 and CAP-01
 
@@ -273,7 +273,7 @@ Phase 9 is hardware-gated and may slip past any later work without blocking it. 
 |-------|----------------|--------|-----------|
 | 0. Compression Ratio Gate | 7/7 | Complete    | 2026-08-01 |
 | 1. Dual-Path Capture — Durable Archive and Thin Live Link | 13/13 | In Progress|  |
-| 2. Python Ground Station and Dashboard Cutover | 1/4 | In Progress|  |
+| 2. Python Ground Station and Dashboard Cutover | 2/4 | In Progress|  |
 | 3. Unattended On-Car Operation | 0/TBD | Not started | - |
 | 4. Wire Protocol Hardening | 0/TBD | Not started | - |
 | 5. Transmit Shaping and Loss-Resilience Test Suite | 0/TBD | Not started | - |

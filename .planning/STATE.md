@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 02
 current_phase_name: python-ground-station-and-dashboard-cutover
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-08-08T16:21:58.774Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-08-08T16:52:05.232Z"
 last_activity: 2026-08-08
 last_activity_desc: Phase 02 execution started
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 24
-  completed_plans: 20
+  completed_plans: 22
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 02 (python-ground-station-and-dashboard-cutover) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-08-08 — Phase 02 execution started
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -78,6 +78,7 @@ Progress: [████████░░] 83%
 | Phase 01-dual-path-capture-durable-archive-and-thin-live-link P12 | 55min | 2 tasks | 3 files |
 | Phase 01 P13 | 45min | 2 tasks | 2 files |
 | Phase 02 P01 | 35min | 2 tasks | 4 files |
+| Phase 02 P02 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -135,6 +136,10 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 1-13, 2026-08-02] Reverted CAP-01 to Pending in REQUIREMENTS.md: 01-12 had marked it Complete in violation of the recorded user decision (01-CONTEXT.md deferred block) to keep legacy logger files through Phase 1 for rollback safety; CAP-02/03/05/06 verified against the codebase and marked Complete as the last plan claiming them
 - [Phase ?]: [Phase 2-01, 2026-08-08] Task 1 tracer's 7 behavior assertions split state.py-only unit tests (channel derivation, collision guard) from full-stack SSE tests driven against a real DashboardServer + real LoopbackLink fed real COBS-framed bytes via urllib as the bounded SSE client stand-in
 - [Phase ?]: [Phase 2-01, 2026-08-08] SseHub.broadcast() drop-oldest wrapper mirrors FanOut.submit's check-then-evict-then-count discipline; SSE write failures counted via a closure-scoped log-once-then-suppress lock, distinct from FanOutCounters' single-writer no-lock convention since multiple handler threads can hit it concurrently
+- [Phase ?]: [Phase 2-02, 2026-08-08] Dashboard file read per HTTP request, not cached at process startup -- an engineer can edit dashboard.html and reload without restarting the ground station
+- [Phase ?]: [Phase 2-02, 2026-08-08] can-dashboard/dashboard.html left in place after copying (not deleted) -- 02-04 retires the source directory once the port has proven itself on the car
+- [Phase ?]: [Phase 2-02, 2026-08-08] Staleness sweep implemented as a dedicated 1s setInterval, deliberately deviating from 02-PATTERNS.md's animation-frame-cadence suggestion (pre-authorized by the plan itself) -- a message going quiet produces no updates and therefore no rAF trigger, so only a time-based sweep can ever dim a frozen value
+- [Phase ?]: [Phase 2-02, 2026-08-08] GND-02, GND-04, GND-05 marked Complete in REQUIREMENTS.md after re-confirming no later phase-2 plan claims them (02-03 claims GND-03; 02-04 claims GND-03, CAP-01)
 
 ### Pending Todos
 
@@ -149,6 +154,7 @@ None yet.
 - **[Phase 0] 00-VALIDATION.md is still an unfilled template.** Every `{placeholder}` is intact. `workflow.nyquist_validation` is on. Non-blocking — every task in the 7 plans carries an `<automated>` verify, and phase verification passed 4/4 without it. Run `/gsd-validate-phase 0` to fill it. The `verify:post` nyquist and security hooks were both declined at the Phase 0 boundary; `/gsd-secure-phase 0` is likewise still available.
 - **[Phase 0] The classifier's 12 checksum-bucket candidates were never hand-reviewed.** RESEARCH.md Assumption A2 predicted false positives (heartbeats, fault codes, SOH values). Reported as an inspectable candidate list with per-assignment reasons rather than asserted correct — auditable without re-running anything.
 - **[Phase 0 → 1] The gate's numbers rest on a modelled stream, not captured traffic.** Bus assignment and total frame rate both carry `confirmed: false`, and the EMUS `_Ext` correction was recorded arithmetically rather than re-measured. Phase 1's first bench or track session should re-run the gate against a real captured log — which needs the deferred real-log reader for the D-08 frame-source interface, scope Phase 1 must absorb.
+- [Phase 2-02] Task 2's browser-based human-check (staleness dimming, reconnect-across-restart, no-results search interaction) was not run -- no browser automation tool was available this session. Recorded as .planning/WINDOWS.md id=1 (kind unrun-verify). Should be run manually or via /gsd-verify-work 2 before /gsd-ship.
 
 ## Deferred Verification
 
@@ -183,8 +189,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-08T16:21:58.755Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-08-08T16:52:05.214Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-autonomous` to continue with Phase 1.
