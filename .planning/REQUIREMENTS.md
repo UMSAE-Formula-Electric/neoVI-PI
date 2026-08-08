@@ -15,7 +15,7 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 
 ### Capture
 
-- [ ] **CAP-01**: A single logger implementation captures both CAN buses concurrently; the duplicate implementation is removed from the repository
+- [x] **CAP-01**: A single logger implementation captures both CAN buses concurrently; the duplicate implementation is removed from the repository
 - [x] **CAP-02**: Capture sustains ~4,000 frames/s combined across both buses for a full session without dropping frames on the archive path
 - [x] **CAP-03**: Capture fans out to two independent consumers whose overflow policies differ — the archive consumer never drops, the telemetry consumer never blocks
 - [x] **CAP-04**: The telemetry consumer is structurally incapable of applying backpressure to the capture thread or the archive path
@@ -53,7 +53,7 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 
 - [x] **GND-01**: The ground station receives the framed stream, decompresses it, and decodes signals against the DBC
 - [x] **GND-02**: The ground station runs as a single process serving both the decode pipeline and the browser dashboard
-- [ ] **GND-03**: The Node.js server is retired and removed from the repository
+- [x] **GND-03**: The Node.js server is retired and removed from the repository
 - [x] **GND-04**: The ground station maintains current signal state and pushes updates to connected browsers
 - [x] **GND-05**: A newly connected browser receives a full state snapshot rather than waiting for each signal to next update
 
@@ -142,7 +142,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | GATE-01 | Phase 0 | Complete |
 | GATE-02 | Phase 0 | Complete |
 | GATE-03 | Phase 0 | Complete |
-| CAP-01 | Phase 1 | Pending |
+| CAP-01 | Phase 1 | Complete |
 | CAP-02 | Phase 1 | Complete |
 | CAP-03 | Phase 1 | Complete |
 | CAP-04 | Phase 1 | Complete |
@@ -162,7 +162,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | LINK-06 | Phase 5 | Pending |
 | GND-01 | Phase 1 | Complete |
 | GND-02 | Phase 2 | Complete |
-| GND-03 | Phase 2 | Pending |
+| GND-03 | Phase 2 | Complete |
 | GND-04 | Phase 2 | Complete |
 | GND-05 | Phase 2 | Complete |
 | PROTO-01 | Phase 4 | Pending |
@@ -207,7 +207,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 
 - **OPS-05** (config not hardcoded) lands in Phase 1 for channels, DBC path, and link settings. The alarm-limits portion of the same sentence is delivered by **ALRM-05** in Phase 7, when alarm limits first exist.
 - **CAP-02** (no dropped frames at full rate) is proven in Phase 1 as a property of the capture path; **TEST-03** in Phase 5 makes that proof a repeatable automated soak that also reports transmitted and dropped counts on the live path.
-- **CAP-01 is deliberately left Pending at the Phase 1 → 2 boundary (user decision, 01-CONTEXT.md `<deferred>`).** Phase 1 satisfies its "single implementation captures both buses" half; its "duplicate implementation removed from the repository" half is not met — `src/neoVI_logger.py`, `src/new_logger.py`, `src/references.py`, and `src/neoVI_sender.py` are kept through Phase 1 for rollback safety. This requirement completes in Phase 2, which already retires the Node server (GND-03), so all legacy deletion lands together. (A prior plan marked this row Complete in error; corrected in 01-13.)
+- **CAP-01 was deliberately left Pending at the Phase 1 → 2 boundary (user decision, 01-CONTEXT.md `<deferred>`), and completed in Phase 2 as planned.** Phase 1 satisfied its "single implementation captures both buses" half; its "duplicate implementation removed from the repository" half was deliberately deferred — the four legacy modules were kept through Phase 1 for rollback safety. Phase 2 plan 04 deleted all four (alongside the Node server, GND-03), re-ran the deletion blast-radius import check immediately beforehand, and added a regression test (`tests/test_legacy_cutover.py`) that fails if any of the deleted paths reappears, is imported again, or is documented again. Both halves of CAP-01 are now true. (A prior plan marked this row Complete in error before the deletion landed; corrected in 01-13, closed for real in 02-04.)
 - **Phase 9 (RFD900x Radio Integration) carries no requirements by design** — every v1 requirement is satisfiable with loopback, PTY, or UDP transports, so unpurchased radio hardware cannot block v1 completion.
 
 ---
