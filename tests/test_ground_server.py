@@ -31,6 +31,7 @@ stated rationale).
 """
 
 import json
+import logging
 import queue
 import re
 import threading
@@ -612,6 +613,64 @@ def test_dead_client_is_unregistered():
         while hub.client_count() != 0 and time.monotonic() < deadline:
             time.sleep(0.05)
         assert hub.client_count() == 0
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=SSE_READ_TIMEOUT_S)
+        server.server_close()
+
+
+def test_write_failure_logging_is_keyed_per_client_address(caplog):
+    """Regression for WR-03: the FIRST client's write-failure warning must
+    not permanently silence every later client's warning for the rest of
+    the process's life. Two distinct connections (each its own ephemeral
+    source port, hence a distinct `client_address`) are each closed without
+    draining, then broadcast to until both are unregistered -- with the old
+    single `"logged": False` process-lifetime flag, only the FIRST client's
+    disconnect would ever produce a logged warning; the second would be
+    silently counted and never logged, no matter how routine (a flaky
+    pit-lane wifi link) its disconnect was."""
+    hub = SseHub()
+    server = DashboardServer(host="127.0.0.1", port=0, hub=hub, snapshot_provider=lambda: {})
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        with caplog.at_level(logging.WARNING, logger="telemetry.ground.server"):
+            response_a = urllib.request.urlopen(
+                f"http://127.0.0.1:{server.port}/events", timeout=SSE_READ_TIMEOUT_S
+            )
+            _read_one_sse_event(response_a)
+            response_b = urllib.request.urlopen(
+                f"http://127.0.0.1:{server.port}/events", timeout=SSE_READ_TIMEOUT_S
+            )
+            _read_one_sse_event(response_b)
+
+            deadline = time.monotonic() + SSE_READ_TIMEOUT_S
+            while hub.client_count() < 2 and time.monotonic() < deadline:
+                time.sleep(0.01)
+            assert hub.client_count() == 2
+
+            response_a.close()
+            response_b.close()
+
+            deadline = time.monotonic() + SSE_READ_TIMEOUT_S
+            while hub.client_count() != 0 and time.monotonic() < deadline:
+                hub.broadcast({"type": "update", "seq": 1})
+                time.sleep(0.05)
+            assert hub.client_count() == 0
+
+        warning_records = [
+            r for r in caplog.records if "SSE client write failed" in r.getMessage()
+        ]
+        assert len(warning_records) == 2, (
+            f"expected one logged warning per distinct client address, got "
+            f"{len(warning_records)}: {[r.getMessage() for r in warning_records]}"
+        )
+        # Each message embeds its own client_address -- two distinct
+        # connections always get two distinct ephemeral source ports, so
+        # two DIFFERENT messages is exactly the discriminating assertion a
+        # single global "logged once ever" flag could not pass (it would
+        # produce only one).
+        assert len({r.getMessage() for r in warning_records}) == 2
     finally:
         server.shutdown()
         server_thread.join(timeout=SSE_READ_TIMEOUT_S)

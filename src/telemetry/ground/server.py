@@ -191,17 +191,23 @@ def make_handler_class(
     `DashboardServer` instance, since `http.server` handler classes carry no
     per-instance constructor arguments of their own."""
 
-    # Log-once-then-count state for SSE write failures (mirrors
-    # `FanOut`'s `_logged_error_frame_keys` / T-01-18 discipline), scoped to
-    # this `DashboardServer` instance via closure. Unlike `FanOut`'s
-    # single-writer capture thread, write failures can be hit concurrently
-    # by any of several handler threads (one per connected client), so the
-    # log-once decision is a genuine read-modify-write and needs its own
-    # lock -- `_write_failure_lock` is that lock, guarding only the
-    # `"logged"` flag in `_write_failure_state` (a single-key dict so the
-    # nested handler method can mutate it without a `nonlocal` declaration).
+    # Log-once-per-client-then-count state for SSE write failures (mirrors
+    # `FanOut`'s `_logged_error_frame_keys` / T-01-18 discipline: suppress
+    # per offending KEY, not globally), scoped to this `DashboardServer`
+    # instance via closure. Unlike `FanOut`'s single-writer capture thread,
+    # write failures can be hit concurrently by any of several handler
+    # threads (one per connected client), so the log-once decision is a
+    # genuine read-modify-write and needs its own lock --
+    # `_write_failure_lock` is that lock, guarding
+    # `_write_failure_state["logged_addresses"]` (a single-key dict so the
+    # nested handler method can mutate it without a `nonlocal`
+    # declaration). Keyed on `self.client_address` rather than a single
+    # process-lifetime flag: a flaky pit-lane wifi link routinely produces
+    # many distinct clients disconnecting over a multi-hour test day, and
+    # each is a distinct problem worth its own first-seen log line, not
+    # permanently silenced by the very first one.
     _write_failure_lock = threading.Lock()
-    _write_failure_state = {"logged": False}
+    _write_failure_state = {"logged_addresses": set()}
 
     class DashboardRequestHandler(http.server.BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -315,22 +321,25 @@ def make_handler_class(
                 ConnectionResetError,
                 OSError,
             ) as exc:
-                # Specific-exception-then-count-then-log-once (T-01-18's
-                # discipline), not a bare catch-all: every write failure is
-                # counted; the first is logged in full with the client's
-                # address, and every subsequent one is counted on
-                # `write_failure_log_suppressed_count` rather than
-                # re-logged, so a client that dies mid-broadcast storm
-                # cannot flood the log.
+                # Specific-exception-then-count-then-log-once-per-address
+                # (T-01-18's discipline), not a bare catch-all and not a
+                # single process-lifetime flag: every write failure is
+                # counted; the first for a given client address is logged
+                # in full, and every subsequent one FROM THAT SAME ADDRESS
+                # is counted on `write_failure_log_suppressed_count` rather
+                # than re-logged. A different client address disconnecting
+                # is a distinct, routine occurrence on a flaky pit-lane
+                # wifi link and always gets its own first-seen log line.
                 hub.counters.client_write_failures += 1
                 with _write_failure_lock:
-                    if _write_failure_state["logged"]:
+                    if self.client_address in _write_failure_state["logged_addresses"]:
                         hub.counters.write_failure_log_suppressed_count += 1
                     else:
-                        _write_failure_state["logged"] = True
+                        _write_failure_state["logged_addresses"].add(self.client_address)
                         logger.warning(
                             "SSE client write failed (address=%s): %s -- "
-                            "further occurrences are counted, not re-logged",
+                            "further occurrences from this address are "
+                            "counted, not re-logged",
                             self.client_address,
                             exc,
                         )
