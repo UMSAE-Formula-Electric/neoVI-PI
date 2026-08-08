@@ -281,6 +281,15 @@
     min-width: 80px;
     transition: color 0.3s;
   }
+  /* Staleness dimming (D-12): a signal value whose ts is older than the
+     staleness threshold gets this rule -- deliberately reusing --dim (the
+     existing muted/inactive token), never --amber or --red (link-level
+     health states, Phase 6 scope). Declared before .flash so a fresh
+     update's flash color always wins if both classes are briefly present;
+     the render path also explicitly removes .stale before applying .flash.
+     Deliberately NOT the .hidden row treatment's opacity: 0.35 -- a stale
+     value must never look like one the engineer chose to hide. */
+  .sig-value.stale { color: var(--dim); }
   .sig-value.flash { color: var(--green); }
   .sig-unit {
     font-size: 11px;
@@ -376,13 +385,24 @@
   <div class="empty" id="empty-state">
     <div class="empty-icon">📡</div>
     <h3>Waiting for CAN data…</h3>
-    <p>Start your logger and pipe it to the server:<br><br>
-    <code>your-can-logger | node server.js</code><br><br>
-    Data will appear here in real time.</p>
+    <p>The ground station will start streaming automatically once it's running and the link is receiving frames:<br><br>
+    <code>python -m telemetry.ground.cli --serve</code><br><br>
+    Signals will appear here as soon as data arrives — no page reload needed.</p>
+  </div>
+  <div class="empty" id="no-results-state" style="display:none;">
+    <div class="empty-icon">🔍</div>
+    <h3 id="no-results-heading">No signals match</h3>
+    <p>Nothing in the current channel matches your search.<br><br>
+    <button class="btn-small" id="btn-clear-search">Clear search</button></p>
   </div>
 </div>
 
 <script>
+// Staleness (D-12, 02-UI-SPEC.md): a signal whose value hasn't refreshed in
+// this many ms renders dimmed. Declared once, here, and nowhere else in
+// this file.
+const STALE_THRESHOLD_MS = 3000;
+
 // State
 let state = {};            // channel -> id -> { name, signals: { name: {value, unit, ts} } }
 let activeChannel = null;
@@ -607,6 +627,11 @@ function renderSignalValue(sigKey) {
     : v;
   el.textContent = disp;
 
+  // A fresh value is never stale -- remove the class before the flash
+  // plays, exactly as it did before staleness existed, with no special
+  // casing (D-12).
+  el.classList.remove('stale');
+
   // Flash animation
   el.classList.remove('flash');
   void el.offsetWidth;
@@ -622,6 +647,30 @@ function renderSignalValue(sigKey) {
     bar.style.width = pct + '%';
   }
 }
+
+// Staleness sweep (D-12): a deliberate deviation from recomputing staleness
+// only at scheduleRender/flushUpdates' existing animation-frame cadence.
+// That cadence only fires when updates are arriving and only re-renders the
+// keys those updates touch -- but the exact situation staleness exists to
+// reveal (a message going quiet, or the whole link dropping) produces no
+// updates at all, so nothing would ever re-render and nothing would ever
+// dim under that cadence alone. This low-frequency interval re-evaluates
+// every currently-rendered signal value in the active channel regardless of
+// whether anything new has arrived.
+function sweepStaleness() {
+  if (!activeChannel || !state[activeChannel]) return;
+  const now = Date.now();
+  Object.entries(state[activeChannel]).forEach(([id, msgData]) => {
+    Object.entries(msgData.signals).forEach(([sig, sigData]) => {
+      const sigKey = activeChannel + '|' + id + '|' + sig;
+      const el = document.getElementById('sv-' + escId(sigKey));
+      if (!el) return;
+      const isStale = (now - sigData.ts) > STALE_THRESHOLD_MS;
+      el.classList.toggle('stale', isStale);
+    });
+  });
+}
+setInterval(sweepStaleness, 1000);
 
 // --- Toggles ---
 function toggleMsg(groupKey) {
@@ -675,16 +724,40 @@ document.getElementById('btn-collapse').onclick = () => {
 
 // --- Search ---
 document.getElementById('search').addEventListener('input', applySearch);
+document.getElementById('btn-clear-search').onclick = () => {
+  const search = document.getElementById('search');
+  search.value = '';
+  applySearch();
+  search.focus();
+};
+
 function applySearch() {
   const q = document.getElementById('search').value.trim().toLowerCase();
-  document.querySelectorAll('.msg-group').forEach(group => {
-    if (!q) { group.classList.remove('filtered'); return; }
+  const groups = document.querySelectorAll('.msg-group');
+  let anyVisible = false;
+  groups.forEach(group => {
+    if (!q) { group.classList.remove('filtered'); anyVisible = true; return; }
     const name = group.querySelector('.msg-name')?.textContent.toLowerCase() || '';
     const id = group.querySelector('.msg-id')?.textContent.toLowerCase() || '';
     const sigs = Array.from(group.querySelectorAll('.sig-name')).map(s => s.textContent.toLowerCase());
     const match = name.includes(q) || id.includes(q) || sigs.some(s => s.includes(q));
     group.classList.toggle('filtered', !match);
+    if (match) anyVisible = true;
   });
+  updateNoResultsState(q, groups.length, anyVisible);
+}
+
+// Distinct from #empty-state (no data has arrived at all): filtering to
+// zero matches while data IS flowing must never show the "Waiting for CAN
+// data…" copy, which would wrongly tell an engineer the link is down.
+function updateNoResultsState(query, groupCount, anyVisible) {
+  const noResults = document.getElementById('no-results-state');
+  const showNoResults = Boolean(query) && groupCount > 0 && !anyVisible;
+  noResults.style.display = showNoResults ? '' : 'none';
+  if (showNoResults) {
+    document.getElementById('no-results-heading').textContent =
+      'No signals match "' + document.getElementById('search').value.trim() + '"';
+  }
 }
 
 // --- Stats ---

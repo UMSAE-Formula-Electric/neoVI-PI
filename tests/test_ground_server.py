@@ -658,3 +658,51 @@ def test_ported_dashboard_uses_the_event_stream_transport():
     assert "new EventSource(" in html
     assert "new WebSocket(" not in html
     assert "setTimeout(connect" not in html
+
+
+# ---------------------------------------------------------------------------
+# 02-02 Task 2: staleness dimming and honest empty/no-results copy -- these
+# are file-content assertions against the packaged dashboard.html. They
+# cannot prove a value actually dims in a browser after three seconds; that
+# is what Task 2's human-check exists for.
+# ---------------------------------------------------------------------------
+
+
+def test_dashboard_has_no_unresolved_copy_placeholder():
+    """The packaged file contains no brace-delimited placeholder token left
+    over from the UI contract -- 02-UI-SPEC.md names shipping that literal
+    to a real user as a defect, not a cosmetic issue."""
+    html = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
+    assert "{SERVING_FLAG}" not in html
+    assert not re.search(r"\{[A-Z_]+\}", html)
+
+
+def test_empty_state_names_the_python_serving_command():
+    """The empty-state body contains the real module invocation with the
+    serving flag chosen in 02-01, and no longer references a Node command --
+    catches instructions that were true before the cutover and are false
+    after it."""
+    html = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
+    assert "python -m telemetry.ground.cli --serve" in html
+    assert "node server.js" not in html
+
+
+def test_stale_treatment_is_distinct_from_hidden():
+    """The stylesheet gives the stale signal value its own colour rule and
+    does not reuse the manually-hidden row's opacity treatment -- catches a
+    frozen number looking identical to one the engineer chose to hide."""
+    html = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
+    assert ".sig-value.stale" in html
+    stale_rule_match = re.search(r"\.sig-value\.stale\s*\{([^}]*)\}", html)
+    assert stale_rule_match is not None, "expected a dedicated .sig-value.stale CSS rule"
+    stale_rule_body = stale_rule_match.group(1)
+    assert "opacity" not in stale_rule_body
+    assert "var(--dim)" in stale_rule_body
+
+
+def test_staleness_threshold_is_declared_once():
+    """The staleness threshold appears as a single named constant rather
+    than a repeated magic number -- catches two copies drifting apart when
+    Phase 6 revisits this."""
+    html = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
+    assert html.count("3000") == 1
