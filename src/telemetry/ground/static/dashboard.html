@@ -472,8 +472,8 @@ function handleUpdate(msg) {
   state[channel][id].signals[signal] = { value, unit, ts };
 
   const sigKey = channel + '|' + id + '|' + signal;
-  if (!signalMins[sigKey] || value < signalMins[sigKey]) signalMins[sigKey] = value;
-  if (!signalMaxs[sigKey] || value > signalMaxs[sigKey]) signalMaxs[sigKey] = value;
+  if (!(sigKey in signalMins) || value < signalMins[sigKey]) signalMins[sigKey] = value;
+  if (!(sigKey in signalMaxs) || value > signalMaxs[sigKey]) signalMaxs[sigKey] = value;
 
   ensureSignalRow(channel, id, signal, unit);
   scheduleRender(sigKey);
@@ -569,8 +569,8 @@ function createMessageGroup(ch, id, msgData) {
   Object.entries(msgData.signals).forEach(([sig, sigData]) => {
     addSignalRow(group.querySelector('.signals-table'), ch, id, sig, sigData.unit);
     const sigKey = ch + '|' + id + '|' + sig;
-    if (!signalMins[sigKey]) signalMins[sigKey] = sigData.value;
-    if (!signalMaxs[sigKey]) signalMaxs[sigKey] = sigData.value;
+    if (!(sigKey in signalMins)) signalMins[sigKey] = sigData.value;
+    if (!(sigKey in signalMaxs)) signalMaxs[sigKey] = sigData.value;
     renderSignalValue(sigKey);
   });
 }

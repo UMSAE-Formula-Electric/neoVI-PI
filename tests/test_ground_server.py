@@ -746,3 +746,27 @@ def test_message_group_id_assignment_and_lookup_use_the_same_scheme():
         f"every 'mg-' id lookup must use the bare groupKey, same as the "
         f"assignment -- found: {sorted(set(lookups))}"
     )
+
+
+def test_signal_range_tracking_uses_key_existence_not_truthiness():
+    """Regression for WR-01: `signalMins`/`signalMaxs` seen-range tracking
+    must use an explicit "have we seen this key before" check (`sigKey in
+    signalMins`), never a truthy check (`!signalMins[sigKey]`). In
+    JavaScript `0` is falsy, so a truthy check on a tracked minimum/maximum
+    that has legitimately reached `0` treats every later update as
+    "first time seen" and overwrites the true historical min/max with
+    whatever the latest value happens to be -- collapsing the mini-bar's
+    range computation toward `range === 0`. `Pedal_Press_Percent` (this
+    suite's own BUS1_SIGNAL) idles at 0 at rest, so this is not a rare
+    edge case.
+
+    File-content assertion, like every other dashboard.html test in this
+    module -- it cannot prove the mini bar renders a particular width in a
+    real browser; it proves the specific truthy-check bug class is absent
+    from the shipped source."""
+    html = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
+
+    assert "!signalMins[sigKey]" not in html
+    assert "!signalMaxs[sigKey]" not in html
+    assert "!(sigKey in signalMins)" in html
+    assert "!(sigKey in signalMaxs)" in html
