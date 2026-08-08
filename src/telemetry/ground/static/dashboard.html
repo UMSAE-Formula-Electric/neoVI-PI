@@ -544,7 +544,7 @@ function renderChannel() {
 function createMessageGroup(ch, id, msgData) {
   const content = document.getElementById('content');
   const groupKey = ch + '|' + id;
-  if (document.getElementById('mg-' + CSS.escape(groupKey))) return;
+  if (document.getElementById('mg-' + groupKey)) return;
 
   const group = document.createElement('div');
   group.className = 'msg-group';
@@ -578,7 +578,7 @@ function createMessageGroup(ch, id, msgData) {
 function ensureMessageRow(ch, id, name) {
   const groupKey = ch + '|' + id;
   if (ch !== activeChannel) return;
-  if (document.getElementById('mg-' + CSS.escape(groupKey))) return;
+  if (document.getElementById('mg-' + groupKey)) return;
   const msgData = state[ch][id];
   createMessageGroup(ch, id, msgData);
   buildChannelTabs();
@@ -676,7 +676,7 @@ setInterval(sweepStaleness, 1000);
 function toggleMsg(groupKey) {
   const cur = visibilityMsg[groupKey] !== false;
   visibilityMsg[groupKey] = !cur;
-  const group = document.getElementById('mg-' + CSS.escape(groupKey));
+  const group = document.getElementById('mg-' + groupKey);
   const toggle = document.getElementById('mt-' + escId(groupKey));
   if (group) group.classList.toggle('hidden', cur);
   if (toggle) toggle.classList.toggle('on', !cur);
@@ -692,7 +692,7 @@ function toggleSig(sigKey) {
 }
 
 function toggleCollapse(groupKey) {
-  const group = document.getElementById('mg-' + CSS.escape(groupKey));
+  const group = document.getElementById('mg-' + groupKey);
   if (!group) return;
   const col = !group.classList.contains('collapsed');
   collapsed[groupKey] = col;

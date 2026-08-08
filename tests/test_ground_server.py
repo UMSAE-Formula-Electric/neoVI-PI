@@ -706,3 +706,43 @@ def test_staleness_threshold_is_declared_once():
     Phase 6 revisits this."""
     html = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
     assert html.count("3000") == 1
+
+
+def test_message_group_id_assignment_and_lookup_use_the_same_scheme():
+    """Regression for CR-01: the DOM id assigned to a message group
+    (`group.id = 'mg-' + groupKey`, a RAW/unescaped literal id string) must
+    be looked up with that exact same literal, never through `CSS.escape`
+    first. `CSS.escape` produces a string safe to splice into a CSS
+    *selector* (it backslash-escapes `|` and other characters); it is not
+    the identity function, and `getElementById` takes a literal id with no
+    selector parsing -- so `getElementById('mg-' + CSS.escape(groupKey))`
+    silently never matches `group.id = 'mg-' + groupKey` for any groupKey
+    containing a character CSS.escape rewrites (e.g. `channel + '|' + id`,
+    which always contains `|`). This exact mismatch made
+    `toggleCollapse`/`toggleMsg` permanently no-ops for message groups.
+
+    This is a file-content assertion, like every other dashboard.html test
+    in this module (there is no DOM/browser harness in this suite) -- it
+    cannot prove a click in a real browser toggles `.collapsed`; it proves
+    only that the specific assignment/lookup mismatch class that caused
+    that bug is not present in the shipped source, and would fail again if
+    `CSS.escape` were reintroduced into any 'mg-' id lookup without also
+    changing the assignment to match."""
+    html = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
+
+    assert "group.id = 'mg-' + groupKey" in html, (
+        "expected the message-group id assignment to remain the raw, "
+        "unescaped literal this test's lookups are checked against"
+    )
+
+    # No 'mg-' lookup may pass its key through CSS.escape -- that is
+    # precisely the bug: CSS.escape's output never equals the raw literal
+    # id() assigned above.
+    assert "getElementById('mg-' + CSS.escape(groupKey))" not in html
+
+    lookups = re.findall(r"getElementById\('mg-'\s*\+\s*([^)]+)\)", html)
+    assert lookups, "expected at least one getElementById('mg-' + ...) lookup"
+    assert set(lookups) == {"groupKey"}, (
+        f"every 'mg-' id lookup must use the bare groupKey, same as the "
+        f"assignment -- found: {sorted(set(lookups))}"
+    )
