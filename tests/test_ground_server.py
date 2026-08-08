@@ -543,6 +543,48 @@ def test_events_response_sends_no_content_length():
         server.server_close()
 
 
+def test_state_route_returns_the_snapshot_as_json():
+    """Regression for WR-02: `dashboard.html`'s load-time `fetch('/state')`
+    fallback (a safety net for an `EventSource` reconnect race that drops
+    `/events`' own initial snapshot event) must hit a route the server
+    actually implements. `GET /state` returns 200, JSON content, and a body
+    exactly equal to `snapshot_provider()`'s current return value -- catches
+    the route silently 404ing while the dashboard's `.catch(() => {})`
+    swallows the failure with no visible symptom."""
+    hub = SseHub()
+    expected_snapshot = {"MAIN": {"0x195": {"name": "M195", "signals": {}}}}
+    server = DashboardServer(
+        host="127.0.0.1", port=0, hub=hub, snapshot_provider=lambda: expected_snapshot
+    )
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        response = urllib.request.urlopen(
+            f"http://127.0.0.1:{server.port}/state", timeout=SSE_READ_TIMEOUT_S
+        )
+        try:
+            assert response.status == 200
+            assert "application/json" in response.headers.get("Content-Type", "")
+            body = json.loads(response.read().decode("utf-8"))
+        finally:
+            response.close()
+        assert body == expected_snapshot
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=SSE_READ_TIMEOUT_S)
+        server.server_close()
+
+
+def test_dashboard_state_fallback_fetches_a_route_the_server_implements():
+    """The packaged dashboard's `/state` fallback fetch must name a route
+    `server.py` actually serves -- a regex-anchored guard against the two
+    files drifting apart again without a full-stack test noticing."""
+    from telemetry.ground.server import STATE_ROUTE
+
+    html = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
+    assert f"fetch('{STATE_ROUTE}')" in html
+
+
 def test_dead_client_is_unregistered():
     """Closing a client's connection, then broadcasting twice, returns
     `hub.client_count()` to zero within a bounded wait -- catches handler

@@ -50,13 +50,18 @@ logger = logging.getLogger(__name__)
 SSE_CLIENT_QUEUE_MAXSIZE = 256
 SSE_HEARTBEAT_S = 1.0
 
-# The two routes this server serves. The dashboard route is a fixed, allow-
+# The three routes this server serves. The dashboard route is a fixed, allow-
 # listed path resolved relative to this module's own directory -- never from
 # anything derived from the request (T-02-01, ASVS V5). No other path is
 # ever served, and no path-traversal surface exists because the request path
 # is never joined onto a filesystem location.
 EVENTS_ROUTE = "/events"
 DASHBOARD_ROUTE = "/"
+# The dashboard's load-time fallback (a snapshot fetch to cover an
+# EventSource reconnect race that drops the /events stream's own initial
+# snapshot event) -- returns exactly what a newly connecting SSE client's
+# snapshot event would carry, via the same snapshot_provider().
+STATE_ROUTE = "/state"
 DASHBOARD_HTML_PATH = Path(__file__).parent / "static" / "dashboard.html"
 
 # Hosts this server logs no warning for -- everything else is treated as
@@ -209,18 +214,45 @@ def make_handler_class(
 
         def do_GET(self) -> None:
             # Explicit route allowlist, never a filesystem path join (ASVS
-            # V5, threat T-02-01) -- exactly two routes exist. The dashboard
-            # path served is always DASHBOARD_HTML_PATH, resolved from this
-            # module's own directory -- self.path never contributes to that
-            # resolution, so there is no path-traversal surface to defend.
+            # V5, threat T-02-01) -- exactly three routes exist. The
+            # dashboard path served is always DASHBOARD_HTML_PATH, resolved
+            # from this module's own directory -- self.path never
+            # contributes to that resolution, so there is no path-traversal
+            # surface to defend.
             if self.path == EVENTS_ROUTE:
                 self._serve_events()
                 return
             if self.path == DASHBOARD_ROUTE:
                 self._serve_dashboard()
                 return
+            if self.path == STATE_ROUTE:
+                self._serve_state()
+                return
             self.send_response(404)
             self.end_headers()
+
+        def _serve_state(self) -> None:
+            # The dashboard's load-time fallback route (dashboard.html's
+            # own fetch('/state') call): a finite JSON snapshot, the same
+            # payload shape as an SSE snapshot event's "state" field, so a
+            # browser that missed /events' own initial snapshot (an
+            # EventSource reconnect race) still has a way to recover full
+            # state. A snapshot_provider() failure here is an ordinary HTTP
+            # 500, unlike _serve_events' post-headers-sent case -- no
+            # response has been sent yet, so a normal error status is safe.
+            try:
+                snapshot = snapshot_provider()
+            except Exception:
+                logger.exception("snapshot_provider failed while serving /state")
+                self.send_response(500)
+                self.end_headers()
+                return
+            body = json.dumps(snapshot, default=_json_default).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
         def _serve_dashboard(self) -> None:
             # Read per request rather than caching at startup, so an
