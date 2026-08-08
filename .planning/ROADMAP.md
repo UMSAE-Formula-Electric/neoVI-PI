@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 0: Compression Ratio Gate** - Measure real bytes/frame against a captured log and decide go/no-go on full-bus streaming (completed 2026-08-01)
 - [ ] **Phase 1: Dual-Path Capture — Durable Archive and Thin Live Link** - One logger, fan-out to a never-drop archive and a never-block telemetry path, end to end over loopback with no radio
-- [ ] **Phase 2: Python Ground Station and Dashboard Cutover** - One Python process on the pit laptop decodes the link and serves the browser; Node retired
+- [x] **Phase 2: Python Ground Station and Dashboard Cutover** - One Python process on the pit laptop decodes the link and serves the browser; Node retired (completed 2026-08-08)
 - [ ] **Phase 3: Unattended On-Car Operation** - The car logs on power-up with no keyboard, screen, or login, and says so
 - [ ] **Phase 4: Wire Protocol Hardening** - Per-ID isolated state, sequence numbers, and keyframes so packet loss is reported, never silently decoded wrong
 - [ ] **Phase 5: Transmit Shaping and Loss-Resilience Test Suite** - Drop-oldest leaky bucket with proven flat p99 latency, plus a hardware-free end-to-end test suite
@@ -273,7 +273,7 @@ Phase 9 is hardware-gated and may slip past any later work without blocking it. 
 |-------|----------------|--------|-----------|
 | 0. Compression Ratio Gate | 7/7 | Complete    | 2026-08-01 |
 | 1. Dual-Path Capture — Durable Archive and Thin Live Link | 13/13 | In Progress|  |
-| 2. Python Ground Station and Dashboard Cutover | 4/4 | In Progress|  |
+| 2. Python Ground Station and Dashboard Cutover | 4/4 | Complete    | 2026-08-08 |
 | 3. Unattended On-Car Operation | 0/TBD | Not started | - |
 | 4. Wire Protocol Hardening | 0/TBD | Not started | - |
 | 5. Transmit Shaping and Loss-Resilience Test Suite | 0/TBD | Not started | - |
