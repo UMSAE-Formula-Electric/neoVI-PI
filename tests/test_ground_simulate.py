@@ -27,6 +27,7 @@ import pytest
 from telemetry.ground.deframe import Deframer
 from telemetry.ground.simulate import (
     UnreachableLinkKind,
+    _parse_args,
     build_car_link,
     feed_frames,
 )
@@ -190,3 +191,31 @@ def test_pacing_multiplier_bounds_a_short_run(dbc, logger_config, gate_config):
 
     assert frames_fed > 0
     assert elapsed < 2.0, f"a 1000x-paced 2s run took {elapsed:.3f}s wall-clock -- looks hung"
+
+
+def test_zero_or_negative_duration_s_is_rejected_at_parse_time(capsys):
+    """Regression for WR-05: `--duration-s 0` (or negative) combined with `--loop` makes
+    `feed_frames`' inner `for` loop -- the only place that calls `stop_event.wait()` -- never
+    execute, so the outer `while` loop spins with no sleep of any kind, burning a full CPU core.
+    `_parse_args` must reject a non-positive `--duration-s` up front, exactly like it already
+    does for a non-positive `--pacing`, so a misconfigured demo run fails fast instead of busy-
+    spinning."""
+    with pytest.raises(SystemExit) as exc_info:
+        _parse_args(["--duration-s", "0"])
+    assert exc_info.value.code == 2
+    assert "--duration-s must be > 0" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as exc_info:
+        _parse_args(["--duration-s", "-1.5"])
+    assert exc_info.value.code == 2
+    assert "--duration-s must be > 0" in capsys.readouterr().err
+
+
+def test_omitted_duration_s_still_parses(dbc, logger_config, gate_config):
+    """A positive `--duration-s`, and the default (omitted) case, are unaffected by the new
+    validation -- catches an overzealous check rejecting the common case."""
+    args = _parse_args(["--duration-s", "1.0"])
+    assert args.duration_s == 1.0
+
+    args = _parse_args([])
+    assert args.duration_s is None

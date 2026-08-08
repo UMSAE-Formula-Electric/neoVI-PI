@@ -261,6 +261,16 @@ def _parse_args(argv=None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.pacing <= 0:
         parser.error(f"--pacing must be > 0, got {args.pacing!r}")
+    # A zero or negative --duration-s (or any value producing an empty
+    # SyntheticFrameSource.frames() stream) combined with --loop makes
+    # feed_frames' inner for loop -- the only place that calls
+    # stop_event.wait() -- never execute, so the outer while loop spins
+    # continuously with no sleep of any kind, burning a full CPU core
+    # until stop_event is next observed set. Failing fast here, like
+    # --pacing above, turns that into "does nothing" rather than "burns a
+    # CPU core doing nothing."
+    if args.duration_s is not None and args.duration_s <= 0:
+        parser.error(f"--duration-s must be > 0, got {args.duration_s!r}")
     return args
 
 
