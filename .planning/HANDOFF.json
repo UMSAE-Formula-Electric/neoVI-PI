@@ -1,51 +1,61 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-02T19:14:43.390Z",
-  "phase": "02",
-  "phase_name": "Python Ground Station and Dashboard Cutover",
-  "phase_dir": ".planning/phases/02-python-ground-station-and-dashboard-cutover",
-  "plan": 1,
-  "task": 1,
-  "total_tasks": 2,
+  "timestamp": "2026-08-08T20:59:36.138Z",
+  "phase": "03",
+  "phase_name": "Unattended On-Car Operation",
+  "phase_dir": null,
+  "plan": 0,
+  "task": 0,
+  "total_tasks": 0,
   "status": "paused",
+  "pause_kind": "phase_boundary",
+  "note": "Paused at a CLEAN phase boundary, not mid-task. Phase 2 is complete, verified, gated, and committed. Phase 3 has not been started — no directory, no CONTEXT, no RESEARCH, no plans. There is no partial work to reconcile.",
   "completed_tasks": [
-    {"id": 0, "name": "Phase 2 discuss — 16 decisions across 4 grey areas", "status": "done", "commit": "4aa3778"},
-    {"id": 0, "name": "Phase 2 UI-SPEC — approved 6/6 dimensions after 1 revision", "status": "done", "commit": "c38fc36"},
-    {"id": 0, "name": "Phase 2 research — SSE/threading/shutdown verified live", "status": "done", "commit": "fa4d918"},
-    {"id": 0, "name": "Phase 2 plans — 4 plans / 10 tasks, plan-checker APPROVED 15/15", "status": "done", "commit": "62f9ea5"},
-    {"id": 1, "name": "02-01 Task 1 — state.py, server.py, cli.py written and import-clean", "status": "in_progress", "commit": "42f5774", "progress": "All three implementation files complete per the plan's interface contract and import cleanly; suite still collects 287 with no regression. tests/test_ground_server.py NOT written. Nothing run, nothing task-committed."}
+    {"id": 1, "name": "02-01 — SSE server + SignalState + CLI serving mode, drop-oldest fan-out, hardened routes", "status": "done", "commit": "bfcc484"},
+    {"id": 2, "name": "02-02 — dashboard ported to the Python process, staleness dimming, no-results state; closed GND-02/04/05", "status": "done", "commit": "b9870c7"},
+    {"id": 3, "name": "02-03 — Python car-stand-in simulator over the real wire path", "status": "done", "commit": "25157d9"},
+    {"id": 4, "name": "02-04 — deleted can-dashboard/ + 4 legacy loggers, pinned retirement by test; closed GND-03 + CAP-01", "status": "done", "commit": "a54e061"},
+    {"id": 5, "name": "Code review (1 critical + 5 warning + 2 info)", "status": "done", "commit": "d671ced"},
+    {"id": 6, "name": "Code review fixes — all 6 critical/warning fixed atomically", "status": "done", "commit": "4b1fd46"},
+    {"id": 7, "name": "Live browser verification in real Chrome; closed WINDOWS ids 1 and 2, opened id 3", "status": "done", "commit": "d5fd8fe"},
+    {"id": 8, "name": "Phase verification — passed 9/9 must-haves", "status": "done", "commit": "6c8c53d"},
+    {"id": 9, "name": "UI review — 21/24", "status": "done", "commit": "06f4083"},
+    {"id": 10, "name": "Nyquist validation (validated) + security audit (SECURED 13/13, 0 open)", "status": "done", "commit": "ae66ed7"},
+    {"id": 11, "name": "Phase 2 transition — ROADMAP/STATE marked complete, pause handoff retired", "status": "done", "commit": "cdd585d"}
   ],
   "remaining_tasks": [
-    {"id": 1, "name": "02-01 Task 1 — write tests/test_ground_server.py (7 behavior assertions), run, fix, commit", "status": "in_progress"},
-    {"id": 2, "name": "02-01 Task 2 — drop-oldest fan-out replacing naive put_nowait, hardened routes (404, no content-length on /events, dead-client unregister)", "status": "not_started"},
-    {"id": 3, "name": "02-01 SUMMARY.md + STATE/ROADMAP update; delete the stale .continue-here.md in the phase dir", "status": "not_started"},
-    {"id": 4, "name": "02-02 — dashboard port to src/telemetry/ground/static/, serving route, marks GND-02/04/05 Complete", "status": "not_started"},
-    {"id": 5, "name": "02-03 — Python simulator replacing simulate.js, reusing SyntheticFrameSource", "status": "not_started"},
-    {"id": 6, "name": "02-04 — delete can-dashboard/ + 4 legacy loggers, update CLAUDE.md and launch.json, marks GND-03 + CAP-01 Complete", "status": "not_started"},
-    {"id": 7, "name": "Phase 2 code review → verification → transition", "status": "not_started"},
-    {"id": 8, "name": "Phases 3-9 — entirely unplanned", "status": "not_started"}
+    {"id": 12, "name": "Phase 3 — Unattended On-Car Operation: full discuss -> research -> plan -> execute pipeline", "status": "not_started"},
+    {"id": 13, "name": "Phase 4 — Wire Protocol Hardening (natural owner of WINDOWS id=3)", "status": "not_started"},
+    {"id": 14, "name": "Phase 5 — Transmit Shaping and Loss-Resilience Test Suite", "status": "not_started"},
+    {"id": 15, "name": "Phase 6 — Live Plots and Link Health (owns amber/red link-health states deliberately deferred from Phase 2)", "status": "not_started"},
+    {"id": 16, "name": "Phase 7 — Limit Alarms", "status": "not_started"},
+    {"id": 17, "name": "Phase 8 — Archive Retrieval and Interchange", "status": "not_started"},
+    {"id": 18, "name": "Phase 9 — RFD900x Radio Integration: BLOCKED on procurement, not engineering", "status": "blocked"}
   ],
   "blockers": [
-    {"description": "Phase 1 verification is deferred pending 3 hardware items (power-pull, CM4 soak, real dual-bus capture). Phase 1 is NOT marked complete in ROADMAP/STATE.", "type": "human_action", "workaround": "Items persisted in 01-UAT.md; resume with /gsd-verify-work 1"},
-    {"description": "GSD subagents in this repo repeatedly stop mid-scope claiming a /gsd-pause-work that was never issued, and write the fabricated reason into artifacts. Happened 3x on 2026-08-02 (code-fixer, 02-01 executor twice).", "type": "technical", "workaround": "Verify the claim against actual conversation state, then resume via SendMessage to the same agent ID — context stays intact and their WIP commits do capture the work"},
-    {"description": "CAP-01 must NOT be marked Complete until plan 02-04 physically deletes all four legacy loggers. It was wrongly marked once already (by 01-12, reverted in dc4bde8).", "type": "technical", "workaround": "02-04 owns the marking; both marking tasks re-grep every plan's requirements frontmatter first"},
-    {"description": "Worktree parallelism degraded to sequential (#683) — HEAD add-pedal-percent-msg diverged from origin/HEAD.", "type": "technical", "workaround": "gsd-tools worktree set-baseref"},
-    {"description": "RFD900x not purchased — Phase 9 blocked on procurement, not engineering.", "type": "external", "workaround": "Phase 9 carries zero v1 requirements by design"}
+    {"description": "Phase 1 verification deferred: 3 items need hardware absent from the dev session (physical power-pull durability, CM4-target soak, real dual-bus capture). Phase 1 is NOT complete in ROADMAP/STATE.", "type": "human_action", "workaround": "Items persisted in 01-UAT.md. Resume with /gsd-verify-work 1. Autonomous runs correctly skip phase 1 via the Deferred Verification table in STATE.md."},
+    {"description": "Phase 9 (RFD900x Radio Integration) cannot be completed by engineering — the radio is not purchased. Procurement is the blocker.", "type": "external", "workaround": "None. Expect /gsd-autonomous to surface it as a blocker when reached. Phase 9 was deliberately isolated with zero v1 requirements so it can slip without blocking anything else."},
+    {"description": "WINDOWS.md id=3 (open): a running simulator does not recover when its UDP peer restarts. Sender-side only — browser and receiver both recovered cleanly. Blocks /gsd-ship while open.", "type": "technical", "workaround": "Root cause unconfirmed; leading hypothesis is a Windows-only WSAECONNRESET artifact (same class as the WSAEMSGSIZE quirk recorded in 01-08), which would leave the Linux/CM4 target unaffected. Natural owner is Phase 4 or 5. Can be waived if confirmed Windows-only."},
+    {"description": "Phase 0's 00-VALIDATION.md is STILL an unfilled template: status draft, nyquist_compliant false, 14 unresolved {placeholder} tokens. Re-confirmed this session.", "type": "technical", "workaround": "Run /gsd-validate-phase 0. Phase 0's security gate (/gsd-secure-phase 0) is also still outstanding."},
+    {"description": "STALE ARTIFACT: .planning/phases/01-.../.continue-here.md still claims status in_progress and that phase-level verification 'has never run'. That is now false — Phase 1 verification did run (5/5 software must-haves, human_needed on 3 hardware items, 01-UAT.md exists).", "type": "technical", "workaround": "Do not trust its verification claims. It was left in place rather than deleted because Phase 1 is genuinely still open and the file carries useful anti-pattern context. Retire it when /gsd-verify-work 1 closes Phase 1."}
   ],
   "async_jobs": [],
   "human_actions_pending": [
-    {"action": "Physical power-pull test, CM4 soak, and real dual-bus capture to close Phase 1 verification", "context": "See 01-UAT.md; no software proxy substitutes — OS page cache survives SIGKILL", "blocking": false}
+    {"action": "Run /gsd-verify-work 1 with the car and neoVI hardware present", "context": "Three Phase 1 items cannot be proven in a dev session: a SIGKILL proxy cannot prove fsync durability (the OS page cache survives a process kill), all throughput figures to date are x86-64 not Cortex-A72, and TIME_SYSTEM_TO_MICROSECONDS_UNCONFIRMED can only be confirmed against a real dual-bus capture.", "blocking": false},
+    {"action": "Decide whether WINDOWS.md id=3 is a real defect or a Windows-only artifact", "context": "Determines whether it is fixed in Phase 4/5 or waived. Blocks /gsd-ship until resolved either way.", "blocking": false},
+    {"action": "Purchase the RFD900x", "context": "Phase 9 cannot start without it. Procurement is a standing parallel-track action, explicitly not gated by software sequencing.", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Phase 2 transport is SSE over stdlib http.server, zero new dependencies", "rationale": "Data flows server→browser only, so WebSocket bidirectionality is unused; EventSource brings its own reconnect. Keeps requirements.txt at 8 pins and avoids a blocking package-legitimacy checkpoint. User-chosen from 3 options.", "phase": "02"},
-    {"decision": "Client-driven control of the transmitted subset deferred to Phase 4, with full reasoning recorded in 02-CONTEXT.md's deferred block", "rationale": "User raised it during discuss. Browser→ground is trivial (POST alongside SSE); the real work is ground→car, and ground/cli.py never calls link.send() today. Granularity is per-MESSAGE not per-signal (a CAN frame is atomic on the wire). Real value: 81.94 of 120 kbit/s used, so ~38 kbit/s of headroom is unusable because the subset freezes at config load, and config cannot be edited while the car is on track. Hard constraint for Phase 4: the car must enforce the pre-registered cap, never let a UI make it advisory.", "phase": "02"},
-    {"decision": "Added CAP-01 to Phase 2's ROADMAP requirement list", "rationale": "REQUIREMENTS.md already said CAP-01 completes in Phase 2, but ROADMAP listed only GND-02..05. Leaving them disagreeing is exactly how the CAP-01 drift happened.", "phase": "02"},
-    {"decision": "Applied the UI checker's non-blocking Dimension-2 recommendation rather than accepting it", "rationale": "Declaring the signal value as primary focal point costs one line and directly serves the domain requirement that a changing number stay legible at a glance. Also added the search no-results state the probe surfaced.", "phase": "02"}
+    {"decision": "Resumed 02-01 from Task 2 rather than re-running Task 1 or re-planning the phase", "rationale": "The pause handoff documented the exact resume point and inspection confirmed it byte-for-byte: 42f5774 held the three implementation files, tests/test_ground_server.py did not exist, working tree otherwise clean. The safe_resume_gate exists to catch UNKNOWN partial state; this state was fully known.", "phase": "02"},
+    {"decision": "Set the ephemeral workflow._auto_chain_active flag instead of workflow.auto_advance to enable auto-approval", "rationale": "The user authorized auto-approval for this run only. _auto_chain_active is the ephemeral chain flag, so the user's persistent preference to be asked survives the run. Reset to false at the end.", "phase": "02"},
+    {"decision": "Ran live browser verification at the orchestrator level rather than accepting the executors' deferrals", "rationale": "Every executor lacked browser automation and honestly recorded the gap. The orchestrator had it. This is what caught confirmation of CR-01's fix and closed both WINDOWS items — the phase goal is literally 'the pit engineer opens a browser and watches'.", "phase": "02"},
+    {"decision": "Stopped the autonomous run at the Phase 2 boundary rather than continuing to Phase 3", "rationale": "User decision. Phases 3-9 are all no_directory and each needs a full discuss->research->plan->execute pipeline; continuing would likely have run out of context mid-pipeline, recreating exactly the partial state this session started in.", "phase": "02"},
+    {"decision": "Ran nyquist validation and security audit retroactively for Phase 2 before stopping", "rationale": "User chose 'run both for each phase'. Both toggles are genuinely true in config, and Phase 0 declining them is still an open concern in STATE.md — repeating that would compound silent debt.", "phase": "02"},
+    {"decision": "Registered T-02-14 (slow-loris) and T-02-15 (/state route) as accepted-low rather than fixing them", "rationale": "Both are genuinely unmitigated but bounded by the loopback-default bind and single-operator posture. Recorded in 02-SECURITY.md so they are not rediscovered from scratch; revisit if the bind ever defaults to non-loopback.", "phase": "02"}
   ],
   "uncommitted_files": [
-    ".planning/STATE.md (pre-existing modification from before this session's execution turn)",
-    ".planning/phases/02-python-ground-station-and-dashboard-cutover/02-PATTERNS.md (untracked planning artifact from the pattern-mapper step — should be committed)"
+    ".planning/research/.cache/*.json (4 files, untracked — pre-existing before this session, not produced by it)"
   ],
-  "next_action": "Run /gsd-autonomous. It resumes at Phase 2 wave 1, plan 02-01 Task 1: write tests/test_ground_server.py's 7 behavior assertions, run them plus test_end_to_end.py, fix, commit. Then Task 2, SUMMARY, and plans 02-02 through 02-04.",
-  "context_notes": "Phase 2 is fully planned and checker-approved; only execution remains. The implementation for 02-01 Task 1 is already written and committed as WIP (42f5774) — state.py, server.py, cli.py all import cleanly and the suite still collects 287. What is missing is purely the test file. No further design work should be needed for Task 1 unless a test surfaces a real bug. Phase 1 is code-complete with 287 tests and zero open code-review findings, but its verification is deferred on three hardware-only items, so it is correctly still shown incomplete."
+  "next_action": "Run /gsd-autonomous --from 3 (or /gsd-discuss-phase 3) to begin Phase 3 — Unattended On-Car Operation. Nothing needs reconciling first; Phase 2 is closed cleanly.",
+  "context_notes": "Session ran /gsd-autonomous with no arguments. Phase 1 was correctly skipped via the Deferred Verification table. Phase 2 arrived already discussed/UI-specced/researched/planned/checker-approved with only execution left, and still consumed roughly a third of the context window across ~12 subagent runs. Phases 3-8 each need the full pipeline from scratch, so budget one phase per session. Suite is 323 passing on branch add-pedal-percent-msg. Worktree isolation auto-degrades to sequential on this branch (#683, head-diverged-from-fork) — expected, not a fault; run `gsd-tools worktree set-baseref` to restore parallel worktrees."
 }
