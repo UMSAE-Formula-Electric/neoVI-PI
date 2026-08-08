@@ -32,6 +32,7 @@ stated rationale).
 
 import json
 import queue
+import re
 import threading
 import time
 import urllib.error
@@ -45,6 +46,7 @@ from telemetry.framing.cobs_frame import frame as cobs_frame
 from telemetry.ground.cli import GroundConsumerCounters, run_consumer_loop
 from telemetry.ground.deframe import Deframer
 from telemetry.ground.server import (
+    DASHBOARD_HTML_PATH,
     SSE_CLIENT_QUEUE_MAXSIZE,
     DashboardServer,
     SseHub,
@@ -572,3 +574,87 @@ def test_dead_client_is_unregistered():
         server.shutdown()
         server_thread.join(timeout=SSE_READ_TIMEOUT_S)
         server.server_close()
+
+
+# ---------------------------------------------------------------------------
+# 02-02 Task 1: the ported dashboard served from the root path.
+# ---------------------------------------------------------------------------
+
+
+def test_root_serves_the_dashboard():
+    """A GET of the root path returns 200, an HTML content type, and a body
+    containing the dashboard's own page title -- catches a route that exists
+    but serves nothing, and a missing packaged asset."""
+    hub = SseHub()
+    server = DashboardServer(host="127.0.0.1", port=0, hub=hub, snapshot_provider=lambda: {})
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        response = urllib.request.urlopen(
+            f"http://127.0.0.1:{server.port}/", timeout=SSE_READ_TIMEOUT_S
+        )
+        try:
+            assert response.status == 200
+            content_type = response.headers.get("Content-Type", "")
+            assert "text/html" in content_type
+            body = response.read().decode("utf-8")
+            assert "<title>CAN Live Dashboard</title>" in body
+        finally:
+            response.close()
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=SSE_READ_TIMEOUT_S)
+        server.server_close()
+
+
+def test_root_response_has_a_content_length():
+    """Unlike the stream route, the finite static response declares its
+    length -- catches a copy-paste of the streaming route's header set onto
+    the static one."""
+    hub = SseHub()
+    server = DashboardServer(host="127.0.0.1", port=0, hub=hub, snapshot_provider=lambda: {})
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        response = urllib.request.urlopen(
+            f"http://127.0.0.1:{server.port}/", timeout=SSE_READ_TIMEOUT_S
+        )
+        try:
+            assert response.headers.get("Content-Length") is not None
+        finally:
+            response.close()
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=SSE_READ_TIMEOUT_S)
+        server.server_close()
+
+
+def test_traversal_style_path_is_404_not_a_file_read():
+    """A request for a path with parent-directory segments returns 404 and
+    no file content -- catches the classic hand-rolled static-server hole
+    (threat T-02-01); fails loudly against any implementation that joins the
+    request path onto a directory."""
+    hub = SseHub()
+    server = DashboardServer(host="127.0.0.1", port=0, hub=hub, snapshot_provider=lambda: {})
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.port}/../../../../etc/passwd"
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            urllib.request.urlopen(url, timeout=SSE_READ_TIMEOUT_S)
+        assert exc_info.value.code == 404
+    finally:
+        server.shutdown()
+        server_thread.join(timeout=SSE_READ_TIMEOUT_S)
+        server.server_close()
+
+
+def test_ported_dashboard_uses_the_event_stream_transport():
+    """The packaged file constructs an EventSource and contains no
+    WebSocket constructor and no manual reconnect timer -- catches a
+    half-finished port that still tries to open a socket the Python server
+    does not speak."""
+    html = DASHBOARD_HTML_PATH.read_text(encoding="utf-8")
+    assert "new EventSource(" in html
+    assert "new WebSocket(" not in html
+    assert "setTimeout(connect" not in html

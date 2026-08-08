@@ -39,6 +39,7 @@ import logging
 import queue
 import threading
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable, Optional, Set
 
 logger = logging.getLogger(__name__)
@@ -49,9 +50,14 @@ logger = logging.getLogger(__name__)
 SSE_CLIENT_QUEUE_MAXSIZE = 256
 SSE_HEARTBEAT_S = 1.0
 
-# The only route this plan serves. The ported `dashboard.html` static route
-# is 02-02 scope.
+# The two routes this server serves. The dashboard route is a fixed, allow-
+# listed path resolved relative to this module's own directory -- never from
+# anything derived from the request (T-02-01, ASVS V5). No other path is
+# ever served, and no path-traversal surface exists because the request path
+# is never joined onto a filesystem location.
 EVENTS_ROUTE = "/events"
+DASHBOARD_ROUTE = "/"
+DASHBOARD_HTML_PATH = Path(__file__).parent / "static" / "dashboard.html"
 
 # Hosts this server logs no warning for -- everything else is treated as
 # publishing unauthenticated live vehicle telemetry to a wider network
@@ -203,12 +209,37 @@ def make_handler_class(
 
         def do_GET(self) -> None:
             # Explicit route allowlist, never a filesystem path join (ASVS
-            # V5, threat T-02-01) -- this plan serves exactly one route.
-            if self.path != EVENTS_ROUTE:
+            # V5, threat T-02-01) -- exactly two routes exist. The dashboard
+            # path served is always DASHBOARD_HTML_PATH, resolved from this
+            # module's own directory -- self.path never contributes to that
+            # resolution, so there is no path-traversal surface to defend.
+            if self.path == EVENTS_ROUTE:
+                self._serve_events()
+                return
+            if self.path == DASHBOARD_ROUTE:
+                self._serve_dashboard()
+                return
+            self.send_response(404)
+            self.end_headers()
+
+        def _serve_dashboard(self) -> None:
+            # Read per request rather than caching at startup, so an
+            # engineer can edit the dashboard and reload without restarting
+            # the ground station.
+            try:
+                body = DASHBOARD_HTML_PATH.read_bytes()
+            except FileNotFoundError:
+                logger.error(
+                    "packaged dashboard asset missing at %s", DASHBOARD_HTML_PATH
+                )
                 self.send_response(404)
                 self.end_headers()
                 return
-            self._serve_events()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
         def _serve_events(self) -> None:
             # Unconditional happy-path headers, sent before any work that
