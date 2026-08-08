@@ -581,6 +581,17 @@ def main(argv=None) -> None:
         counters.records_dbc_decoded,
         counters.records_dbc_decode_failed,
     )
+    # Serving-mode-only counters, logged once at shutdown alongside the
+    # line above -- `_emit_health`'s own format string is untouched (D-08:
+    # full link-health surfacing is Phase 6 scope, and
+    # tests/test_end_to_end.py's two-process test asserts on a substring of
+    # it).
+    if signal_state is not None and sse_hub is not None:
+        logger.info(
+            "ground station serving counters: signal_state=%r sse_hub=%r",
+            signal_state.counters,
+            sse_hub.counters,
+        )
 
 
 if __name__ == "__main__":

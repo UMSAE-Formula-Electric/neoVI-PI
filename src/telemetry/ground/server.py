@@ -138,7 +138,16 @@ class SseHub:
         """Serialise `payload` once and push the same bytes object to every
         registered client queue. Never blocks and never raises to the
         caller -- a slow or full client queue must be structurally
-        incapable of applying backpressure to the decode thread."""
+        incapable of applying backpressure to the decode thread.
+
+        A full client queue is handled drop-oldest, mirroring
+        `FanOut.submit`'s established discipline (check-then-evict-then-
+        count, never raise, never block): attempt `put_nowait`; on
+        `queue.Full`, discard one item with `get_nowait` (tolerating a race
+        where the client itself drains a slot between the `Full` and this
+        eviction), retry the put, and count it on `frames_dropped_oldest`.
+        The freshest frame always survives -- a live view is more useful
+        with a gap than with a stale head-of-line frame."""
         frame = _sse_frame(payload)
         with self._clients_lock:
             clients = list(self._clients)
@@ -146,11 +155,21 @@ class SseHub:
             try:
                 client_queue.put_nowait(frame)
             except queue.Full:
-                # The tracer's single path (Task 1): a full client queue
-                # simply drops this frame. Task 2 replaces this with a
-                # drop-oldest wrapper, matching `FanOut.submit`'s
-                # established discipline.
-                pass
+                try:
+                    client_queue.get_nowait()
+                except queue.Empty:
+                    pass  # the client itself drained a slot first -- fine
+                try:
+                    client_queue.put_nowait(frame)
+                except queue.Full:
+                    # Still full after one eviction -- drop this frame
+                    # rather than loop; broadcast() is single-writer
+                    # (the decode thread) in production, so this branch
+                    # is reachable only if a client re-fills its own
+                    # queue between the two put attempts, which cannot
+                    # happen since only broadcast() ever writes to it.
+                    pass
+                self.counters.frames_dropped_oldest += 1
 
 
 def make_handler_class(
@@ -160,6 +179,18 @@ def make_handler_class(
     `snapshot_provider` via closure -- one handler class per
     `DashboardServer` instance, since `http.server` handler classes carry no
     per-instance constructor arguments of their own."""
+
+    # Log-once-then-count state for SSE write failures (mirrors
+    # `FanOut`'s `_logged_error_frame_keys` / T-01-18 discipline), scoped to
+    # this `DashboardServer` instance via closure. Unlike `FanOut`'s
+    # single-writer capture thread, write failures can be hit concurrently
+    # by any of several handler threads (one per connected client), so the
+    # log-once decision is a genuine read-modify-write and needs its own
+    # lock -- `_write_failure_lock` is that lock, guarding only the
+    # `"logged"` flag in `_write_failure_state` (a single-key dict so the
+    # nested handler method can mutate it without a `nonlocal` declaration).
+    _write_failure_lock = threading.Lock()
+    _write_failure_state = {"logged": False}
 
     class DashboardRequestHandler(http.server.BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -221,7 +252,25 @@ def make_handler_class(
                 ConnectionResetError,
                 OSError,
             ) as exc:
-                logger.debug("SSE client disconnected: %s", exc)
+                # Specific-exception-then-count-then-log-once (T-01-18's
+                # discipline), not a bare catch-all: every write failure is
+                # counted; the first is logged in full with the client's
+                # address, and every subsequent one is counted on
+                # `write_failure_log_suppressed_count` rather than
+                # re-logged, so a client that dies mid-broadcast storm
+                # cannot flood the log.
+                hub.counters.client_write_failures += 1
+                with _write_failure_lock:
+                    if _write_failure_state["logged"]:
+                        hub.counters.write_failure_log_suppressed_count += 1
+                    else:
+                        _write_failure_state["logged"] = True
+                        logger.warning(
+                            "SSE client write failed (address=%s): %s -- "
+                            "further occurrences are counted, not re-logged",
+                            self.client_address,
+                            exc,
+                        )
             finally:
                 hub.unregister(client_queue)
 
