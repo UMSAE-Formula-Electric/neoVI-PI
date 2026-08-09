@@ -165,7 +165,30 @@ Plans:
   3. Remaining NVMe space is surfaced while there is still time to act on it, not discovered when a session fails to write
   4. A team member who did not build the system can start a session, confirm it is healthy, and retrieve the data using only the written runbook
 
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Tracer: `ops` config block, heartbeat writer/reader, 1 Hz publisher, and `telemetry-status`, proven end to end across two processes
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-02-PLAN.md — Disk-space monitor: refuse to start below critical, warn loudly during a run, never delete
+- [ ] 03-03-PLAN.md — `LedIndicator` seam and `NullLedIndicator`, behind a blocking checkpoint on the two packages a real I2C driver would need
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-04-PLAN.md — `waiting-for-hardware` retry/backoff for the boot power-sequencing race, and the terminal `stopped-error` state
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03-05-PLAN.md — Five-state `telemetry-status` rendering with staleness ahead of state; closes OPS-02
+- [ ] 03-06-PLAN.md — systemd unit, install script, and a hand-rolled structural lint
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 03-07-PLAN.md — `docs/runbook.md` and its drift-proof coverage test; closes OPS-03 and OPS-07, holds OPS-01 open on the single Pi bring-up item
 
 ### Phase 4: Wire Protocol Hardening
 
