@@ -153,7 +153,7 @@ Plans:
 
 ### Phase 3: Unattended On-Car Operation
 
-**Goal**: The car logs every run without anyone touching a keyboard, and anyone on the team can tell whether it is working
+**Goal**: As a trackside team member, I want to power on the car and see the logger confirm it is capturing with space to spare, so that I can run a session without a laptop or the person who built it.
 **Mode:** mvp
 **UI hint**: no
 **Depends on**: Phase 1
