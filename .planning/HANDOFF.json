@@ -1,61 +1,104 @@
 {
   "version": "1.0",
-  "timestamp": "2026-08-08T20:59:36.138Z",
+  "timestamp": "2026-08-09T00:59:36.117Z",
   "phase": "03",
-  "phase_name": "Unattended On-Car Operation",
-  "phase_dir": null,
-  "plan": 0,
-  "task": 0,
-  "total_tasks": 0,
+  "phase_name": "unattended-on-car-operation",
+  "phase_dir": ".planning/phases/03-unattended-on-car-operation",
+  "plan": null,
+  "task": 4,
+  "total_tasks": 7,
   "status": "paused",
-  "pause_kind": "phase_boundary",
-  "note": "Paused at a CLEAN phase boundary, not mid-task. Phase 2 is complete, verified, gated, and committed. Phase 3 has not been started — no directory, no CONTEXT, no RESEARCH, no plans. There is no partial work to reconcile.",
+  "work_kind": "phase-planning",
+  "context_notes": "Paused mid-`/gsd-plan-phase 3` (planner subagent). 4 of 7 PLAN.md files authored and written to disk; 3 remain. The full 7-plan decomposition, wave graph, file-ownership map and requirement-marking ownership were all decided before writing began and are recorded below verbatim so the remaining 3 plans can be written without redoing the analysis. All source reading is done: 03-CONTEXT.md (16 locked decisions), 03-RESEARCH.md (HIGH confidence, 6 pitfalls), 03-PATTERNS.md, REQUIREMENTS.md, STATE.md, config/logger.json, src/telemetry/logger/config.py, src/telemetry/logger/cli.py, src/telemetry/link/base.py, counters dataclasses, tests/conftest.py, pytest.ini.",
   "completed_tasks": [
-    {"id": 1, "name": "02-01 — SSE server + SignalState + CLI serving mode, drop-oldest fan-out, hardened routes", "status": "done", "commit": "bfcc484"},
-    {"id": 2, "name": "02-02 — dashboard ported to the Python process, staleness dimming, no-results state; closed GND-02/04/05", "status": "done", "commit": "b9870c7"},
-    {"id": 3, "name": "02-03 — Python car-stand-in simulator over the real wire path", "status": "done", "commit": "25157d9"},
-    {"id": 4, "name": "02-04 — deleted can-dashboard/ + 4 legacy loggers, pinned retirement by test; closed GND-03 + CAP-01", "status": "done", "commit": "a54e061"},
-    {"id": 5, "name": "Code review (1 critical + 5 warning + 2 info)", "status": "done", "commit": "d671ced"},
-    {"id": 6, "name": "Code review fixes — all 6 critical/warning fixed atomically", "status": "done", "commit": "4b1fd46"},
-    {"id": 7, "name": "Live browser verification in real Chrome; closed WINDOWS ids 1 and 2, opened id 3", "status": "done", "commit": "d5fd8fe"},
-    {"id": 8, "name": "Phase verification — passed 9/9 must-haves", "status": "done", "commit": "6c8c53d"},
-    {"id": 9, "name": "UI review — 21/24", "status": "done", "commit": "06f4083"},
-    {"id": 10, "name": "Nyquist validation (validated) + security audit (SECURED 13/13, 0 open)", "status": "done", "commit": "ae66ed7"},
-    {"id": 11, "name": "Phase 2 transition — ROADMAP/STATE marked complete, pause handoff retired", "status": "done", "commit": "cdd585d"}
+    {"id": 1, "name": "03-01-PLAN.md — Tracer: heartbeat end-to-end (wave 1)", "status": "done", "commit": "uncommitted"},
+    {"id": 2, "name": "03-02-PLAN.md — Disk-space monitor, refuse-to-start / warn-in-run (wave 2)", "status": "done", "commit": "uncommitted"},
+    {"id": 3, "name": "03-03-PLAN.md — LED indicator seam + blocking package checkpoint (wave 2)", "status": "done", "commit": "uncommitted"},
+    {"id": 4, "name": "03-04-PLAN.md — waiting-for-hardware + terminal stopped-error state (wave 3)", "status": "done", "commit": "uncommitted"}
   ],
   "remaining_tasks": [
-    {"id": 12, "name": "Phase 3 — Unattended On-Car Operation: full discuss -> research -> plan -> execute pipeline", "status": "not_started"},
-    {"id": 13, "name": "Phase 4 — Wire Protocol Hardening (natural owner of WINDOWS id=3)", "status": "not_started"},
-    {"id": 14, "name": "Phase 5 — Transmit Shaping and Loss-Resilience Test Suite", "status": "not_started"},
-    {"id": 15, "name": "Phase 6 — Live Plots and Link Health (owns amber/red link-health states deliberately deferred from Phase 2)", "status": "not_started"},
-    {"id": 16, "name": "Phase 7 — Limit Alarms", "status": "not_started"},
-    {"id": 17, "name": "Phase 8 — Archive Retrieval and Interchange", "status": "not_started"},
-    {"id": 18, "name": "Phase 9 — RFD900x Radio Integration: BLOCKED on procurement, not engineering", "status": "blocked"}
+    {
+      "id": 5,
+      "name": "03-05-PLAN.md — `telemetry-status` five-state rendering; SOLE MARKER for OPS-02",
+      "status": "not_started",
+      "spec": {
+        "wave": 4,
+        "depends_on": ["03-03", "03-04"],
+        "requirements": ["OPS-02"],
+        "autonomous": true,
+        "files_modified": ["src/telemetry/ops/cli.py", "tests/test_ops_cli.py", ".planning/REQUIREMENTS.md"],
+        "tasks": [
+          "Task 1: exhaustive five-state + staleness rendering in ops/cli.py — one human-legible guidance line per state, an 'alive AND capturing' evidence line (frames_per_s + session_name from extras), and tests covering all 5 states x {fresh, stale} plus absent-file and malformed-file. The exit-code contract (0/1/2/3/4) was already defined in 03-01; this task widens the RENDERING, not the codes.",
+          "Task 2: mark OPS-02 Complete in .planning/REQUIREMENTS.md with the re-grep-and-halt gate (see blocking constraint below)."
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "name": "03-06-PLAN.md — systemd unit + install script + hand-rolled structural lint",
+      "status": "not_started",
+      "spec": {
+        "wave": 4,
+        "depends_on": ["03-04"],
+        "requirements": ["OPS-01"],
+        "autonomous": true,
+        "files_modified": ["deploy/telemetry-logger.service", "deploy/install.sh", "tests/test_deploy_unit_file.py"],
+        "marks": "none — OPS-01's status is decided by 03-07",
+        "tasks": [
+          "Task 1: deploy/telemetry-logger.service + deploy/install.sh, using 03-RESEARCH.md Pattern 1 (the exact text verified clean by a real `systemd-analyze verify`, systemd 259) and Pattern 2 verbatim as the source of truth — there is NO in-repo analog for either artifact type. `reversibility rating=costly` (User=, WorkingDirectory, ExecStart become the installed contract).",
+          "Task 2: tests/test_deploy_unit_file.py — a hand-rolled line-based structural checker. configparser is FORBIDDEN here (strict=True raises on a second After=; strict=False silently drops all but the last value — both proven live). Checker: every non-blank/non-comment line is `[Section]` or `Key=Value`; sections subset of {Unit, Service, Install}, all three present once; DUPLICATE keys preserved as a list, never collapsed. Assertions: StartLimitIntervalSec and StartLimitBurst present in the [Unit] section and absent from the [Service] section (Pitfall 1 regression — wrong placement is a silent no-op, not an error); Restart=always; User= present and not root (ASVS V4); no After= naming a .device unit; ExecStart invokes telemetry.logger.cli and Environment=PYTHONPATH=src matches the invocation 03-01's tracer proved. install.sh: `set -euo pipefail`, `install -m 644`, daemon-reload BEFORE enable --now.",
+          "HONESTY: the verify block must state plainly that a structural lint cannot discriminate real boot behaviour. `systemd-analyze verify` via WSL is a SUPPLEMENTARY manual check only (validation tool, not a toolchain dependency — does not reopen the native-Windows-CPython decision); it must NOT be an <automated> gate."
+        ],
+        "threat_ids_to_use": ["T-03-17 EoP: unit running as root -> dedicated non-root User=, asserted by the lint", "T-03-18 EoP: install script trusting source permission bits -> install -m 644", "T-03-19 DoS/silent failure: restart rate limit in the wrong section -> parsed section assertion", "T-03-SC"]
+      }
+    },
+    {
+      "id": 7,
+      "name": "03-07-PLAN.md — docs/runbook.md + coverage test; SOLE MARKER for OPS-03 and OPS-07; decides OPS-01's status",
+      "status": "not_started",
+      "spec": {
+        "wave": 5,
+        "depends_on": ["03-05", "03-06"],
+        "requirements": ["OPS-01", "OPS-03", "OPS-07"],
+        "autonomous": true,
+        "files_modified": ["docs/runbook.md", "tests/test_runbook_coverage.py", ".planning/REQUIREMENTS.md"],
+        "tasks": [
+          "Task 1: docs/runbook.md — audience is explicitly someone who did NOT build the system. Sections: start a session (power-on only; deploy/install.sh for first install); confirm health (`python -m telemetry.ops.cli`, its 5 exit codes, what each of the 5 states means and what to do about it); the disk-space check step (OPS-03's THIRD required surface — this is why 03-02 deliberately did not mark OPS-03); retrieve the data manually (Phase 8 owns automation — do not promise it); troubleshooting-by-state table; the asymmetry 03-04 created (service running with NO status file at all == config failed to parse -> journalctl -u telemetry-logger); the residual reboot-boundary caveat on the age figure; and ONE named section '## Pi bring-up: the one hardware-only verification (OPS-01)'. House style: follow docs/power-pull-test.md (direct address, 'why this matters' before the steps, req-ID citations in the opening paragraph) — it is a style analog only, not a structural template.",
+          "Task 2: tests/test_runbook_coverage.py — content-presence, not prose grading. IMPORT HEARTBEAT_STATES from telemetry.ops.heartbeat and loop, so the doc cannot drift from the code; assert the ops config key names appear; assert each of exit codes 0-4 is documented; assert the named Pi bring-up section exists.",
+          "Task 3: requirement status. Mark OPS-03 and OPS-07 Complete with the re-grep-and-halt gate. For OPS-01 apply the HONESTY GATE: its entire content is 'starts automatically on power-up', which no Windows-runnable check can prove. Leave OPS-01 PENDING with an explicit note in REQUIREMENTS.md's 'Notes on placement' section pointing at docs/runbook.md's Pi bring-up section — exactly the ARCH-03 / docs/power-pull-test.md precedent already in this file.",
+          "Use <verify><human-check> (NOT a blocking checkpoint) for 'a team member who did not build it can follow this' so the phase stays runnable; that item is human-but-not-hardware and belongs to /gsd-verify-work 3."
+        ],
+        "threat_ids_to_use": ["T-03-20 Repudiation: runbook drifting from code -> coverage test imports HEARTBEAT_STATES from source", "T-03-SC"]
+      }
+    }
   ],
-  "blockers": [
-    {"description": "Phase 1 verification deferred: 3 items need hardware absent from the dev session (physical power-pull durability, CM4-target soak, real dual-bus capture). Phase 1 is NOT complete in ROADMAP/STATE.", "type": "human_action", "workaround": "Items persisted in 01-UAT.md. Resume with /gsd-verify-work 1. Autonomous runs correctly skip phase 1 via the Deferred Verification table in STATE.md."},
-    {"description": "Phase 9 (RFD900x Radio Integration) cannot be completed by engineering — the radio is not purchased. Procurement is the blocker.", "type": "external", "workaround": "None. Expect /gsd-autonomous to surface it as a blocker when reached. Phase 9 was deliberately isolated with zero v1 requirements so it can slip without blocking anything else."},
-    {"description": "WINDOWS.md id=3 (open): a running simulator does not recover when its UDP peer restarts. Sender-side only — browser and receiver both recovered cleanly. Blocks /gsd-ship while open.", "type": "technical", "workaround": "Root cause unconfirmed; leading hypothesis is a Windows-only WSAECONNRESET artifact (same class as the WSAEMSGSIZE quirk recorded in 01-08), which would leave the Linux/CM4 target unaffected. Natural owner is Phase 4 or 5. Can be waived if confirmed Windows-only."},
-    {"description": "Phase 0's 00-VALIDATION.md is STILL an unfilled template: status draft, nyquist_compliant false, 14 unresolved {placeholder} tokens. Re-confirmed this session.", "type": "technical", "workaround": "Run /gsd-validate-phase 0. Phase 0's security gate (/gsd-secure-phase 0) is also still outstanding."},
-    {"description": "STALE ARTIFACT: .planning/phases/01-.../.continue-here.md still claims status in_progress and that phase-level verification 'has never run'. That is now false — Phase 1 verification did run (5/5 software must-haves, human_needed on 3 hardware items, 01-UAT.md exists).", "type": "technical", "workaround": "Do not trust its verification claims. It was left in place rather than deleted because Phase 1 is genuinely still open and the file carries useful anti-pattern context. Retire it when /gsd-verify-work 1 closes Phase 1."}
-  ],
+  "blockers": [],
   "async_jobs": [],
   "human_actions_pending": [
-    {"action": "Run /gsd-verify-work 1 with the car and neoVI hardware present", "context": "Three Phase 1 items cannot be proven in a dev session: a SIGKILL proxy cannot prove fsync durability (the OS page cache survives a process kill), all throughput figures to date are x86-64 not Cortex-A72, and TIME_SYSTEM_TO_MICROSECONDS_UNCONFIRMED can only be confirmed against a real dual-bus capture.", "blocking": false},
-    {"action": "Decide whether WINDOWS.md id=3 is a real defect or a Windows-only artifact", "context": "Determines whether it is fixed in Phase 4/5 or waived. Blocks /gsd-ship until resolved either way.", "blocking": false},
-    {"action": "Purchase the RFD900x", "context": "Phase 9 cannot start without it. Procurement is a standing parallel-track action, explicitly not gated by software sequencing.", "blocking": false}
+    {
+      "action": "Answer the blocking LED package checkpoint in 03-03-PLAN.md Task 1 (reply `defer` or `approve-and-replan`)",
+      "context": "Only fires when 03-03 is EXECUTED, not now. Recorded here so it is not a surprise: the neoVI PI's 10 programmable tri-color LEDs are real (I2C bus 10, addr 0x3c, per Intrepid's own membrane.py), but a real driver needs smbus/smbus2 + RPi.GPIO, which are not in the 8-pin requirements.txt. Planned default is `defer` — ship NullLedIndicator only.",
+      "blocking": false
+    }
   ],
   "decisions": [
-    {"decision": "Resumed 02-01 from Task 2 rather than re-running Task 1 or re-planning the phase", "rationale": "The pause handoff documented the exact resume point and inspection confirmed it byte-for-byte: 42f5774 held the three implementation files, tests/test_ground_server.py did not exist, working tree otherwise clean. The safe_resume_gate exists to catch UNKNOWN partial state; this state was fully known.", "phase": "02"},
-    {"decision": "Set the ephemeral workflow._auto_chain_active flag instead of workflow.auto_advance to enable auto-approval", "rationale": "The user authorized auto-approval for this run only. _auto_chain_active is the ephemeral chain flag, so the user's persistent preference to be asked survives the run. Reset to false at the end.", "phase": "02"},
-    {"decision": "Ran live browser verification at the orchestrator level rather than accepting the executors' deferrals", "rationale": "Every executor lacked browser automation and honestly recorded the gap. The orchestrator had it. This is what caught confirmation of CR-01's fix and closed both WINDOWS items — the phase goal is literally 'the pit engineer opens a browser and watches'.", "phase": "02"},
-    {"decision": "Stopped the autonomous run at the Phase 2 boundary rather than continuing to Phase 3", "rationale": "User decision. Phases 3-9 are all no_directory and each needs a full discuss->research->plan->execute pipeline; continuing would likely have run out of context mid-pipeline, recreating exactly the partial state this session started in.", "phase": "02"},
-    {"decision": "Ran nyquist validation and security audit retroactively for Phase 2 before stopping", "rationale": "User chose 'run both for each phase'. Both toggles are genuinely true in config, and Phase 0 declining them is still an open concern in STATE.md — repeating that would compound silent debt.", "phase": "02"},
-    {"decision": "Registered T-02-14 (slow-loris) and T-02-15 (/state route) as accepted-low rather than fixing them", "rationale": "Both are genuinely unmitigated but bounded by the loopback-default bind and single-operator posture. Recorded in 02-SECURITY.md so they are not rediscovered from scratch; revisit if the bind ever defaults to non-loopback.", "phase": "02"}
+    {"decision": "7 plans, 5 waves: w1=03-01 (tracer); w2=03-02 (disk) + 03-03 (LED, parallel); w3=03-04 (hardware wait); w4=03-05 (status CLI) + 03-06 (systemd, parallel); w5=03-07 (runbook).", "rationale": "Tracer-first is mandatory. Remaining ordering is forced by real file conflicts on src/telemetry/logger/cli.py (03-01 -> 03-02 -> 03-04) plus marking-order dependencies. 03-03 and 03-06 parallelise because they touch no shared file.", "phase": "03"},
+    {"decision": "OpsConfig and _parse_ops live in src/telemetry/logger/config.py, NOT in 03-RESEARCH.md's suggested src/telemetry/ops/config.py.", "rationale": "ops/config.py would need LoggerConfigError and the _require_* helpers from logger/config.py while logger/config.py needs OpsConfig back — a circular import. 03-CONTEXT.md also forbids a second config mechanism. Recorded as a deviation in 03-01's <output>.", "phase": "03"},
+    {"decision": "Exactly FIVE heartbeat states; a clean stop is signalled by the status file's ABSENCE, not a sixth state.", "rationale": "03-CONTEXT.md locks five. Leaving a stale `capturing` file after a clean stop would read as a failure to a human; deleting it gives the runbook a clean story and the status CLI a distinct exit code 4.", "phase": "03"},
+    {"decision": "HeartbeatPublisher takes a `snapshot_fn` seam supplied by logger/cli.py; heartbeat.py stays ignorant of disk and hardware.", "rationale": "Keeps 03-02 out of heartbeat.py and 03-03 out of logger/cli.py, which is what lets those two plans run in the same wave. It is also the correct layering.", "phase": "03"},
+    {"decision": "The status CLI's full exit-code contract (0 fresh-and-ok / 1 malformed / 2 fresh-but-unhealthy / 3 stale / 4 no file) is defined once in the 03-01 tracer; 03-05 widens the rendering only.", "rationale": "The codes are architecture; changing a contract mid-phase is churn. Widening a rendering is additive.", "phase": "03"},
+    {"decision": "Disk thresholds default to 20 GiB warn / 5 GiB critical and are documented as CHOSEN round numbers, not measurements.", "rationale": "No real full-rate session's archive growth rate has been measured on this car (Phase 1's figures are dev-box synthetic). This project's #1 recorded failure — five occurrences — is prose figures outliving the measurement that produced them.", "phase": "03"},
+    {"decision": "degraded is reserved for concrete faults (disk warn/critical, archive_overflow, archive_write_failure). Zero frames/s does NOT map to degraded.", "rationale": "A parked car with the bus unpowered legitimately produces no frames; a false degraded would train the team to ignore the indicator. frames_per_s is surfaced in the payload instead, which is what makes 'alive AND capturing' answerable.", "phase": "03"},
+    {"decision": "Requirement-marking ownership: 03-05 marks OPS-02; 03-07 marks OPS-03 and OPS-07 and decides OPS-01. 03-02 deliberately does NOT mark OPS-03.", "rationale": "OPS-03's own decision requires the figure be surfaced in three places including an explicit runbook check step, which does not exist until 03-07. This project has reverted a premature marking TWICE (27e9931 LINK-03, dc4bde8 CAP-01).", "phase": "03"},
+    {"decision": "OPS-01 is expected to end the phase PENDING, with a note pointing at docs/runbook.md's Pi bring-up section.", "rationale": "Its entire content is 'starts automatically on power-up', which no Windows-runnable check can prove. Mirrors ARCH-03 / docs/power-pull-test.md exactly. This is the phase's ONE hardware-only item, per 03-CONTEXT.md's goal of not stranding the way Phase 1 did with three.", "phase": "03"}
   ],
   "uncommitted_files": [
-    ".planning/research/.cache/*.json (4 files, untracked — pre-existing before this session, not produced by it)"
+    ".planning/phases/03-unattended-on-car-operation/03-01-PLAN.md",
+    ".planning/phases/03-unattended-on-car-operation/03-02-PLAN.md",
+    ".planning/phases/03-unattended-on-car-operation/03-03-PLAN.md",
+    ".planning/phases/03-unattended-on-car-operation/03-04-PLAN.md",
+    ".planning/phases/03-unattended-on-car-operation/03-PATTERNS.md",
+    ".planning/config.json"
   ],
-  "next_action": "Run /gsd-autonomous --from 3 (or /gsd-discuss-phase 3) to begin Phase 3 — Unattended On-Car Operation. Nothing needs reconciling first; Phase 2 is closed cleanly.",
-  "context_notes": "Session ran /gsd-autonomous with no arguments. Phase 1 was correctly skipped via the Deferred Verification table. Phase 2 arrived already discussed/UI-specced/researched/planned/checker-approved with only execution left, and still consumed roughly a third of the context window across ~12 subagent runs. Phases 3-8 each need the full pipeline from scratch, so budget one phase per session. Suite is 323 passing on branch add-pedal-percent-msg. Worktree isolation auto-degrades to sequential on this branch (#683, head-diverged-from-fork) — expected, not a fault; run `gsd-tools worktree set-baseref` to restore parallel worktrees."
+  "next_action": "Write .planning/phases/03-unattended-on-car-operation/03-05-PLAN.md from the `spec` block in remaining_tasks[0], then 03-06 and 03-07 from theirs. Then update ROADMAP.md Phase 3's `**Plans**:` line and plan list (Edit only — never Write on ROADMAP.md), validate each file with `gsd-tools query frontmatter.validate <path> --schema plan` and `gsd-tools query verify.plan-structure <path>`, and commit."
 }
