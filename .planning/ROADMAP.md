@@ -155,6 +155,7 @@ Plans:
 
 **Goal**: The car logs every run without anyone touching a keyboard, and anyone on the team can tell whether it is working
 **Mode:** mvp
+**UI hint**: no
 **Depends on**: Phase 1
 **Requirements**: OPS-01, OPS-02, OPS-03, OPS-07
 **Success Criteria** (what must be TRUE):
