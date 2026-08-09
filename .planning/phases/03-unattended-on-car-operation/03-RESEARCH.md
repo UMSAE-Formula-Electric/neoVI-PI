@@ -500,7 +500,12 @@ def disk_usage(path):
 
 **If this table is empty:** N/A — see above.
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Both questions below carry answers that the plans act on, so neither blocks execution.
+> Q1 is resolved by construction — `After=local-fs.target` is correct either way, and 03-06
+> implements exactly that. Q2 is out of scope — the LED I2C driver is deferred behind 03-03's
+> blocking package checkpoint, so the `config.txt` path is never read this phase.
 
 1. **Does the CM4's archive filesystem mount at the same point in boot as the root filesystem?**
    - What we know: the project treats the NVMe as "onboard" storage; no evidence found of a separate late-mounting partition.
