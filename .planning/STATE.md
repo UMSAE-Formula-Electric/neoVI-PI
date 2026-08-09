@@ -5,10 +5,10 @@ milestone_name: milestone
 current_phase: 3
 current_phase_name: Unattended On-Car Operation
 status: planning
-stopped_at: Completed 02-04-PLAN.md (Phase 2 complete)
-last_updated: "2026-08-08T18:32:49.163Z"
-last_activity: 2026-08-08
-last_activity_desc: Phase 02 complete, transitioned to Phase 3
+stopped_at: Phase 3 planning resumed at 5/7 plans
+last_updated: "2026-08-09T01:30:00.000Z"
+last_activity: 2026-08-09
+last_activity_desc: Phase 3 planning resumed (5/7 plans; writing 03-06, 03-07)
 progress:
   total_phases: 3
   completed_phases: 3
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 3 — Unattended On-Car Operation
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-08-08 — Phase 02 complete, transitioned to Phase 3
+Plan: Planning in progress — 5 of 7 PLAN.md files written
+Status: Planning (NOT execution — no source file touched; suite unchanged at 323 passing)
+Last activity: 2026-08-09 — session resumed; writing 03-06 and 03-07, then ROADMAP, validation, plan-checker
 
 Progress: [██████████] 100%
 
