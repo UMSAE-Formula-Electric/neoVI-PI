@@ -5,7 +5,7 @@
   "phase_name": "unattended-on-car-operation",
   "phase_dir": ".planning/phases/03-unattended-on-car-operation",
   "plan": null,
-  "task": 4,
+  "task": 5,
   "total_tasks": 7,
   "status": "paused",
   "work_kind": "phase-planning",
@@ -34,34 +34,15 @@
       "name": "03-04-PLAN.md — waiting-for-hardware + terminal stopped-error state (wave 3)",
       "status": "done",
       "commit": "uncommitted"
+    },
+    {
+      "id": 5,
+      "name": "03-05-PLAN.md - five-state rendering; sole OPS-02 marker (wave 4)",
+      "status": "done",
+      "commit": "763efc6"
     }
   ],
   "remaining_tasks": [
-    {
-      "id": 5,
-      "name": "03-05-PLAN.md — `telemetry-status` five-state rendering; SOLE MARKER for OPS-02",
-      "status": "not_started",
-      "spec": {
-        "wave": 4,
-        "depends_on": [
-          "03-03",
-          "03-04"
-        ],
-        "requirements": [
-          "OPS-02"
-        ],
-        "autonomous": true,
-        "files_modified": [
-          "src/telemetry/ops/cli.py",
-          "tests/test_ops_cli.py",
-          ".planning/REQUIREMENTS.md"
-        ],
-        "tasks": [
-          "Task 1: exhaustive five-state + staleness rendering in ops/cli.py — one human-legible guidance line per state, an 'alive AND capturing' evidence line (frames_per_s + session_name from extras), and tests covering all 5 states x {fresh, stale} plus absent-file and malformed-file. The exit-code contract (0/1/2/3/4) was already defined in 03-01; this task widens the RENDERING, not the codes.",
-          "Task 2: mark OPS-02 Complete in .planning/REQUIREMENTS.md with the re-grep-and-halt gate (see blocking constraint below)."
-        ]
-      }
-    },
     {
       "id": 6,
       "name": "03-06-PLAN.md — systemd unit + install script + hand-rolled structural lint",
@@ -218,20 +199,23 @@
   "uncommitted_files": [
     ".planning/research/.cache/*.json (4 files, untracked, pre-date this session)"
   ],
-  "next_action": "Run: ls .planning/phases/03-unattended-on-car-operation/*PLAN.md | wc -l. If 7, planning finished in background - update ROADMAP **Plans** if needed, run plan-checker, then /gsd-execute-phase 3. If 4, write 03-05/06/07 from the verbatim spec blocks in remaining_tasks, then ROADMAP, then plan-checker, then execute. Do NOT re-run discuss, research, or pattern-mapping - all complete and committed.",
+  "next_action": "Write 03-06 and 03-07 from remaining_tasks[0] and [1] spec blocks (threat IDs from T-03-20). Then update ROADMAP.md Phase 3 **Plans**: TBD -> 7 with the wave-grouped list using Edit (never Write). Then validate all seven with frontmatter.validate --schema plan and verify.plan-structure. Then run gsd-plan-checker (never yet run). Then /gsd-execute-phase 3. Do NOT re-run discuss/research/pattern-mapping.",
   "pause_kind": "user_requested_during_planning",
-  "plan_count_on_disk_at_pause": 4,
-  "plan_count_warning": "RE-DERIVE FROM DISK. Background planner agent a9defdca759cd8565 was resumed after this count was taken and may have written 03-05/06/07. Run: ls .planning/phases/03-unattended-on-car-operation/*PLAN.md | wc -l",
+  "plan_count_on_disk_at_pause": 5,
+  "plan_count_warning": "Count is STABLE at 5. The background planner a9defdca759cd8565 committed 03-05 at 763efc6 then stopped cleanly on the user pause. Confirm cheaply with: ls .planning/phases/03-unattended-on-car-operation/*PLAN.md | wc -l",
   "background_agents": [
     {
       "id": "a9defdca759cd8565",
       "role": "gsd-planner",
-      "state": "resumed_may_still_be_running",
-      "writing": [
-        "03-05-PLAN.md",
+      "state": "stopped_cleanly_on_user_pause",
+      "wrote": [
+        "03-01..03-04 at 44c1e48",
+        "03-05 at 763efc6"
+      ],
+      "did_not_write": [
         "03-06-PLAN.md",
         "03-07-PLAN.md",
-        ".planning/ROADMAP.md"
+        ".planning/ROADMAP.md Plans line"
       ]
     }
   ],
@@ -255,5 +239,6 @@
       "9 (blocked on procurement)"
     ],
     "note": "Milestone-level handoff was overwritten by the planner pause; original at commit 1b9fd35. Budget roughly one phase per session - phases 4-8 each need a full discuss->research->plan->execute pipeline from scratch."
-  }
+  },
+  "threat_id_watermark": "T-03-19 consumed (plus standing T-03-SC); 03-06 and 03-07 continue from T-03-20"
 }
