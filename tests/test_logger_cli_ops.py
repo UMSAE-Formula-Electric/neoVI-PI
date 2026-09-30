@@ -707,6 +707,99 @@ def test_capture_loop_exception_leaves_stopped_error_even_if_writer_closed_clean
 
 
 # ---------------------------------------------------------------------------
+# WR-01 (03-REVIEW.md): a construction failure -- `new_session()` raising
+# because the archive filesystem isn't mounted/writable, or a
+# `wait_for_hardware_fn` exception the SDK does not own -- must still
+# publish a terminal stopped-error heartbeat naming the condition before
+# the exception propagates, exactly like the existing capture-loop handler.
+# ---------------------------------------------------------------------------
+
+
+def test_session_construction_failure_publishes_stopped_error_before_propagating(
+    tmp_path, monkeypatch
+):
+    """`new_session()` raising (e.g. the archive filesystem isn't mounted
+    or writable yet) happens BEFORE `_run_session`'s capture-loop `try`
+    block -- prior to the WR-01 fix this propagated straight out of
+    `_run_session` and `main()` uncaught, leaving the heartbeat file at
+    whatever it last held (`booting`) with no explanatory stopped-error
+    write at all."""
+    archive_root = tmp_path / "sessions"
+    heartbeat_path = tmp_path / "status.json"
+
+    def _raise_new_session(root_dir, *, config_hash):
+        raise PermissionError("simulated: archive root not writable")
+
+    monkeypatch.setattr("telemetry.logger.cli.new_session", _raise_new_session)
+
+    argv = [
+        "--source",
+        "synthetic",
+        "--duration-s",
+        "0.3",
+        "--archive-root",
+        str(archive_root),
+        "--heartbeat-path",
+        str(heartbeat_path),
+    ]
+
+    # The construction failure is still an unhandled exception once the
+    # heartbeat has been published -- it is not swallowed or converted
+    # into a SystemExit, it propagates, exactly as an exception the
+    # capture-loop's own `except Exception:` cannot name would.
+    with pytest.raises(PermissionError, match="simulated: archive root not writable"):
+        main(argv, check_disk_space_fn=_constant_disk_check(DISK_OK))
+
+    assert heartbeat_path.exists(), (
+        "a construction failure must leave a stopped-error heartbeat "
+        "behind, not the stale booting snapshot main() published at startup"
+    )
+    payload = json.loads(heartbeat_path.read_text(encoding="utf-8"))
+    assert payload["state"] == STATE_STOPPED_ERROR
+    assert "simulated: archive root not writable" in payload["detail"]
+
+
+def test_wait_for_hardware_unhandled_exception_publishes_stopped_error_before_propagating(
+    tmp_path,
+):
+    """An exception `wait_for_hardware` does not own (not `sdk.RuntimeError`)
+    is documented to propagate out of `wait_for_hardware` itself -- but
+    prior to the WR-01 fix, `main()` had no `try`/`except` around that
+    call either, so it propagated straight out of `main()` with no
+    stopped-error heartbeat published first."""
+    archive_root = tmp_path / "sessions"
+    heartbeat_path = tmp_path / "status.json"
+
+    def _raise_unowned_exception(*, stop_event, on_waiting):
+        raise ValueError("simulated: exception the SDK does not own")
+
+    argv = [
+        "--source",
+        "hardware",
+        "--archive-root",
+        str(archive_root),
+        "--heartbeat-path",
+        str(heartbeat_path),
+    ]
+
+    with pytest.raises(ValueError, match="simulated: exception the SDK does not own"):
+        main(
+            argv,
+            check_disk_space_fn=_constant_disk_check(DISK_OK),
+            wait_for_hardware_fn=_raise_unowned_exception,
+        )
+
+    assert not archive_root.exists(), "no session should ever be created on this path"
+    assert heartbeat_path.exists(), (
+        "a wait_for_hardware failure must leave a stopped-error heartbeat "
+        "behind, not the stale booting snapshot main() published at startup"
+    )
+    payload = json.loads(heartbeat_path.read_text(encoding="utf-8"))
+    assert payload["state"] == STATE_STOPPED_ERROR
+    assert "simulated: exception the SDK does not own" in payload["detail"]
+
+
+# ---------------------------------------------------------------------------
 # 03-04: DBC-load / allowlist-resolution failures publish stopped-error
 # before SystemExit(1); a config-load failure publishes nothing.
 # ---------------------------------------------------------------------------

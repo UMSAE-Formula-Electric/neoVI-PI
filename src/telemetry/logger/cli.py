@@ -443,44 +443,71 @@ def _run_session(
     filesystem or a wall-clock sleep."""
     start_t = time.monotonic()
 
-    session = new_session(config.archive.root_dir, config_hash=config.config_hash)
-    logger.info(
-        "session %s created at %s (naming_source=%s)",
-        session.session_name,
-        session.directory,
-        session.naming_source,
-    )
+    # WR-01 (03-REVIEW.md): none of session/writer/link/fan-out/archive-
+    # runner/telemetry-pipeline construction was previously covered by any
+    # try/except -- a real, plausible-on-a-car failure here (e.g.
+    # new_session() raising PermissionError/OSError because the archive
+    # filesystem isn't mounted yet, or _build_link raising on a bad UDP
+    # bind) propagated straight out of _run_session and main() uncaught,
+    # crashing the process with a raw traceback and no stopped-error
+    # heartbeat at all -- the status file was simply left at whatever it
+    # last held (`booting`). Mirrors the capture loop's own
+    # `except Exception:` pattern below: log critical, publish a
+    # stopped-error snapshot naming the exception, then re-raise -- this
+    # window must never swallow an error, only name it before propagating.
+    try:
+        session = new_session(config.archive.root_dir, config_hash=config.config_hash)
+        logger.info(
+            "session %s created at %s (naming_source=%s)",
+            session.session_name,
+            session.directory,
+            session.naming_source,
+        )
 
-    writer = ArchiveWriter(
-        session.mcap_path,
-        channel_names=[c.name for c in config.channels],
-        flush_every_records=config.archive.flush_every_records,
-        flush_every_s=config.archive.flush_every_s,
-    )
-    link = _build_link(config.link)
-    fan_out = FanOut(
-        archive_maxsize=config.archive.queue_depth,
-        telemetry_maxsize=config.telemetry.queue_depth,
-        telemetry_allowlist=allowlist,
-        stop_event=stop_event,
-        dictionary=dictionary,
-    )
-    encoder = Encoder(dictionary)
-    archive_runner = ArchiveRunner(
-        archive_queue=fan_out.archive_queue,
-        writer=writer,
-        counters=fan_out.counters,
-        stop_event=stop_event,
-    )
-    telemetry_pipeline = TelemetryPipeline(
-        telemetry_queue=fan_out.telemetry_queue,
-        encoder=encoder,
-        link=link,
-        dict_version=dictionary.dict_version,
-        batch_frames=config.telemetry.batch_frames,
-        batch_max_age_s=config.telemetry.batch_max_age_s,
-        stop_event=stop_event,
-    )
+        writer = ArchiveWriter(
+            session.mcap_path,
+            channel_names=[c.name for c in config.channels],
+            flush_every_records=config.archive.flush_every_records,
+            flush_every_s=config.archive.flush_every_s,
+        )
+        link = _build_link(config.link)
+        fan_out = FanOut(
+            archive_maxsize=config.archive.queue_depth,
+            telemetry_maxsize=config.telemetry.queue_depth,
+            telemetry_allowlist=allowlist,
+            stop_event=stop_event,
+            dictionary=dictionary,
+        )
+        encoder = Encoder(dictionary)
+        archive_runner = ArchiveRunner(
+            archive_queue=fan_out.archive_queue,
+            writer=writer,
+            counters=fan_out.counters,
+            stop_event=stop_event,
+        )
+        telemetry_pipeline = TelemetryPipeline(
+            telemetry_queue=fan_out.telemetry_queue,
+            encoder=encoder,
+            link=link,
+            dict_version=dictionary.dict_version,
+            batch_frames=config.telemetry.batch_frames,
+            batch_max_age_s=config.telemetry.batch_max_age_s,
+            stop_event=stop_event,
+        )
+    except Exception as exc:
+        logger.critical(
+            "session/writer/link/fan-out construction failed: %s",
+            exc,
+            exc_info=True,
+        )
+        publisher.publish_now(
+            HeartbeatSnapshot(
+                state=STATE_STOPPED_ERROR,
+                detail=f"session setup failed: {exc}",
+                extras={},
+            )
+        )
+        raise
 
     archive_runner.start()
     telemetry_pipeline.start()
@@ -869,9 +896,30 @@ def main(
                 )
             )
 
-        hardware_present = wait_for_hardware_fn(
-            stop_event=stop_event, on_waiting=_on_waiting
-        )
+        # WR-01 (03-REVIEW.md): an exception `wait_for_hardware` does not
+        # own is documented to propagate (correctly, per
+        # `hardware_wait.py`'s own docstring) -- but nothing here caught
+        # it to publish a stopped-error snapshot first. Mirrors the same
+        # log-critical/publish/re-raise pattern used around session
+        # construction above.
+        try:
+            hardware_present = wait_for_hardware_fn(
+                stop_event=stop_event, on_waiting=_on_waiting
+            )
+        except Exception as exc:
+            logger.critical(
+                "wait_for_hardware failed with an unhandled exception: %s",
+                exc,
+                exc_info=True,
+            )
+            publisher.publish_now(
+                HeartbeatSnapshot(
+                    state=STATE_STOPPED_ERROR,
+                    detail=f"wait_for_hardware failed: {exc}",
+                    extras={},
+                )
+            )
+            raise
         if not hardware_present:
             # stop_event fired while waiting -- an operator stopping a
             # logger that never saw hardware is a clean stop, not an
