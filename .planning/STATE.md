@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: unattended-on-car-operation
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-09-30T03:18:16.467Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-09-30T04:32:44.942Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 31
-  completed_plans: 25
+  completed_plans: 26
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 03 (unattended-on-car-operation) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 03 execution started
 
-Progress: [████████░░] 81% (3 of 10 phases complete)
+Progress: [████████░░] 84% (3 of 10 phases complete)
 
 ## Performance Metrics
 
@@ -83,6 +83,7 @@ Progress: [████████░░] 81% (3 of 10 phases complete)
 | Phase 02 P03 | 15min | 2 tasks | 2 files |
 | Phase 02 P04 | 25min | 3 tasks | 12 files |
 | Phase 03 P01 | 25min | 2 tasks | 10 files |
+| Phase 03 P02 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 2-04, 2026-08-08] GND-03 and CAP-01 marked Complete in REQUIREMENTS.md after re-grepping every phase-2 plan's requirements: frontmatter to confirm 02-04 is the last and only remaining claimant for both; can-dashboard/ and the four legacy loggers (neoVI_logger.py, new_logger.py, references.py, neoVI_sender.py) deleted via git rm, gated by tests/test_legacy_cutover.py written and proven RED before the deletion
 - [Phase ?]: OpsConfig/_parse_ops live in telemetry/logger/config.py, not a new telemetry/ops/config.py (circular import; 03-CONTEXT.md forbids a second config mechanism)
 - [Phase ?]: Windows-only os.replace retry added to write_heartbeat -- NTFS transiently denies rename over a destination another thread has open; scoped to sys.platform==win32, no behavior change on Linux
+- [Phase ?]: [Phase 3-02, 2026-09-29] check_disk_space compares free_bytes directly against configured byte thresholds, never deriving a percentage from total (used+free can be < total on real ext4); strictly-less-than at both boundaries so an exact-threshold reading resolves to the better band
+- [Phase ?]: [Phase 3-02, 2026-09-29] OPS-03 startup gate lives in main(), not _run_session, since _run_session calls new_session() -- placing it after would break 'refused to start a new session'; mid-run recheck attaches to 03-01's existing snapshot_fn tick, not a second timer thread, and a critical band mid-run degrades but never stops a session in progress
+- [Phase ?]: [Phase 3-02, 2026-09-29] SyntheticFrameSource has no per-frame real-time throttle (confirmed empirically) -- rate-limit tests control real wall-clock duration via the test's own stop_event.set() after a short sleep, not via --duration-s, which finishes almost instantly regardless of the value requested
 
 ### Pending Todos
 
@@ -200,8 +204,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-30T03:18:16.439Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-09-30T04:32:44.923Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-execute-phase 3`. Expect a blocking package checkpoint early in wave 2
