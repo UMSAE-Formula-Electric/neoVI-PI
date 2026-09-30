@@ -93,7 +93,9 @@ This phase has no browser/frontend/CDN tier — it is a single-process embedded 
 echo "dtparam=i2c_vc=on" | sudo tee -a /boot/config.txt
 sudo reboot
 ```
-(On current Raspberry Pi OS Bookworm images this file may be at `/boot/firmware/config.txt` rather than `/boot/config.txt` — Bookworm moved the boot partition mount point; not independently confirmed against a real neoVI PI image this session, flagged `[ASSUMED]`.)
+(On current Raspberry Pi OS Bookworm images this file may be at `/boot/firmware/config.txt` rather than `/boot/config.txt` — Bookworm moved the boot partition mount point.)
+
+**RESOLVED 2026-09-29 — the path on this car's neoVI PI is `/boot/firmware/config.txt`.** Confirmed by the user at plan 03-03's package checkpoint, superseding the `[ASSUMED]` flag this line previously carried. Provenance is **user-confirmed against their own hardware**, not a measurement taken by this project and not Intrepid doc prose (Intrepid's own page still says `/boot/config.txt`, which is wrong for Bookworm) — recorded this way deliberately, per `.claude/CLAUDE.md`'s rule against letting a prose figure stand in for a verified one. Any install script that edits this file must target `/boot/firmware/config.txt`.
 
 `[CITED: github.com/intrepidcs/neoVI_PI-docs — static/downloads/membrane.py, first 30 lines fetched verbatim this session]`:
 ```python
@@ -173,11 +175,11 @@ Not applicable — this phase installs zero new runtime packages, per the locked
 
 | Package | Registry | Verdict | Disposition |
 |---------|----------|---------|-------------|
-| `smbus` or `smbus2` | PyPI | Not run through the legitimacy-check seam this session | Deferred — gate with `checkpoint:human-verify` if/when a future phase implements the real LED driver |
-| `RPi.GPIO` | PyPI | Not run through the legitimacy-check seam this session | Deferred — same as above; note Raspberry Pi 5-class boards are moving to `lgpio`/`rpi-lgpio`, but the CM4 (BCM2711, same SoC generation as Pi 4) is unaffected — `RPi.GPIO` is still the vendor-referenced choice `[CITED: github.com/intrepidcs/neoVI_PI-docs membrane.py]` |
+| `smbus2` | PyPI | **Ran 2026-09-29: `SUS`, sole reason `unknown-downloads`** | **Approved.** Exists; repo `github.com/kplindegaard/smbus2`; not deprecated; **`postinstall: null`**; last published 2026-04-09. `unknown-downloads` is a checker-fetch failure, not a legitimacy finding — the identical artifact Phase 0 adjudicated for `cantools`/`pytest` (see STATE.md Decisions, 2026-07-31). This is the one package the status LED needs. |
+| `RPi.GPIO` | PyPI | **Ran 2026-09-29: `SUS`, sole reason `unknown-downloads`** | **Not needed — descoped.** Signals otherwise clean (exists; repo `sourceforge.net/projects/raspberry-gpio-python`; not deprecated; `postinstall: null`) but **last published 2022-02-06**. In Intrepid's `membrane.py` it drives `MULTI_BUTTON` (GPIO 4) and `TRIG_BUTTON` (GPIO 5) — operator *input*, out of scope for OPS-01/02/03/07. The LED driver is pure I2C (bus 10, addr `0x3c`) and even shuts down via an I2C register (`LED_DRIVER_SHUTDOWN_REG = 0x00`), so no GPIO line appears to be required. **Strongly indicated, not proven:** the driver plan must confirm against the full `membrane.py` before relying on it. The CM4 (BCM2711) is unaffected by the Pi 5 `lgpio`/`rpi-lgpio` migration, so this remains available if a GPIO line does turn out to be needed. |
 
-**Packages removed due to [SLOP] verdict:** none (none were checked, none are being installed).
-**Packages flagged as suspicious [SUS]:** none.
+**Packages removed due to [SLOP] verdict:** none.
+**Packages flagged as suspicious [SUS]:** `smbus2` and `RPi.GPIO` both returned `SUS`, each for the single reason `unknown-downloads` — a metadata-fetch failure in the checker, not a supply-chain signal. Both were reviewed on their substantive signals (existence, repo, deprecation, `postinstall`) and neither executes code at install time. `smbus2` is approved for the follow-up driver plan; `RPi.GPIO` is descoped rather than approved.
 
 ## Architecture Patterns
 
