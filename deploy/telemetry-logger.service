@@ -1,0 +1,29 @@
+# UMSAE telemetry logger -- systemd unit (OPS-01).
+#
+# Verified this session: reproduces 03-RESEARCH.md Pattern 1 verbatim, which was
+# copied into a real Linux filesystem inside WSL and run through the actual
+# `systemd-analyze verify` binary (systemd 259) -- zero warnings, exit code 0.
+#
+# StartLimitIntervalSec/StartLimitBurst MUST stay in [Unit]. These keys moved out
+# of [Service] in systemd 230 (2016); placing them in [Service] does not error --
+# systemd logs "Unknown key '...', ignoring" and carries on, so restarts are simply
+# never rate-limited. That is a silent, strictly-worse failure than a load-time
+# error, and it is the entire reason tests/test_deploy_unit_file.py exists.
+[Unit]
+Description=UMSAE telemetry logger
+After=network.target local-fs.target
+Wants=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=telemetry
+WorkingDirectory=/opt/telemetry
+Environment=PYTHONPATH=src
+ExecStart=/usr/bin/python3 -m telemetry.logger.cli
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
