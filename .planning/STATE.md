@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: unattended-on-car-operation
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-09-30T05:11:37.489Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-09-30T05:45:05.267Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 31
-  completed_plans: 27
+  completed_plans: 28
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 03 (unattended-on-car-operation) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 03 execution started
 
-Progress: [█████████░] 87% (3 of 10 phases complete)
+Progress: [█████████░] 90% (3 of 10 phases complete)
 
 ## Performance Metrics
 
@@ -85,6 +85,7 @@ Progress: [█████████░] 87% (3 of 10 phases complete)
 | Phase 03 P01 | 25min | 2 tasks | 10 files |
 | Phase 03 P02 | 25min | 2 tasks | 4 files |
 | Phase 03 P03 | 22min | 2 tasks | 5 files |
+| Phase 03 P04 | 45min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 3-03, 2026-09-30] smbus2 approved for a future MembraneLedIndicator follow-up plan; RPi.GPIO descoped -- strongly indicated not needed (pure I2C shutdown register) but not proven against the full membrane.py
 - [Phase ?]: [Phase 3-03, 2026-09-30] Boot overlay path resolved to /boot/firmware/config.txt, user-confirmed against real hardware, contradicting Intrepid's own doc which is wrong for Bookworm
 - [Phase ?]: [Phase 3-03, 2026-09-30] 03-03 still ships only NullLedIndicator; concrete MembraneLedIndicator deliberately left for a follow-up plan needing real neoVI PI hardware to verify
+- [Phase ?]: [Phase 3-04, 2026-09-30] wait_for_hardware runs in main(), strictly after the disk gate and before _run_session -- _run_session calls new_session() first and HardwareFrameSource.captured_frames() lazily calls open(), which fails fast with no retry
+- [Phase ?]: [Phase 3-04, 2026-09-30] Terminal-state detail names every failing condition that fired (capture_loop_exception, archive_not_closed_cleanly, archive_write_failure, archive_overflow), not just the first; publisher thread is joined before the terminal write in both branches so a periodic tick can never race ahead of it
+- [Phase ?]: [Phase 3-04, 2026-09-30] Rule 1 fix: tests/test_ops_tracer.py's --duration-s 120 deterministically overflowed the shipped queue_depth=50000 in under 2s (SyntheticFrameSource has no per-frame throttle); raised that test's queue_depth to 2,000,000 so the run legitimately takes ~11s instead of overflowing -- previously masked because a bad ending left the heartbeat file showing a stale prior state
 
 ### Pending Todos
 
@@ -209,8 +213,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-30T05:11:37.466Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-09-30T05:45:05.248Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-execute-phase 3`. Expect a blocking package checkpoint early in wave 2
