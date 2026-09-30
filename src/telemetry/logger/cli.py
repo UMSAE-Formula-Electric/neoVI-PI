@@ -52,6 +52,19 @@ Deliberately does NOT carry over `src/new_logger.py`'s hardcoded transmit
 configuration or its commented-out alternative code paths — nothing in
 Phase 1 transmits on the CAN bus, and dead commented code is an
 anti-pattern this project does not continue.
+
+**Phase 3 (OPS-02): publishes a heartbeat status file at 1 Hz** via
+`telemetry.ops.heartbeat.HeartbeatPublisher`, so a second process
+(`telemetry.ops.cli`, `telemetry-status`) can answer "is the logger alive
+and capturing" without opening a terminal on this process. Constructed
+immediately after config load/override in `main()` — the earliest point
+`config.ops.heartbeat_path` is known — and published once synchronously as
+`booting` before any other resource exists; `_run_session` reassigns its
+`snapshot_fn` to read the real counters and starts the periodic thread only
+once the archive runner and telemetry pipeline are already running. The
+heartbeat never re-derives or re-counts anything the existing counter
+dataclasses already own (03-CONTEXT.md). On a clean exit the status file
+is removed — its absence, not a sixth state, is what says "not running".
 """
 
 import argparse
@@ -84,6 +97,12 @@ from telemetry.logger.config import (
 )
 from telemetry.logger.pipeline import TelemetryPipeline
 from telemetry.measure.config import GateConfig, GateConfigError, load_gate_config
+from telemetry.ops.heartbeat import (
+    STATE_BOOTING,
+    STATE_CAPTURING,
+    HeartbeatPublisher,
+    HeartbeatSnapshot,
+)
 from telemetry.synth.entropy import BRACKET_NAMES
 from telemetry.synth.generator import SyntheticFrameSource
 from telemetry.wire.dictionary import DbcLoadError, build_id_dictionary, load_dbc
@@ -140,6 +159,11 @@ def _parse_args(argv=None) -> argparse.Namespace:
         help="Override link.kind from the config.",
     )
     parser.add_argument(
+        "--heartbeat-path",
+        default=None,
+        help="Override ops.heartbeat_path from the config (OPS-02).",
+    )
+    parser.add_argument(
         "--source",
         default="hardware",
         choices=["hardware", "synthetic"],
@@ -186,6 +210,11 @@ def _apply_overrides(config: LoggerConfig, args: argparse.Namespace) -> LoggerCo
         )
     if args.link_kind is not None:
         config = replace(config, link=replace(config.link, kind=args.link_kind))
+    if args.heartbeat_path is not None:
+        config = replace(
+            config,
+            ops=replace(config.ops, heartbeat_path=Path(args.heartbeat_path).resolve()),
+        )
     return config
 
 
@@ -324,7 +353,7 @@ def _log_human_summary(summary: dict) -> None:
         logger.info("archive_marked_done=%s", summary["archive_marked_done"])
 
 
-def _run_session(config, args, db, dictionary, allowlist, stop_event) -> int:
+def _run_session(config, args, db, dictionary, allowlist, stop_event, publisher) -> int:
     """Everything from session creation through shutdown and the summary
     report. Returns the process exit code: 0 normally, 1 if the archive did
     not close cleanly (the session is left without its `.done` marker)."""
@@ -371,6 +400,49 @@ def _run_session(config, args, db, dictionary, allowlist, stop_event) -> int:
 
     archive_runner.start()
     telemetry_pipeline.start()
+
+    # From here on the process is genuinely capturing (OPS-02) -- reassign
+    # the publisher's snapshot_fn from the `booting` closure `main()`
+    # installed to one that reads the real counters, then start the
+    # periodic thread. `frames_per_s` is computed as the delta in
+    # `frames_submitted` since the previous tick over the elapsed monotonic
+    # interval -- never re-derived from a second frame count, per
+    # `03-CONTEXT.md`'s "the heartbeat READS these, it does not re-derive
+    # them". A parked car legitimately reports 0 frames/s; that is not a
+    # fault state, so it is surfaced as a plain number in `extras`, never
+    # mapped to `degraded` (03-03's terminal-state work owns that).
+    _heartbeat_tick_state = {
+        "frames_submitted": fan_out.counters.frames_submitted,
+        "monotonic": time.monotonic(),
+    }
+
+    def _capturing_snapshot() -> HeartbeatSnapshot:
+        now = time.monotonic()
+        elapsed = now - _heartbeat_tick_state["monotonic"]
+        current = fan_out.counters.frames_submitted
+        frames_per_s = (
+            (current - _heartbeat_tick_state["frames_submitted"]) / elapsed
+            if elapsed > 0
+            else 0.0
+        )
+        _heartbeat_tick_state["frames_submitted"] = current
+        _heartbeat_tick_state["monotonic"] = now
+        return HeartbeatSnapshot(
+            state=STATE_CAPTURING,
+            detail=None,
+            extras={
+                "session_name": session.session_name,
+                "frames_submitted": fan_out.counters.frames_submitted,
+                "records_written": writer.records_written,
+                "frames_sent": telemetry_pipeline.counters.frames_sent,
+                "archive_write_failure": fan_out.counters.archive_write_failure,
+                "archive_overflow": fan_out.counters.archive_overflow,
+                "frames_per_s": frames_per_s,
+            },
+        )
+
+    publisher.snapshot_fn = _capturing_snapshot
+    publisher.start()
 
     hardware_counters = None
     watchdog: Optional[threading.Timer] = None
@@ -478,6 +550,16 @@ def _run_session(config, args, db, dictionary, allowlist, stop_event) -> int:
     _log_human_summary(summary)
     print(json.dumps(summary, sort_keys=True))
 
+    # Never interleaved with the archive-lifecycle ordering above -- the
+    # heartbeat only observes state, it does not participate in it. This
+    # plan's path is the clean one: 03-03 owns the unclean-exit terminal
+    # state, so the status file is removed only when the archive itself
+    # closed cleanly; otherwise it is left in place (still stale-detectable
+    # by a later `telemetry-status` run) rather than erased.
+    publisher.join(timeout=_SHUTDOWN_JOIN_TIMEOUT_S)
+    if archive_closed_cleanly:
+        publisher.remove()
+
     return 0 if archive_closed_cleanly else 1
 
 
@@ -500,6 +582,17 @@ def main(argv=None) -> None:
 
     config = _apply_overrides(config, args)
 
+    # Config load is the earliest point ops.heartbeat_path is known -- a
+    # config failure above produces NO status file at all. That is honest:
+    # the runbook (03-07) must say so, not invent a fallback path.
+    publisher = HeartbeatPublisher(
+        path=config.ops.heartbeat_path,
+        interval_s=config.ops.heartbeat_interval_s,
+        stop_event=stop_event,
+        snapshot_fn=lambda: HeartbeatSnapshot(state=STATE_BOOTING, detail=None, extras={}),
+    )
+    publisher.publish_now(publisher.snapshot_fn())
+
     try:
         db = load_dbc(config.dbc_path)
     except DbcLoadError as exc:
@@ -514,7 +607,7 @@ def main(argv=None) -> None:
         logger.error("failed to resolve telemetry allowlist: %s", exc)
         raise SystemExit(1) from exc
 
-    exit_code = _run_session(config, args, db, dictionary, allowlist, stop_event)
+    exit_code = _run_session(config, args, db, dictionary, allowlist, stop_event, publisher)
     if exit_code != 0:
         raise SystemExit(exit_code)
 

@@ -29,3 +29,6 @@ node_modules/
 # Captured session archives are run artifacts, never committed to git
 sessions/
 *.mcap
+# The Phase 3 heartbeat status file (ops.heartbeat_path default) is a
+# runtime artifact written by telemetry.logger.cli, never committed
+var/

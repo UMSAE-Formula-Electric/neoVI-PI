@@ -1,8 +1,9 @@
 """
 telemetry.logger.config -- typed loader and validator for the runtime
 `config/logger.json` (OPS-05): channels, DBC path, capture cadence, archive
-durability cadence, telemetry queue sizing, link settings, and the
-twelve-message critical-channel allowlist all come from this one checked-in
+durability cadence, telemetry queue sizing, link settings, the
+twelve-message critical-channel allowlist, and (Phase 3, OPS-02/OPS-03) the
+heartbeat/disk-threshold `ops` block all come from this one checked-in
 file, with no source edit needed to change any of them.
 
 Mirrors `telemetry.measure.config`'s shape element for element -- one config
@@ -46,6 +47,7 @@ REQUIRED_TOP_LEVEL_KEYS = {
     "archive",
     "telemetry",
     "link",
+    "ops",
 }
 
 REQUIRED_CHANNEL_KEYS = {"name", "netid", "bus"}
@@ -65,6 +67,13 @@ REQUIRED_UDP_KEYS = {
     "remote_host",
     "remote_port",
     "recv_bufsize",
+}
+REQUIRED_OPS_KEYS = {
+    "heartbeat_path",
+    "heartbeat_interval_s",
+    "heartbeat_stale_after_s",
+    "disk_warn_free_bytes",
+    "disk_critical_free_bytes",
 }
 
 VALID_LINK_KINDS = {"loopback", "udp"}
@@ -154,6 +163,28 @@ class LinkConfig:
 
 
 @dataclass(frozen=True)
+class OpsConfig:
+    """Phase 3's unattended-operation surface (OPS-02/OPS-03): where the
+    heartbeat status file lives and how often it is written/considered
+    stale, plus the two-stage disk-space thresholds. `disk_warn_free_bytes`
+    and `disk_critical_free_bytes` are defined here even though nothing
+    consumes them until 03-02 -- this block's shape is architecture, and
+    reopening the checked-in config a second time to add two fields would
+    be pure churn. Both byte figures in `config/logger.json` are CHOSEN
+    round defaults, not measurements: no real full-rate session's archive
+    growth rate has been measured on this car (Phase 1's throughput figures
+    are dev-box synthetic, per `.claude/CLAUDE.md`'s "never let a prose
+    figure stand in for a measurement" rule) -- this docstring says so
+    plainly rather than implying otherwise."""
+
+    heartbeat_path: Path
+    heartbeat_interval_s: float
+    heartbeat_stale_after_s: float
+    disk_warn_free_bytes: int
+    disk_critical_free_bytes: int
+
+
+@dataclass(frozen=True)
 class LoggerConfig:
     """Every runtime setting the logger and ground station need, parsed
     from one checked-in JSON file."""
@@ -165,6 +196,7 @@ class LoggerConfig:
     archive: ArchiveConfig
     telemetry: TelemetryConfig
     link: LinkConfig
+    ops: OpsConfig
     raw: dict = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
@@ -368,6 +400,54 @@ def _parse_link(value: object) -> LinkConfig:
     return LinkConfig(kind=kind, udp=udp)
 
 
+def _parse_ops(value: object) -> OpsConfig:
+    _diff_keys(value, REQUIRED_OPS_KEYS, "ops")
+
+    heartbeat_path = value["heartbeat_path"]
+    _require_non_empty_str(heartbeat_path, "ops.heartbeat_path")
+
+    heartbeat_interval_s = value["heartbeat_interval_s"]
+    _require_positive_number(heartbeat_interval_s, "ops.heartbeat_interval_s")
+
+    heartbeat_stale_after_s = value["heartbeat_stale_after_s"]
+    _require_positive_number(heartbeat_stale_after_s, "ops.heartbeat_stale_after_s")
+
+    disk_warn_free_bytes = value["disk_warn_free_bytes"]
+    _require_positive_int(disk_warn_free_bytes, "ops.disk_warn_free_bytes")
+
+    disk_critical_free_bytes = value["disk_critical_free_bytes"]
+    _require_positive_int(disk_critical_free_bytes, "ops.disk_critical_free_bytes")
+
+    # A stale threshold at or below the write cadence would flag a healthy
+    # logger as dead -- strictly greater, not merely different.
+    if heartbeat_stale_after_s <= heartbeat_interval_s:
+        raise LoggerConfigError(
+            f"ops.heartbeat_stale_after_s={heartbeat_stale_after_s!r} must be "
+            f"strictly greater than ops.heartbeat_interval_s="
+            f"{heartbeat_interval_s!r}"
+        )
+
+    # An inverted pair would mean "critical" fires before "warn" ever does,
+    # inverting the two-stage semantics OPS-03 depends on.
+    if disk_critical_free_bytes >= disk_warn_free_bytes:
+        raise LoggerConfigError(
+            f"ops.disk_critical_free_bytes={disk_critical_free_bytes!r} must "
+            f"be strictly less than ops.disk_warn_free_bytes="
+            f"{disk_warn_free_bytes!r}"
+        )
+
+    return OpsConfig(
+        # Resolved relative to the repository root, same convention as
+        # archive.root_dir -- existence is deliberately NOT checked here,
+        # the publisher creates the parent directory itself.
+        heartbeat_path=(_REPO_ROOT / heartbeat_path).resolve(),
+        heartbeat_interval_s=float(heartbeat_interval_s),
+        heartbeat_stale_after_s=float(heartbeat_stale_after_s),
+        disk_warn_free_bytes=disk_warn_free_bytes,
+        disk_critical_free_bytes=disk_critical_free_bytes,
+    )
+
+
 def load_logger_config(path) -> LoggerConfig:
     """Parse and validate `path` into a `LoggerConfig`. Never falls back to
     a default on malformed input -- every failure raises `LoggerConfigError`
@@ -425,6 +505,7 @@ def load_logger_config(path) -> LoggerConfig:
     archive = _parse_archive(raw["archive"])
     telemetry = _parse_telemetry(raw["telemetry"])
     link = _parse_link(raw["link"])
+    ops = _parse_ops(raw["ops"])
 
     return LoggerConfig(
         schema_version=schema_version,
@@ -434,6 +515,7 @@ def load_logger_config(path) -> LoggerConfig:
         archive=archive,
         telemetry=telemetry,
         link=link,
+        ops=ops,
         raw=raw,
     )
 
