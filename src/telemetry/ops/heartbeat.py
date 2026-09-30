@@ -65,6 +65,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Mapping, Optional
 
+from telemetry.ops.led import LedIndicator, NullLedIndicator
+
 logger = logging.getLogger(__name__)
 
 HEARTBEAT_SCHEMA_VERSION = 1
@@ -108,10 +110,12 @@ class HeartbeatReadError(Exception):
 @dataclass(frozen=True)
 class HeartbeatSnapshot:
     """What `HeartbeatPublisher` writes on its next tick. `extras` is the
-    seam later plans (03-02's disk state, 03-03's hardware-wait and
+    seam later plans (03-02's disk state, 03-04's hardware-wait and
     terminal states) hang additional fields off of -- this module stays
     ignorant of disk and hardware, it only carries whatever `snapshot_fn`
-    returns."""
+    returns. (03-03, this plan, does not use `extras` -- it wires a
+    physical-indicator call site instead; see `HeartbeatPublisher`'s own
+    docstring below.)"""
 
     state: str
     detail: Optional[str]
@@ -269,6 +273,21 @@ class HeartbeatPublisher:
     indicator and does NOT change those counters' own documented "safe to
     read only after the writer stops" contract for the shutdown summary --
     this publisher never blocks on or waits for that guarantee.
+
+    `led` (03-03, OPS-02's physical-indicator seam) is driven on every
+    write -- the periodic tick and any direct `publish_now` call -- AFTER
+    the status file has already been replaced, never before: the file is
+    the primary indicator, and a failing/missing physical indicator must
+    never stop it from being written. Defaults to `NullLedIndicator()`
+    when not supplied, so `telemetry.logger.cli` (which never passes `led`
+    itself, deliberately -- see `telemetry.ops.led`'s module docstring)
+    still drives an indicator, it just drives a no-op one. Any exception
+    from `led.set_state()` is caught, counted, and logged once at WARNING
+    with further occurrences suppressed-and-counted, mirroring this
+    project's established log-once-per-offending-key discipline
+    (`telemetry.capture.fanout.FanOut._record_telemetry_error`) rather than
+    a single process-lifetime flag, since a real driver could plausibly
+    fail, recover, and fail again over a multi-hour test day.
     """
 
     def __init__(
@@ -279,6 +298,7 @@ class HeartbeatPublisher:
         snapshot_fn: Callable[[], HeartbeatSnapshot],
         *,
         now_fn: Callable[[], float] = time.monotonic,
+        led: Optional[LedIndicator] = None,
         name: str = _DEFAULT_THREAD_NAME,
     ) -> None:
         self._path = Path(path)
@@ -286,6 +306,11 @@ class HeartbeatPublisher:
         self._stop_event = stop_event
         self.snapshot_fn = snapshot_fn
         self._now_fn = now_fn
+        self._led = led if led is not None else NullLedIndicator()
+        self._led_closed = False
+        self._led_error_logged = False
+        self.led_error_count = 0
+        self.led_error_log_suppressed_count = 0
         self._thread = threading.Thread(target=self._run, name=name, daemon=True)
 
     def start(self) -> None:
@@ -293,11 +318,50 @@ class HeartbeatPublisher:
 
     def publish_now(self, snapshot: HeartbeatSnapshot) -> None:
         """Write one snapshot synchronously -- used for the `booting` state
-        before the periodic thread exists, and by the thread's own loop."""
+        before the periodic thread exists, and by the thread's own loop --
+        then drive the physical indicator with the same state. The file
+        write happens first and unconditionally; the indicator call is
+        wrapped so it can never affect whether the file was written."""
         write_heartbeat(self._path, snapshot, now_fn=self._now_fn)
+        self._drive_led(snapshot.state)
+
+    def _drive_led(self, state: str) -> None:
+        """Call `led.set_state(state)`, catching, counting, and logging
+        (once, then suppressed-and-counted) any exception -- a failing
+        physical indicator must never kill the publisher thread or read as
+        if it prevented the (already-written) status file from updating."""
+        try:
+            self._led.set_state(state)
+        except Exception as exc:
+            self.led_error_count += 1
+            if self._led_error_logged:
+                self.led_error_log_suppressed_count += 1
+                return
+            self._led_error_logged = True
+            logger.warning(
+                "led indicator failed to set state %r: %s -- the status "
+                "file is unaffected; further led failures are counted, "
+                "not re-logged",
+                state,
+                exc,
+            )
 
     def join(self, timeout: Optional[float] = None) -> None:
         self._thread.join(timeout=timeout)
+        self._close_led()
+
+    def _close_led(self) -> None:
+        """Close the physical indicator exactly once, tolerating a failing
+        `close()` the same way `_drive_led` tolerates a failing
+        `set_state()` -- stopping the publisher must never raise because a
+        physical indicator's shutdown call misbehaved."""
+        if self._led_closed:
+            return
+        self._led_closed = True
+        try:
+            self._led.close()
+        except Exception as exc:
+            logger.warning("led indicator failed to close cleanly: %s", exc)
 
     def remove(self) -> None:
         """Delete the status file, tolerating its absence -- the file's

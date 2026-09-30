@@ -220,3 +220,130 @@ def test_publisher_remove_on_already_absent_file_does_not_raise(tmp_path):
     assert not path.exists()
     publisher.remove()  # must not raise
     assert not path.exists()
+
+
+# ---------------------------------------------------------------------------
+# LED indicator seam (03-03, OPS-02): every write drives an indicator; a
+# raising indicator never takes down the status file or the publisher.
+# ---------------------------------------------------------------------------
+
+
+class _RecordingLed:
+    """Test double: records every `set_state` argument and counts `close()`
+    calls -- never touches real hardware."""
+
+    def __init__(self):
+        self.states = []
+        self.close_count = 0
+
+    def set_state(self, state):
+        self.states.append(state)
+
+    def close(self):
+        self.close_count += 1
+
+
+class _RaisingLed:
+    """Test double whose `set_state` always raises -- pins that a broken
+    physical indicator can never take the status file or the publisher
+    thread down with it."""
+
+    def __init__(self):
+        self.close_count = 0
+
+    def set_state(self, state):
+        raise RuntimeError("simulated led failure")
+
+    def close(self):
+        self.close_count += 1
+
+
+def test_publisher_without_led_uses_null_led_indicator_by_default(tmp_path):
+    path = tmp_path / "status.json"
+    publisher = HeartbeatPublisher(
+        path=path,
+        interval_s=1.0,
+        stop_event=threading.Event(),
+        snapshot_fn=lambda: HeartbeatSnapshot(state="capturing", detail=None, extras={}),
+    )
+
+    # Must not raise -- the default NullLedIndicator is silently driven.
+    publisher.publish_now(publisher.snapshot_fn())
+    assert path.exists()
+
+
+def test_publish_now_calls_set_state_with_the_written_state(tmp_path):
+    path = tmp_path / "status.json"
+    led = _RecordingLed()
+    publisher = HeartbeatPublisher(
+        path=path,
+        interval_s=1.0,
+        stop_event=threading.Event(),
+        snapshot_fn=lambda: HeartbeatSnapshot(state="capturing", detail=None, extras={}),
+        led=led,
+    )
+
+    states_written = ["booting", "waiting-for-hardware", "capturing"]
+    for state in states_written:
+        publisher.publish_now(HeartbeatSnapshot(state=state, detail=None, extras={}))
+
+    assert led.states == states_written
+
+
+def test_indicator_that_raises_does_not_prevent_status_file_write(tmp_path):
+    path = tmp_path / "status.json"
+    led = _RaisingLed()
+    publisher = HeartbeatPublisher(
+        path=path,
+        interval_s=1.0,
+        stop_event=threading.Event(),
+        snapshot_fn=lambda: HeartbeatSnapshot(state="capturing", detail=None, extras={}),
+        led=led,
+    )
+
+    # Must not raise, and the status file must still be written.
+    publisher.publish_now(HeartbeatSnapshot(state="capturing", detail=None, extras={}))
+
+    reading = read_heartbeat(path, stale_after_s=5.0)
+    assert reading.payload["state"] == "capturing"
+
+
+def test_indicator_error_is_logged_once_then_suppressed_on_repeat(tmp_path, caplog):
+    path = tmp_path / "status.json"
+    led = _RaisingLed()
+    publisher = HeartbeatPublisher(
+        path=path,
+        interval_s=1.0,
+        stop_event=threading.Event(),
+        snapshot_fn=lambda: HeartbeatSnapshot(state="capturing", detail=None, extras={}),
+        led=led,
+    )
+
+    with caplog.at_level("WARNING", logger="telemetry.ops.heartbeat"):
+        for _ in range(3):
+            publisher.publish_now(
+                HeartbeatSnapshot(state="capturing", detail=None, extras={})
+            )
+
+    led_warnings = [r for r in caplog.records if "led" in r.getMessage().lower()]
+    assert len(led_warnings) == 1
+
+
+def test_join_calls_led_close_exactly_once(tmp_path):
+    path = tmp_path / "status.json"
+    led = _RecordingLed()
+    stop_event = threading.Event()
+    stop_event.set()  # thread's first wait() call returns True immediately
+    publisher = HeartbeatPublisher(
+        path=path,
+        interval_s=1.0,
+        stop_event=stop_event,
+        snapshot_fn=lambda: HeartbeatSnapshot(state="capturing", detail=None, extras={}),
+        led=led,
+    )
+
+    publisher.start()
+    publisher.join(timeout=5.0)
+    publisher.join(timeout=5.0)  # calling again must not double-close
+
+    assert led.close_count == 1
