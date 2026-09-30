@@ -46,20 +46,54 @@ def _run_status_cli(heartbeat_path, *, as_json=False):
     )
 
 
+def _write_config_with_large_queue_depth(tmp_path: Path) -> Path:
+    """A copy of the shipped `config/logger.json` with `archive.queue_depth`
+    raised far above the default (50000).
+
+    03-04 (OPS-01) added an unconditional terminal-state write on shutdown,
+    which surfaced a pre-existing latent race in this test:
+    `telemetry.synth.generator.SyntheticFrameSource` has NO per-frame
+    real-time throttle (confirmed empirically in 03-02) -- `--duration-s
+    120` against the shipped 50000-deep archive queue was measured this
+    session to generate its full frame burst and hit `archive_overflow`
+    (CAP-03/CAP-04's fatal-by-design overflow) in well under 2 real
+    seconds, every time. Before 03-04, a bad ending like this left the
+    heartbeat file showing whatever state its last periodic tick had
+    written (often a stale `capturing`), which is exactly why this race
+    was invisible until now. Raising `queue_depth` to comfortably exceed
+    the full burst (measured this session at 447,652 frames for
+    `--duration-s 120`) lets the run take several real seconds to archive
+    everything and exit cleanly, which is what this test actually needs:
+    a real, live, `capturing` subprocess for long enough to observe over
+    this file's own poll budget -- not a race against `archive_overflow`.
+    """
+    config_data = json.loads((REPO_ROOT / "config" / "logger.json").read_text())
+    config_data["archive"]["queue_depth"] = 2_000_000
+    config_path = tmp_path / "large_queue_logger.json"
+    config_path.write_text(json.dumps(config_data))
+    return config_path
+
+
 def test_running_logger_reports_capturing_via_a_separate_status_process(tmp_path):
     archive_root = tmp_path / "sessions"
     heartbeat_path = tmp_path / "status.json"
+    config_path = _write_config_with_large_queue_depth(tmp_path)
 
     proc = subprocess.Popen(
         [
             sys.executable,
             "-m",
             "telemetry.logger.cli",
+            "--config",
+            str(config_path),
             "--source",
             "synthetic",
             # Deliberately far beyond this test's own poll budget -- this
             # test asserts the live path only, so the child is killed by
-            # the finally block below, not by its own watchdog.
+            # the finally block below, not by its own watchdog. See
+            # _write_config_with_large_queue_depth's docstring for why
+            # this now needs a raised queue_depth to avoid archive_overflow
+            # given SyntheticFrameSource's confirmed lack of throttling.
             "--duration-s",
             "120",
             "--archive-root",

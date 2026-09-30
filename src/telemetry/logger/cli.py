@@ -81,6 +81,41 @@ closure re-runs the same check on every heartbeat tick and reports
 stopped by this check and NOTHING under this module ever deletes, rotates,
 or prunes a session (03-CONTEXT.md's locked decision, rejecting
 auto-pruning outright as contrary to this project's core value).
+
+**Phase 3 (OPS-01): the boot race and the terminal state.** `--source
+hardware` runs `telemetry.ops.hardware_wait.wait_for_hardware` in `main()`,
+strictly after the disk gate and strictly before `_run_session` is ever
+called — `_run_session` calls `new_session()` first, and
+`HardwareFrameSource.captured_frames()` lazily calls `open()`, which fails
+fast by design with no retry; waiting inside `_run_session` would leave an
+empty session directory behind on every unpowered boot. Each retry
+publishes `waiting-for-hardware` via `on_waiting`, naming the attempt and
+the backoff about to be waited; if `stop_event` fires first (an operator
+stopping a logger that never saw hardware), the status file is removed and
+`main()` returns cleanly with no session ever created — a clean stop, not
+an error. `--source synthetic` never calls `wait_for_hardware` at all. A
+device disappearing between the successful wait and the real `open()` call
+inside `_run_session` is still possible; that narrow remaining race is
+handled by `_run_session`'s existing broad `except Exception` around the
+capture loop, which now (the second half of this addition) results in a
+`stopped-error` terminal heartbeat state, not a second retry layer.
+
+Separately, `_run_session` now decides a terminal heartbeat state after its
+existing shutdown block and `_log_human_summary` — never interleaved with
+the strict archive-lifecycle ordering above. The publisher thread is
+stopped first in both branches, so a periodic `capturing` tick can never
+race ahead of the terminal write: if the capture loop raised, or the
+archive did not close cleanly, or `archive_write_failure`/`archive_overflow`
+is set, a final `stopped-error` snapshot names which condition(s) fired
+(with the same counters in `extras`) and the file is left in place — a
+human arriving later must find the reason, not an absence. Otherwise the
+file is removed (03-01's clean path). `main()`'s DBC-load and
+allowlist-resolution failure branches also now publish `stopped-error`
+before their `raise SystemExit(1)`; the config-load failure branch is left
+alone on purpose — at that point `config.ops.heartbeat_path` is not yet
+known, so no status file can exist, and a service running with no status
+file at all means the config failed to parse (the journal is where the
+reason is).
 """
 
 import argparse
@@ -119,11 +154,13 @@ from telemetry.ops.disk_monitor import (
     DiskReading,
     check_disk_space,
 )
+from telemetry.ops.hardware_wait import wait_for_hardware
 from telemetry.ops.heartbeat import (
     STATE_BOOTING,
     STATE_CAPTURING,
     STATE_DEGRADED,
     STATE_STOPPED_ERROR,
+    STATE_WAITING_FOR_HARDWARE,
     HeartbeatPublisher,
     HeartbeatSnapshot,
 )
@@ -552,6 +589,13 @@ def _run_session(
 
     hardware_counters = None
     watchdog: Optional[threading.Timer] = None
+    # Set inside the `except Exception:` branch below -- 03-04's terminal-
+    # state write reads this alongside `archive_closed_cleanly` and the
+    # archive counters, so a capture-loop exception is reported as
+    # `stopped-error` even on a run where the writer itself closed cleanly
+    # (e.g. a hardware/synthetic source raising before a single frame was
+    # submitted).
+    capture_failed = False
     try:
         if args.source == "hardware":
             source = HardwareFrameSource(
@@ -603,6 +647,7 @@ def _run_session(
         logger.critical(
             "capture terminated by an unhandled exception", exc_info=True
         )
+        capture_failed = True
     finally:
         if watchdog is not None:
             watchdog.cancel()
@@ -657,13 +702,43 @@ def _run_session(
     print(json.dumps(summary, sort_keys=True))
 
     # Never interleaved with the archive-lifecycle ordering above -- the
-    # heartbeat only observes state, it does not participate in it. This
-    # plan's path is the clean one: 03-03 owns the unclean-exit terminal
-    # state, so the status file is removed only when the archive itself
-    # closed cleanly; otherwise it is left in place (still stale-detectable
-    # by a later `telemetry-status` run) rather than erased.
+    # heartbeat only observes state, it does not participate in it. Stop
+    # the publisher's periodic thread FIRST, before the terminal write
+    # below, so a periodic `capturing` tick can never race ahead of it and
+    # overwrite the terminal state a moment later (03-04's key_link).
     publisher.join(timeout=_SHUTDOWN_JOIN_TIMEOUT_S)
-    if archive_closed_cleanly:
+
+    failing_conditions = []
+    if capture_failed:
+        failing_conditions.append("capture_loop_exception")
+    if not archive_closed_cleanly:
+        failing_conditions.append("archive_not_closed_cleanly")
+    if fan_out.counters.archive_write_failure:
+        failing_conditions.append("archive_write_failure")
+    if fan_out.counters.archive_overflow:
+        failing_conditions.append("archive_overflow")
+
+    if failing_conditions:
+        # A bad ending leaves a status file naming why, and does NOT
+        # remove it -- a human arriving later must find the reason, not an
+        # absence (03-04, T-03-16). This can fire even when the archive
+        # itself closed cleanly (e.g. the capture loop raised before a
+        # single frame was submitted).
+        publisher.publish_now(
+            HeartbeatSnapshot(
+                state=STATE_STOPPED_ERROR,
+                detail=f"session ended badly: {', '.join(failing_conditions)}",
+                extras={
+                    "capture_loop_exception": capture_failed,
+                    "archive_closed_cleanly": archive_closed_cleanly,
+                    "archive_write_failure": fan_out.counters.archive_write_failure,
+                    "archive_overflow": fan_out.counters.archive_overflow,
+                },
+            )
+        )
+    else:
+        # 03-01's clean path: absence, not a sixth state, says "not
+        # running".
         publisher.remove()
 
     return 0 if archive_closed_cleanly else 1
@@ -673,6 +748,7 @@ def main(
     argv=None,
     *,
     check_disk_space_fn: Callable[..., DiskReading] = check_disk_space,
+    wait_for_hardware_fn: Callable[..., bool] = wait_for_hardware,
 ) -> None:
     args = _parse_args(argv)
     _configure_logging(args.log_level)
@@ -748,6 +824,13 @@ def main(
         db = load_dbc(config.dbc_path)
     except DbcLoadError as exc:
         logger.error("failed to load DBC: %s", exc)
+        publisher.publish_now(
+            HeartbeatSnapshot(
+                state=STATE_STOPPED_ERROR,
+                detail=f"failed to load DBC: {exc}",
+                extras={},
+            )
+        )
         raise SystemExit(1) from exc
 
     dictionary = build_id_dictionary(db, dbc_path=config.dbc_path)
@@ -756,7 +839,47 @@ def main(
         allowlist = resolve_allowlist(config, db)
     except LoggerConfigError as exc:
         logger.error("failed to resolve telemetry allowlist: %s", exc)
+        publisher.publish_now(
+            HeartbeatSnapshot(
+                state=STATE_STOPPED_ERROR,
+                detail=f"failed to resolve telemetry allowlist: {exc}",
+                extras={},
+            )
+        )
         raise SystemExit(1) from exc
+
+    # OPS-01 boot race: MUST run before `_run_session` -- `_run_session`
+    # calls `new_session()` first, and `HardwareFrameSource.captured_
+    # frames()` lazily calls `open()`, which fails fast by design with no
+    # retry. Waiting inside `_run_session` would leave an empty session
+    # directory behind on every unpowered boot. `--source synthetic` never
+    # calls this at all. A device disappearing between this successful
+    # wait and the real `open()` call inside `_run_session` is still
+    # possible; that narrow remaining race is handled by `_run_session`'s
+    # existing broad `except Exception` around the capture loop (which now
+    # results in a `stopped-error` terminal state), not by a second retry
+    # layer here.
+    if args.source == "hardware":
+        def _on_waiting(attempt: int, backoff_s: float) -> None:
+            publisher.publish_now(
+                HeartbeatSnapshot(
+                    state=STATE_WAITING_FOR_HARDWARE,
+                    detail=f"attempt {attempt}, retrying in {backoff_s:.1f}s",
+                    extras={"attempt": attempt, "backoff_s": backoff_s},
+                )
+            )
+
+        hardware_present = wait_for_hardware_fn(
+            stop_event=stop_event, on_waiting=_on_waiting
+        )
+        if not hardware_present:
+            # stop_event fired while waiting -- an operator stopping a
+            # logger that never saw hardware is a clean stop, not an
+            # error: no session was ever created, so remove the status
+            # file (absence, not a sixth state, says "not running") and
+            # return without calling _run_session at all.
+            publisher.remove()
+            return
 
     exit_code = _run_session(
         config,
