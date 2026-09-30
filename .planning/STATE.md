@@ -4,15 +4,15 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 3
 current_phase_name: Unattended On-Car Operation
-status: planning
-stopped_at: Phase 3 planning resumed at 5/7 plans
-last_updated: "2026-08-09T01:30:00.000Z"
-last_activity: 2026-08-09
-last_activity_desc: Phase 3 planning resumed (5/7 plans; writing 03-06, 03-07)
+status: planned
+stopped_at: Phase 3 planning complete and plan-checker approved; session resumed, ready to execute
+last_updated: "2026-09-29T00:00:00.000Z"
+last_activity: 2026-09-29
+last_activity_desc: Session resumed; Phase 3 planned (7 plans, 5 waves), no execution started
 progress:
-  total_phases: 3
+  total_phases: 10
   completed_phases: 3
-  total_plans: 24
+  total_plans: 31
   completed_plans: 24
 ---
 
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-01)
 
 **Core value:** The pit sees what the car is doing while it is doing it, and no run's data is ever lost.
-**Current focus:** Phase 02 — python-ground-station-and-dashboard-cutover
+**Current focus:** Phase 03 — Unattended On-Car Operation
 
 ## Current Position
 
 Phase: 3 — Unattended On-Car Operation
-Plan: Planning in progress — 5 of 7 PLAN.md files written
-Status: Planning (NOT execution — no source file touched; suite unchanged at 323 passing)
-Last activity: 2026-08-09 — session resumed; writing 03-06 and 03-07, then ROADMAP, validation, plan-checker
+Plan: Planned — all 7 PLAN.md files written, plan-checker APPROVED (12 PASS, 1 SKIP)
+Status: Ready to execute (NOT started — no source file touched; suite unchanged at 323 passing)
+Last activity: 2026-09-29 — session resumed; planning confirmed complete, awaiting `/gsd-execute-phase 3`
 
-Progress: [██████████] 100%
+Progress: [███░░░░░░░] 30% (3 of 10 phases complete)
 
 ## Performance Metrics
 
@@ -197,11 +197,14 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-08T17:39:15.592Z
-Stopped at: Completed 02-04-PLAN.md (Phase 2 complete)
-Resume file: None
+Last session: 2026-09-29
+Stopped at: Session resumed — Phase 3 planning confirmed complete and checker-approved; no execution started
+Resume file: `.planning/phases/03-unattended-on-car-operation/.continue-here.md`
 
-**Resume with:** `/gsd-autonomous` to continue with Phase 1.
+**Resume with:** `/gsd-execute-phase 3`. Expect a blocking package checkpoint early in wave 2
+(`03-03` Task 1, `autonomous: false`) — the planned default answer is `defer`, shipping
+`NullLedIndicator` only rather than adding `smbus2` + `RPi.GPIO` and re-triggering the package
+legitimacy gate.
 
 Phase 0 closed with a signed **no-go**: the live path carries a named 12-message critical-channel
 subset (74.62 kbit/s), not the full bus. Verification passed 4/4 must-haves with GATE-01/02/03 all
