@@ -256,6 +256,82 @@ def test_link_udp_remote_port_out_of_range_raises(tmp_path, base_config_dict):
         load_logger_config(path)
 
 
+class TestOpsConfig:
+    """03-01 (OPS-02/OPS-03): the `ops` block extension to the existing
+    typed, fail-closed loader. Loaded through `load_logger_config` against
+    a `tmp_path` JSON file exactly like every other test in this file, so
+    the real top-level key diffing is exercised, not a shortcut around it.
+    """
+
+    def test_ops_block_absent_raises(self, tmp_path, base_config_dict):
+        mutated = copy.deepcopy(base_config_dict)
+        del mutated["ops"]
+        path = _write_config(tmp_path, mutated)
+        with pytest.raises(LoggerConfigError, match="ops"):
+            load_logger_config(path)
+
+    def test_unknown_key_inside_ops_raises(self, tmp_path, base_config_dict):
+        mutated = copy.deepcopy(base_config_dict)
+        mutated["ops"]["not_a_real_key"] = 1
+        path = _write_config(tmp_path, mutated)
+        with pytest.raises(LoggerConfigError, match="not_a_real_key"):
+            load_logger_config(path)
+
+    @pytest.mark.parametrize("bad_value", [0, -1, "not-a-number"])
+    def test_heartbeat_interval_s_invalid_raises(self, tmp_path, base_config_dict, bad_value):
+        mutated = copy.deepcopy(base_config_dict)
+        mutated["ops"]["heartbeat_interval_s"] = bad_value
+        path = _write_config(tmp_path, mutated)
+        with pytest.raises(LoggerConfigError, match="heartbeat_interval_s"):
+            load_logger_config(path)
+
+    def test_heartbeat_stale_after_s_equal_to_interval_raises(self, tmp_path, base_config_dict):
+        mutated = copy.deepcopy(base_config_dict)
+        mutated["ops"]["heartbeat_stale_after_s"] = mutated["ops"]["heartbeat_interval_s"]
+        path = _write_config(tmp_path, mutated)
+        with pytest.raises(LoggerConfigError, match="heartbeat_stale_after_s"):
+            load_logger_config(path)
+
+    def test_heartbeat_stale_after_s_below_interval_raises(self, tmp_path, base_config_dict):
+        mutated = copy.deepcopy(base_config_dict)
+        mutated["ops"]["heartbeat_stale_after_s"] = (
+            mutated["ops"]["heartbeat_interval_s"] / 2
+        )
+        path = _write_config(tmp_path, mutated)
+        with pytest.raises(LoggerConfigError, match="heartbeat_stale_after_s"):
+            load_logger_config(path)
+
+    def test_disk_warn_free_bytes_not_positive_int_raises(self, tmp_path, base_config_dict):
+        mutated = copy.deepcopy(base_config_dict)
+        mutated["ops"]["disk_warn_free_bytes"] = -1
+        path = _write_config(tmp_path, mutated)
+        with pytest.raises(LoggerConfigError, match="disk_warn_free_bytes"):
+            load_logger_config(path)
+
+    def test_disk_critical_free_bytes_equal_to_warn_raises(self, tmp_path, base_config_dict):
+        mutated = copy.deepcopy(base_config_dict)
+        mutated["ops"]["disk_critical_free_bytes"] = mutated["ops"]["disk_warn_free_bytes"]
+        path = _write_config(tmp_path, mutated)
+        with pytest.raises(LoggerConfigError, match="disk_critical_free_bytes"):
+            load_logger_config(path)
+
+    def test_disk_critical_free_bytes_above_warn_raises(self, tmp_path, base_config_dict):
+        mutated = copy.deepcopy(base_config_dict)
+        mutated["ops"]["disk_critical_free_bytes"] = (
+            mutated["ops"]["disk_warn_free_bytes"] + 1
+        )
+        path = _write_config(tmp_path, mutated)
+        with pytest.raises(LoggerConfigError, match="disk_critical_free_bytes"):
+            load_logger_config(path)
+
+    def test_ops_config_round_trips_through_typed_loader(self):
+        config = load_logger_config(LoggerConfig.default_path())
+        assert config.ops.heartbeat_interval_s > 0
+        assert config.ops.heartbeat_stale_after_s > config.ops.heartbeat_interval_s
+        assert config.ops.disk_critical_free_bytes < config.ops.disk_warn_free_bytes
+        assert config.ops.heartbeat_path.is_absolute()
+
+
 def test_malformed_json_raises(tmp_path):
     path = tmp_path / "logger.json"
     path.write_text("{not valid json", encoding="utf-8")

@@ -57,6 +57,7 @@ enormous).
 import json
 import logging
 import os
+import sys
 import threading
 import time
 from dataclasses import dataclass
@@ -91,6 +92,11 @@ REASON_STALE = "stale"
 _IMPLAUSIBLE_AGE_S = 86400.0
 
 _DEFAULT_THREAD_NAME = "ops-heartbeat"
+
+# Windows-only retry budget for the final `os.replace` below (see
+# `_replace_with_windows_retry`'s docstring for why this exists).
+_WINDOWS_REPLACE_RETRY_ATTEMPTS = 50
+_WINDOWS_REPLACE_RETRY_DELAY_S = 0.001
 
 
 class HeartbeatReadError(Exception):
@@ -160,7 +166,33 @@ def write_heartbeat(
         f.write(data)
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp_path, path)
+    _replace_with_windows_retry(tmp_path, path)
+
+
+def _replace_with_windows_retry(src: Path, dst: Path) -> None:
+    """`os.replace(src, dst)`, with a short bounded retry scoped to Windows
+    only. Observed live this session under `tests/test_ops_heartbeat.py`'s
+    concurrent-reader test: NTFS can transiently deny a rename over a
+    destination another thread has open at that exact instant, a race
+    POSIX `rename()` has no equivalent of (confirmed against
+    `Doc/library/os.rst`'s atomicity guarantee, which is what the car
+    actually relies on). This retry exists purely for Windows dev-box
+    testability under concurrent access -- it never changes behaviour on
+    Linux, the deployment target, where the `else` branch below is the
+    entire function."""
+    if sys.platform != "win32":
+        os.replace(src, dst)
+        return
+
+    last_exc: Optional[PermissionError] = None
+    for _ in range(_WINDOWS_REPLACE_RETRY_ATTEMPTS):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError as exc:
+            last_exc = exc
+            time.sleep(_WINDOWS_REPLACE_RETRY_DELAY_S)
+    raise last_exc
 
 
 def read_heartbeat(
