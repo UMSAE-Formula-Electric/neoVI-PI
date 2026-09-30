@@ -78,11 +78,11 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 
 - [ ] **OPS-01**: The logger starts automatically on power-up with no keyboard, screen, or login
 - [x] **OPS-02**: The logger exposes a heartbeat indicating it is alive and capturing
-- [ ] **OPS-03**: Remaining disk space is monitored and surfaced before it becomes critical
+- [x] **OPS-03**: Remaining disk space is monitored and surfaced before it becomes critical
 - [x] **OPS-04**: Captured data is segmented into discrete sessions rather than one unbounded file
 - [x] **OPS-05**: Channels, DBC path, alarm limits, and link settings are read from configuration, not hardcoded
 - [x] **OPS-06**: A `requirements.txt` (or equivalent) lets the system be installed on a clean machine
-- [ ] **OPS-07**: A written runbook covers starting a session, checking health, and retrieving data
+- [x] **OPS-07**: A written runbook covers starting a session, checking health, and retrieving data
 
 ### Archive Retrieval
 
@@ -184,11 +184,11 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | ALRM-05 | Phase 7 | Pending |
 | OPS-01 | Phase 3 | Pending |
 | OPS-02 | Phase 3 | Complete |
-| OPS-03 | Phase 3 | Pending |
+| OPS-03 | Phase 3 | Complete |
 | OPS-04 | Phase 1 | Complete |
 | OPS-05 | Phase 1 | Complete |
 | OPS-06 | Phase 1 | Complete |
-| OPS-07 | Phase 3 | Pending |
+| OPS-07 | Phase 3 | Complete |
 | SYNC-01 | Phase 8 | Pending |
 | SYNC-02 | Phase 8 | Pending |
 | SYNC-03 | Phase 8 | Pending |
@@ -209,6 +209,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 - **CAP-02** (no dropped frames at full rate) is proven in Phase 1 as a property of the capture path; **TEST-03** in Phase 5 makes that proof a repeatable automated soak that also reports transmitted and dropped counts on the live path.
 - **CAP-01 was deliberately left Pending at the Phase 1 → 2 boundary (user decision, 01-CONTEXT.md `<deferred>`), and completed in Phase 2 as planned.** Phase 1 satisfied its "single implementation captures both buses" half; its "duplicate implementation removed from the repository" half was deliberately deferred — the four legacy modules were kept through Phase 1 for rollback safety. Phase 2 plan 04 deleted all four (alongside the Node server, GND-03), re-ran the deletion blast-radius import check immediately beforehand, and added a regression test (`tests/test_legacy_cutover.py`) that fails if any of the deleted paths reappears, is imported again, or is documented again. Both halves of CAP-01 are now true. (A prior plan marked this row Complete in error before the deletion landed; corrected in 01-13, closed for real in 02-04.)
 - **Phase 9 (RFD900x Radio Integration) carries no requirements by design** — every v1 requirement is satisfiable with loopback, PTY, or UDP transports, so unpurchased radio hardware cannot block v1 completion.
+- **OPS-01's software side is complete as of Phase 3 plan 06** (a version-controlled systemd unit, a one-command install script, and a hand-rolled structural lint verified zero-warning against real `systemd-analyze verify`), but its boot behaviour is unproven until the single Pi bring-up verification passes on real hardware. The procedure and its pass conditions live in `docs/runbook.md`'s "Pi bring-up" section — pointed at from here rather than restated, so there is one copy of it. This mirrors how **ARCH-03** is held open against `docs/power-pull-test.md`: a structural/automated proof is necessary but not sufficient, and the requirement stays Pending until the physical procedure itself has actually been run and its result recorded.
 
 ---
 *Requirements defined: 2026-07-30*
