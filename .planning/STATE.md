@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: unattended-on-car-operation
 status: gaps_found
-stopped_at: Phase 03 executed 7/7 and verified — gaps_found (success criterion 2 FAILED, LED driver plan missing)
-last_updated: "2026-09-30T07:20:00.000Z"
+stopped_at: "Completed 03-08-PLAN.md (gap closure: membrane LED driver)"
+last_updated: "2026-09-30T18:18:26.262Z"
 last_activity: 2026-09-30
-last_activity_desc: Phase 03 executed 7/7, code-reviewed, verified gaps_found; LED driver plan outstanding
+last_activity_desc: executed 7/7, code review (CR-01/WR-01/WR-04 fixed), verification found 1 gap
 progress:
-  total_phases: 10
+  total_phases: 4
   completed_phases: 3
-  total_plans: 31
-  completed_plans: 31
+  total_plans: 33
+  completed_plans: 32
 ---
 
 # Project State
@@ -32,7 +32,7 @@ Plan: 7 of 7 executed; phase NOT complete
 Status: gaps_found — success criterion 2 FAILED (see 03-VERIFICATION.md). Resume: `/gsd-plan-phase 3 --gaps`
 Last activity: 2026-09-30 — executed 7/7, code review (CR-01/WR-01/WR-04 fixed), verification found 1 gap
 
-Progress: [███░░░░░░░] 30% (3 of 10 phases complete — phase 3 pending gap closure)
+Progress: [██████████] 97% (3 of 10 phases complete — phase 3 pending gap closure)
 
 ## Performance Metrics
 
@@ -89,6 +89,7 @@ Progress: [███░░░░░░░] 30% (3 of 10 phases complete — phas
 | Phase 03 P05 | 40min | 2 tasks | 4 files |
 | Phase 03 P06 | 25min | 2 tasks | 3 files |
 | Phase 03 P07 | 50min | 3 tasks | 3 files |
+| Phase 03 P08 | 20min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -175,6 +176,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 3-06, 2026-09-30] Stop-timeout guard test passes vacuously against the shipped unit (declares no TimeoutStopSec) by design -- guards a future edit against a value shorter than 2x _SHUTDOWN_JOIN_TIMEOUT_S, docstring states this explicitly so vacuous passage is never mistaken for proof
 - [Phase ?]: OPS-01 left Pending after this phase's final plan (03-07) -- its software side (systemd unit, install script, structural lint from 03-06) is complete, but nothing runnable off real hardware can prove a car boots into it unattended. Mirrors ARCH-03's precedent against docs/power-pull-test.md; the Pi bring-up procedure lives in docs/runbook.md.
 - [Phase ?]: OPS-03 and OPS-07 marked Complete in 03-07 after a recorded re-grep gate confirmed sole/last claimant status -- docs/runbook.md ships all eight required sections plus a drift-proof coverage test (tests/test_runbook_coverage.py) that derives every expected string from source rather than hardcoding any of them.
+- [Phase ?]: 03-08: RPi.GPIO resolved-not-needed against the full vendor membrane.py (not just its first 30 lines) -- all GPIO calls are input-only
+- [Phase ?]: 03-08: smbus2==0.6.1 pinned behind sys_platform=="linux" marker; MembraneLedIndicator wired into telemetry.logger.cli via --led-kind, closing 03-VERIFICATION.md's criterion-2 gap to unverified-pending-hardware (not VERIFIED)
 
 ### Pending Todos
 
@@ -224,8 +227,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-30T06:36:04.472Z
-Stopped at: Completed 03-07-PLAN.md (final plan of phase 03-unattended-on-car-operation)
+Last session: 2026-09-30T18:18:26.242Z
+Stopped at: Completed 03-08-PLAN.md (gap closure: membrane LED driver)
 Resume file: None
 
 **Resume with:** `/gsd-execute-phase 3`. Expect a blocking package checkpoint early in wave 2
