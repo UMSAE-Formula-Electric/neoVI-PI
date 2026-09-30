@@ -35,6 +35,12 @@ from telemetry.ops.heartbeat import (
     HeartbeatSnapshot,
     read_heartbeat,
 )
+from telemetry.ops.led import NullLedIndicator
+from telemetry.ops.membrane_led import (
+    DEFAULT_LED_ADDRESS,
+    LED_KIND_MEMBRANE,
+    MembraneLedIndicator,
+)
 from telemetry.wire.dictionary import build_id_dictionary
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -887,3 +893,111 @@ def test_config_load_failure_publishes_no_status_file(tmp_path, monkeypatch):
     # HeartbeatPublisher was ever constructed, so no file exists at all,
     # including at the path this run's own CLI flag would have named.
     assert not heartbeat_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# 03-08 (OPS-02 gap closure): --led-kind membrane reaches real register
+# writes through the real main() chain -- nothing in the heartbeat chain
+# is mocked; only the I2C bus at the very end is a recording fake.
+# ---------------------------------------------------------------------------
+
+
+class _RecordingBusForEndToEnd:
+    """Records every call as `(method, address, register, payload)` --
+    the same shape `tests/test_ops_membrane_led.py` uses, duplicated here
+    deliberately rather than imported: this file's job is to prove the
+    real `main()` chain reaches the bus at all, not to re-verify
+    `MembraneLedIndicator`'s own register sequences (that is
+    `test_ops_membrane_led.py`'s job)."""
+
+    def __init__(self):
+        self.calls = []
+
+    def write_byte_data(self, address, register, value):
+        self.calls.append(("write_byte_data", address, register, value))
+
+    def write_i2c_block_data(self, address, register, data):
+        self.calls.append(("write_i2c_block_data", address, register, list(data)))
+
+    def close(self):
+        self.calls.append(("close", None, None, None))
+
+
+def test_end_to_end_membrane_kind_produces_real_register_writes_through_main(
+    tmp_path,
+):
+    """Runs `telemetry.logger.cli.main()` in-process with the synthetic
+    source, `--led-kind membrane`, and an injected fake-bus factory --
+    NO mocking of `HeartbeatPublisher`, no patching of `_drive_led`. The
+    assertion runs against the bus at the far end of the real chain:
+    main() builds the indicator, passes it to HeartbeatPublisher's led=,
+    which drives it at 1 Hz through the real _drive_led/set_state path.
+
+    This proves the register writes this code *intends* reach the bus
+    through the real chain -- it does NOT prove a light turns on (no I2C
+    bus, no LED driver, no panel exists on this dev box)."""
+    archive_root = tmp_path / "sessions"
+    heartbeat_path = tmp_path / "status.json"
+    config_path = _write_config_with_short_heartbeat(tmp_path, heartbeat_interval_s=0.02)
+
+    fake_bus = _RecordingBusForEndToEnd()
+
+    def _fake_led_factory(kind, *, bus=None):
+        if kind == LED_KIND_MEMBRANE:
+            return MembraneLedIndicator(bus=fake_bus)
+        return NullLedIndicator()
+
+    argv = [
+        "--config",
+        str(config_path),
+        "--source",
+        "synthetic",
+        "--duration-s",
+        # SyntheticFrameSource has no per-frame real-time throttle
+        # (test_logger_cli_ops.py's own established documentation of this
+        # fact, see `_run_for_a_controlled_real_window` above) -- a short
+        # `--duration-s` can finish generating its (small) frame count
+        # faster than even one 0.02s heartbeat tick, racing the publisher
+        # thread's first wait() against the capture loop's own finish. A
+        # longer duration generates proportionally more frames, giving
+        # enough real CPU time to guarantee several ticks land before the
+        # run ends, with wide margin.
+        "5.0",
+        "--archive-root",
+        str(archive_root),
+        "--heartbeat-path",
+        str(heartbeat_path),
+        "--led-kind",
+        LED_KIND_MEMBRANE,
+    ]
+
+    main(
+        argv,
+        check_disk_space_fn=_constant_disk_check(DISK_OK),
+        build_led_indicator_fn=_fake_led_factory,
+    )
+
+    # The measured initialisation sequence (03-RESEARCH.md), performed at
+    # MembraneLedIndicator construction, must be the first three calls.
+    assert fake_bus.calls[:3] == [
+        ("write_byte_data", DEFAULT_LED_ADDRESS, 0x00, 0x01),
+        ("write_i2c_block_data", DEFAULT_LED_ADDRESS, 0x26, [0x03] * 30),
+        ("write_byte_data", DEFAULT_LED_ADDRESS, 0x25, 0x00),
+    ]
+
+    full_scale_green_block = [0] * 30
+    for led_index in range(10):
+        full_scale_green_block[3 * led_index + 1] = 255
+
+    green_block_writes = [
+        call
+        for call in fake_bus.calls
+        if call[0] == "write_i2c_block_data"
+        and call[2] == 0x01
+        and call[3] == full_scale_green_block
+    ]
+    assert green_block_writes, (
+        "expected at least one full-scale-green PWM block write reaching "
+        "the bus through the real main() -> HeartbeatPublisher -> "
+        "MembraneLedIndicator chain"
+    )

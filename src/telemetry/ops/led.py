@@ -44,12 +44,16 @@ still says `/boot/config.txt`, wrong for current Raspberry Pi OS Bookworm
 images, which moved the boot partition mount point). Any install script
 that edits this file must target `/boot/firmware/config.txt`.
 
-`NullLedIndicator` below remains the only implementation this plan (03-03)
-ships -- writing a concrete `MembraneLedIndicator` needs real neoVI PI
-hardware to verify and is explicitly a follow-up plan's job, not this
-one's. A future `MembraneLedIndicator` satisfying this same Protocol is
-how the real driver gets added later -- no call site above this module
-(namely `HeartbeatPublisher`) will need to change.
+`NullLedIndicator` below was the only implementation 03-03 shipped.
+**03-08 adds the concrete driver**: `telemetry.ops.membrane_led.
+MembraneLedIndicator` satisfies this same Protocol and is wired into
+`telemetry.logger.cli`'s `HeartbeatPublisher` construction behind a
+`--led-kind` flag (default: this module's no-op) -- exactly the "no call
+site above this module needs to change" property this docstring predicted.
+`03-VERIFICATION.md` recorded the no-op-only state as success criterion
+2's FAILING gap; 03-08 moves that criterion to
+*unverified-pending-hardware*, not VERIFIED -- there is still no I2C bus,
+no LED driver, and no panel on any dev box this project has touched.
 
 The neoVI PI's specification page separately lists "10 programmable
 tri-color LEDs" among its hardware features; the exact LED driver chip's
@@ -85,19 +89,24 @@ class LedIndicator(Protocol):
 
 
 class NullLedIndicator:
-    """The no-op `LedIndicator` this plan (03-03) ships. Both methods are
-    unconditionally safe to call, in any order, any number of times,
-    including after `close()` -- `HeartbeatPublisher` relies on exactly
-    that to keep a missing/broken physical indicator from ever being able
-    to affect the status file or the publisher thread.
+    """The no-op `LedIndicator` this plan (03-03) ships, and still the
+    default kind `telemetry.logger.cli`'s `--led-kind` flag selects. Both
+    methods are unconditionally safe to call, in any order, any number of
+    times, including after `close()` -- `HeartbeatPublisher` relies on
+    exactly that to keep a missing/broken physical indicator from ever
+    being able to affect the status file or the publisher thread. It is
+    also `build_led_indicator`'s fallback (`telemetry.ops.membrane_led`)
+    when constructing the real driver fails for any reason.
 
-    A concrete `MembraneLedIndicator` is approved and wanted (see module
-    docstring) but is a follow-up plan's job, not this one's -- it needs
-    real neoVI PI hardware to verify. It would target the I2C bus 10 /
-    address 0x3c LED driver via `smbus2` (approved), pending the follow-up
-    plan's confirmation of whether `RPi.GPIO` (descoped here) also turns
-    out to be needed, and the `i2c_vc` overlay in
-    `/boot/firmware/config.txt` (user-confirmed for this car)."""
+    **A concrete `MembraneLedIndicator` now exists** (03-08,
+    `telemetry.ops.membrane_led`), targeting the I2C bus 10 / address
+    0x3c LED driver via `smbus2` (approved and pinned behind a linux
+    platform marker). `RPi.GPIO` was confirmed, against the full vendor
+    script (not just its first 30 lines), to touch only the two input
+    buttons and no LED path -- it is resolved-not-needed, not added. The
+    `i2c_vc` overlay in `/boot/firmware/config.txt` (user-confirmed for
+    this car) and the `i2c` group grant the service user needs are both
+    03-09's job, not this module's."""
 
     def set_state(self, state: str) -> None:
         return None

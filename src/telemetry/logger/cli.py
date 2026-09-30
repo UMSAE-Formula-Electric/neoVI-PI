@@ -66,6 +66,17 @@ heartbeat never re-derives or re-counts anything the existing counter
 dataclasses already own (03-CONTEXT.md). On a clean exit the status file
 is removed — its absence, not a sixth state, is what says "not running".
 
+**03-08 (OPS-02 gap closure): `--led-kind` selects the physical indicator
+driven behind that same heartbeat.** Built via
+`telemetry.ops.membrane_led.build_led_indicator` (injectable as
+`build_led_indicator_fn`) and passed as `HeartbeatPublisher`'s `led=`
+argument at construction, above — `null` (the default) drives nothing;
+`membrane` drives the neoVI PI's I2C membrane LED panel. A CLI flag
+rather than a config field on purpose: this is a hardware-presence choice
+structurally identical to `--source hardware|synthetic`, and the car's
+own choice belongs in 03-09's version-controlled unit file, not a config
+edit.
+
 **Phase 3 (OPS-03): a two-stage disk-space check against `archive.root_dir`**
 via `telemetry.ops.disk_monitor.check_disk_space`, run once in `main()`
 right after the `booting` heartbeat publish and BEFORE `_run_session` is
@@ -164,6 +175,11 @@ from telemetry.ops.heartbeat import (
     HeartbeatPublisher,
     HeartbeatSnapshot,
 )
+from telemetry.ops.membrane_led import (
+    LED_KIND_NULL,
+    VALID_LED_KINDS,
+    build_led_indicator,
+)
 from telemetry.synth.entropy import BRACKET_NAMES
 from telemetry.synth.generator import SyntheticFrameSource
 from telemetry.wire.dictionary import DbcLoadError, build_id_dictionary, load_dbc
@@ -246,6 +262,21 @@ def _parse_args(argv=None) -> argparse.Namespace:
         default=DEFAULT_BRACKET,
         choices=list(BRACKET_NAMES),
         help="Entropy bracket for --source synthetic (ignored otherwise).",
+    )
+    parser.add_argument(
+        "--led-kind",
+        default=LED_KIND_NULL,
+        choices=sorted(VALID_LED_KINDS),
+        help=(
+            "Physical status-LED driver behind HeartbeatPublisher's led= "
+            "seam (OPS-02, 03-08): 'null' (default) drives nothing. "
+            "'membrane' drives the neoVI PI's I2C membrane LED panel via "
+            "telemetry.ops.membrane_led.MembraneLedIndicator. A CLI flag, "
+            "not a config/logger.json field, on purpose -- this is a "
+            "hardware-presence choice structurally identical to --source "
+            "hardware|synthetic; the car's own choice belongs in the "
+            "version-controlled unit file's start command (03-09)."
+        ),
     )
     parser.add_argument(
         "--duration-s",
@@ -776,6 +807,7 @@ def main(
     *,
     check_disk_space_fn: Callable[..., DiskReading] = check_disk_space,
     wait_for_hardware_fn: Callable[..., bool] = wait_for_hardware,
+    build_led_indicator_fn: Callable[..., object] = build_led_indicator,
 ) -> None:
     args = _parse_args(argv)
     _configure_logging(args.log_level)
@@ -795,6 +827,14 @@ def main(
 
     config = _apply_overrides(config, args)
 
+    # 03-08: build the physical LED indicator BEFORE the publisher, so it
+    # can be passed as led= at construction -- this is the key link
+    # 03-VERIFICATION.md's gap required; without it, MembraneLedIndicator
+    # is one more artifact that exists and drives nothing. Falls back
+    # loudly to the no-op indicator on any construction failure (T-03-31),
+    # so a missing/broken I2C bus can never stop the logger from logging.
+    led_indicator = build_led_indicator_fn(args.led_kind)
+
     # Config load is the earliest point ops.heartbeat_path is known -- a
     # config failure above produces NO status file at all. That is honest:
     # the runbook (03-07) must say so, not invent a fallback path.
@@ -803,6 +843,7 @@ def main(
         interval_s=config.ops.heartbeat_interval_s,
         stop_event=stop_event,
         snapshot_fn=lambda: HeartbeatSnapshot(state=STATE_BOOTING, detail=None, extras={}),
+        led=led_indicator,
     )
     publisher.publish_now(publisher.snapshot_fn())
 
