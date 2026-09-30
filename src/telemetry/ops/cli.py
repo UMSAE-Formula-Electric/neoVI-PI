@@ -62,8 +62,11 @@ from typing import Callable, Dict, Mapping, Optional, Tuple
 from telemetry.logger.config import LoggerConfig, LoggerConfigError, load_logger_config
 from telemetry.ops.heartbeat import (
     HEARTBEAT_STATES,
+    STATE_BOOTING,
     STATE_CAPTURING,
     STATE_DEGRADED,
+    STATE_STOPPED_ERROR,
+    STATE_WAITING_FOR_HARDWARE,
     HeartbeatReadError,
     HeartbeatReading,
     read_heartbeat,
@@ -78,35 +81,50 @@ EXIT_NOT_RUNNING = 4
 EXIT_ERROR = 1
 
 # States that mean "fresh is good news" vs. "fresh but bad news" -- staleness
-# (any state) always overrides both and maps to EXIT_STALE.
-_FRESH_OK_STATES = frozenset({"booting", "waiting-for-hardware", "capturing"})
-_FRESH_BAD_STATES = frozenset({"degraded", "stopped-error"})
+# (any state) always overrides both and maps to EXIT_STALE. Built from the
+# imported constants, not hand-typed literals, so a renamed state constant
+# at the source is caught here rather than silently falling through
+# `_exit_code_for` into the EXIT_ERROR catch-all.
+_FRESH_OK_STATES = frozenset({STATE_BOOTING, STATE_WAITING_FOR_HARDWARE, STATE_CAPTURING})
+_FRESH_BAD_STATES = frozenset({STATE_DEGRADED, STATE_STOPPED_ERROR})
+
+_missing_fresh_state = set(HEARTBEAT_STATES) - (_FRESH_OK_STATES | _FRESH_BAD_STATES)
+if _missing_fresh_state:
+    # Mirrors the `_missing_state_info` guard below -- a renamed or added
+    # state constant must fail at import, not silently fall through
+    # `_exit_code_for` into the EXIT_ERROR catch-all.
+    raise RuntimeError(
+        "telemetry.ops.cli's _FRESH_OK_STATES/_FRESH_BAD_STATES are missing "
+        f"entries for {sorted(_missing_fresh_state)} present in "
+        "telemetry.ops.heartbeat.HEARTBEAT_STATES -- classify a new "
+        "heartbeat state as fresh-ok or fresh-bad before shipping it"
+    )
 
 # One (meaning, next_action) pair per state, keyed by the exact names in
 # HEARTBEAT_STATES -- validated against that tuple immediately below, so a
 # sixth state landing there with no entry here fails at import, not at
 # render time.
 _STATE_INFO: Dict[str, Tuple[str, str]] = {
-    "booting": (
+    STATE_BOOTING: (
         "the logger has started and is loading its configuration and DBC.",
         "expected to last well under a second -- if it persists, check the "
         "journal (journalctl -u telemetry-logger) for the reason.",
     ),
-    "waiting-for-hardware": (
+    STATE_WAITING_FOR_HARDWARE: (
         "the logger is alive and retrying -- the CAN bus is most likely "
         "not powered yet.",
         "this is the normal power-up sequence on this car, not a fault; it "
         "clears by itself once the bus comes up.",
     ),
-    "capturing": (
+    STATE_CAPTURING: (
         "the logger is recording.",
         "read the evidence line below to confirm frames are actually moving.",
     ),
-    "degraded": (
+    STATE_DEGRADED: (
         "still recording, but something needs attention.",
         "see the detail line below for what.",
     ),
-    "stopped-error": (
+    STATE_STOPPED_ERROR: (
         "the logger stopped and did not finish cleanly -- this session's "
         "archive will have no completion marker.",
         "check the journal (journalctl -u telemetry-logger) for the reason.",
