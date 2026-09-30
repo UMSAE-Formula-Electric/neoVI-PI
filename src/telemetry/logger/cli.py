@@ -65,6 +65,22 @@ once the archive runner and telemetry pipeline are already running. The
 heartbeat never re-derives or re-counts anything the existing counter
 dataclasses already own (03-CONTEXT.md). On a clean exit the status file
 is removed — its absence, not a sixth state, is what says "not running".
+
+**Phase 3 (OPS-03): a two-stage disk-space check against `archive.root_dir`**
+via `telemetry.ops.disk_monitor.check_disk_space`, run once in `main()`
+right after the `booting` heartbeat publish and BEFORE `_run_session` is
+ever called — after that call `new_session()` has already created a
+session directory, and "refused to start a new session" would no longer be
+true. Every start logs the measured free bytes, path, and band, in all
+three bands. A `critical` reading publishes a final `stopped-error`
+heartbeat naming both figures and exits non-zero with no session created;
+`warn` and `ok` both proceed. `_run_session`'s existing `snapshot_fn`
+closure re-runs the same check on every heartbeat tick and reports
+`degraded` (never `stopped-error`, never a stopped run) while a `warn` or
+`critical` band persists mid-run — a run already in progress is NEVER
+stopped by this check and NOTHING under this module ever deletes, rotates,
+or prunes a session (03-CONTEXT.md's locked decision, rejecting
+auto-pruning outright as contrary to this project's core value).
 """
 
 import argparse
@@ -77,7 +93,7 @@ import threading
 import time
 from dataclasses import replace
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from telemetry.archive.runner import STOP as ARCHIVE_RUNNER_STOP
 from telemetry.archive.runner import ArchiveRunner
@@ -97,9 +113,17 @@ from telemetry.logger.config import (
 )
 from telemetry.logger.pipeline import TelemetryPipeline
 from telemetry.measure.config import GateConfig, GateConfigError, load_gate_config
+from telemetry.ops.disk_monitor import (
+    DISK_CRITICAL,
+    DISK_OK,
+    DiskReading,
+    check_disk_space,
+)
 from telemetry.ops.heartbeat import (
     STATE_BOOTING,
     STATE_CAPTURING,
+    STATE_DEGRADED,
+    STATE_STOPPED_ERROR,
     HeartbeatPublisher,
     HeartbeatSnapshot,
 )
@@ -113,6 +137,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_SYNTHETIC_DURATION_S = 5.0
 DEFAULT_BRACKET = "typical"
 _SHUTDOWN_JOIN_TIMEOUT_S = 10.0
+
+# A 1 Hz heartbeat tick must not produce a 1 Hz loud log while a non-ok disk
+# band persists -- rate-limit the WARNING/CRITICAL log to at most once per
+# this many seconds per persisting band, always logging immediately on a
+# band transition regardless of this interval.
+_DISK_WARN_LOG_INTERVAL_S = 60.0
 
 
 def _configure_logging(level_name: str) -> None:
@@ -353,10 +383,27 @@ def _log_human_summary(summary: dict) -> None:
         logger.info("archive_marked_done=%s", summary["archive_marked_done"])
 
 
-def _run_session(config, args, db, dictionary, allowlist, stop_event, publisher) -> int:
+def _run_session(
+    config,
+    args,
+    db,
+    dictionary,
+    allowlist,
+    stop_event,
+    publisher,
+    *,
+    check_disk_space_fn: Callable[..., DiskReading] = check_disk_space,
+    now_fn: Callable[[], float] = time.monotonic,
+) -> int:
     """Everything from session creation through shutdown and the summary
     report. Returns the process exit code: 0 normally, 1 if the archive did
-    not close cleanly (the session is left without its `.done` marker)."""
+    not close cleanly (the session is left without its `.done` marker).
+
+    `check_disk_space_fn` and `now_fn` are both injectable, following this
+    project's established injectable-callable convention
+    (`telemetry.ground.cli`'s `now_fn`), so the OPS-03 mid-run disk recheck
+    and its log rate-limiting are unit-testable without touching the real
+    filesystem or a wall-clock sleep."""
     start_t = time.monotonic()
 
     session = new_session(config.archive.root_dir, config_hash=config.config_hash)
@@ -410,14 +457,23 @@ def _run_session(config, args, db, dictionary, allowlist, stop_event, publisher)
     # `03-CONTEXT.md`'s "the heartbeat READS these, it does not re-derive
     # them". A parked car legitimately reports 0 frames/s; that is not a
     # fault state, so it is surfaced as a plain number in `extras`, never
-    # mapped to `degraded` (03-03's terminal-state work owns that).
+    # mapped to `degraded` -- `degraded` here means a concrete fault the
+    # operator can act on (disk band, archive_overflow,
+    # archive_write_failure), not "nothing happened this tick".
     _heartbeat_tick_state = {
         "frames_submitted": fan_out.counters.frames_submitted,
-        "monotonic": time.monotonic(),
+        "monotonic": now_fn(),
+        # OPS-03: last band this closure actually emitted a loud log for,
+        # and when -- tracked here (not on a module/publisher attribute)
+        # since a fresh session must not inherit a previous session's rate
+        # limiter state. Reset to None whenever the band returns to `ok`,
+        # so leaving and re-entering a non-ok band always logs immediately.
+        "disk_last_logged_band": None,
+        "disk_last_logged_at": None,
     }
 
     def _capturing_snapshot() -> HeartbeatSnapshot:
-        now = time.monotonic()
+        now = now_fn()
         elapsed = now - _heartbeat_tick_state["monotonic"]
         current = fan_out.counters.frames_submitted
         frames_per_s = (
@@ -427,9 +483,57 @@ def _run_session(config, args, db, dictionary, allowlist, stop_event, publisher)
         )
         _heartbeat_tick_state["frames_submitted"] = current
         _heartbeat_tick_state["monotonic"] = now
+
+        # OPS-03 in-run recheck: attaches to this same tick, not a second
+        # timer thread -- the publisher already ticks at
+        # config.ops.heartbeat_interval_s. Never stops a session in
+        # progress and never deletes/rotates/prunes anything: a
+        # partially-written session is worth more than no session, and
+        # Phase 1's archive is crash-safe by design (03-CONTEXT.md).
+        disk_reading = check_disk_space_fn(
+            config.archive.root_dir,
+            warn_free_bytes=config.ops.disk_warn_free_bytes,
+            critical_free_bytes=config.ops.disk_critical_free_bytes,
+        )
+
+        state = STATE_CAPTURING
+        detail = None
+        if disk_reading.state != DISK_OK:
+            state = STATE_DEGRADED
+            detail = (
+                f"disk {disk_reading.state}: free_bytes={disk_reading.free_bytes}"
+            )
+
+            last_band = _heartbeat_tick_state["disk_last_logged_band"]
+            last_logged_at = _heartbeat_tick_state["disk_last_logged_at"]
+            band_changed = disk_reading.state != last_band
+            interval_elapsed = (
+                last_logged_at is None
+                or (now - last_logged_at) >= _DISK_WARN_LOG_INTERVAL_S
+            )
+            if band_changed or interval_elapsed:
+                log_fn = (
+                    logger.critical
+                    if disk_reading.state == DISK_CRITICAL
+                    else logger.warning
+                )
+                log_fn(
+                    "disk space %s during session %s: free_bytes=%d -- the "
+                    "run continues (never auto-deletes; a run in progress "
+                    "is never stopped by this check)",
+                    disk_reading.state,
+                    session.session_name,
+                    disk_reading.free_bytes,
+                )
+                _heartbeat_tick_state["disk_last_logged_band"] = disk_reading.state
+                _heartbeat_tick_state["disk_last_logged_at"] = now
+        else:
+            _heartbeat_tick_state["disk_last_logged_band"] = None
+            _heartbeat_tick_state["disk_last_logged_at"] = None
+
         return HeartbeatSnapshot(
-            state=STATE_CAPTURING,
-            detail=None,
+            state=state,
+            detail=detail,
             extras={
                 "session_name": session.session_name,
                 "frames_submitted": fan_out.counters.frames_submitted,
@@ -438,6 +542,8 @@ def _run_session(config, args, db, dictionary, allowlist, stop_event, publisher)
                 "archive_write_failure": fan_out.counters.archive_write_failure,
                 "archive_overflow": fan_out.counters.archive_overflow,
                 "frames_per_s": frames_per_s,
+                "disk_free_bytes": disk_reading.free_bytes,
+                "disk_state": disk_reading.state,
             },
         )
 
@@ -563,7 +669,11 @@ def _run_session(config, args, db, dictionary, allowlist, stop_event, publisher)
     return 0 if archive_closed_cleanly else 1
 
 
-def main(argv=None) -> None:
+def main(
+    argv=None,
+    *,
+    check_disk_space_fn: Callable[..., DiskReading] = check_disk_space,
+) -> None:
     args = _parse_args(argv)
     _configure_logging(args.log_level)
 
@@ -593,6 +703,47 @@ def main(argv=None) -> None:
     )
     publisher.publish_now(publisher.snapshot_fn())
 
+    # OPS-03 startup gate: MUST run before `_run_session` -- `_run_session`
+    # calls `new_session()`, after which a session directory already
+    # exists and "refused to start a new session" would no longer be true.
+    # Every start logs the free-space line in all three bands, not only
+    # when there is a problem (this is one of OPS-03's three required
+    # surfaces; the other two are the heartbeat state and 03-07's runbook
+    # check step, neither of which this plan marks complete).
+    disk_reading = check_disk_space_fn(
+        config.archive.root_dir,
+        warn_free_bytes=config.ops.disk_warn_free_bytes,
+        critical_free_bytes=config.ops.disk_critical_free_bytes,
+    )
+    logger.info(
+        "disk space at startup: measured_path=%s free_bytes=%d state=%s",
+        disk_reading.measured_path,
+        disk_reading.free_bytes,
+        disk_reading.state,
+    )
+    if disk_reading.state == DISK_CRITICAL:
+        logger.critical(
+            "disk free_bytes=%d is below critical threshold=%d -- refusing "
+            "to start a new session (never auto-deletes; free space or grow "
+            "the archive volume, this process will not do either)",
+            disk_reading.free_bytes,
+            config.ops.disk_critical_free_bytes,
+        )
+        publisher.publish_now(
+            HeartbeatSnapshot(
+                state=STATE_STOPPED_ERROR,
+                detail=(
+                    f"disk critical: free_bytes={disk_reading.free_bytes} "
+                    f"critical_threshold={config.ops.disk_critical_free_bytes}"
+                ),
+                extras={
+                    "disk_free_bytes": disk_reading.free_bytes,
+                    "disk_state": disk_reading.state,
+                },
+            )
+        )
+        raise SystemExit(1)
+
     try:
         db = load_dbc(config.dbc_path)
     except DbcLoadError as exc:
@@ -607,7 +758,16 @@ def main(argv=None) -> None:
         logger.error("failed to resolve telemetry allowlist: %s", exc)
         raise SystemExit(1) from exc
 
-    exit_code = _run_session(config, args, db, dictionary, allowlist, stop_event, publisher)
+    exit_code = _run_session(
+        config,
+        args,
+        db,
+        dictionary,
+        allowlist,
+        stop_event,
+        publisher,
+        check_disk_space_fn=check_disk_space_fn,
+    )
     if exit_code != 0:
         raise SystemExit(exit_code)
 
