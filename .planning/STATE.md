@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: unattended-on-car-operation
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-09-30T04:32:44.942Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-09-30T05:11:37.489Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 31
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 03 (unattended-on-car-operation) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 03 execution started
 
-Progress: [████████░░] 84% (3 of 10 phases complete)
+Progress: [█████████░] 87% (3 of 10 phases complete)
 
 ## Performance Metrics
 
@@ -84,6 +84,7 @@ Progress: [████████░░] 84% (3 of 10 phases complete)
 | Phase 02 P04 | 25min | 3 tasks | 12 files |
 | Phase 03 P01 | 25min | 2 tasks | 10 files |
 | Phase 03 P02 | 25min | 2 tasks | 4 files |
+| Phase 03 P03 | 22min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,10 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 3-02, 2026-09-29] check_disk_space compares free_bytes directly against configured byte thresholds, never deriving a percentage from total (used+free can be < total on real ext4); strictly-less-than at both boundaries so an exact-threshold reading resolves to the better band
 - [Phase ?]: [Phase 3-02, 2026-09-29] OPS-03 startup gate lives in main(), not _run_session, since _run_session calls new_session() -- placing it after would break 'refused to start a new session'; mid-run recheck attaches to 03-01's existing snapshot_fn tick, not a second timer thread, and a critical band mid-run degrades but never stops a session in progress
 - [Phase ?]: [Phase 3-02, 2026-09-29] SyntheticFrameSource has no per-frame real-time throttle (confirmed empirically) -- rate-limit tests control real wall-clock duration via the test's own stop_event.set() after a short sleep, not via --duration-s, which finishes almost instantly regardless of the value requested
+- [Phase ?]: [Phase 3-03, 2026-09-30] Checkpoint resolved approve-and-replan (real membrane LED wanted this milestone), not the plan's own planned default of defer
+- [Phase ?]: [Phase 3-03, 2026-09-30] smbus2 approved for a future MembraneLedIndicator follow-up plan; RPi.GPIO descoped -- strongly indicated not needed (pure I2C shutdown register) but not proven against the full membrane.py
+- [Phase ?]: [Phase 3-03, 2026-09-30] Boot overlay path resolved to /boot/firmware/config.txt, user-confirmed against real hardware, contradicting Intrepid's own doc which is wrong for Bookworm
+- [Phase ?]: [Phase 3-03, 2026-09-30] 03-03 still ships only NullLedIndicator; concrete MembraneLedIndicator deliberately left for a follow-up plan needing real neoVI PI hardware to verify
 
 ### Pending Todos
 
@@ -204,8 +209,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-30T04:32:44.923Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-09-30T05:11:37.466Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-execute-phase 3`. Expect a blocking package checkpoint early in wave 2
