@@ -165,7 +165,7 @@ Plans:
   3. Remaining NVMe space is surfaced while there is still time to act on it, not discovered when a session fails to write
   4. A team member who did not build the system can start a session, confirm it is healthy, and retrieve the data using only the written runbook
 
-**Plans**: 7/7 plans executed
+**Plans**: 7/9 plans executed (2 gap-closure plans added after verification found success criterion 2 FAILED)
 
 Plans:
 **Wave 1**
@@ -189,6 +189,14 @@ Plans:
 **Wave 5** *(blocked on Wave 4 completion)*
 
 - [x] 03-07-PLAN.md — `docs/runbook.md` and its drift-proof coverage test; closes OPS-03 and OPS-07, holds OPS-01 open on the single Pi bring-up item
+
+**Wave 6** *(gap closure — 03-VERIFICATION.md found success criterion 2 FAILED: only `NullLedIndicator` shipped)*
+
+- [ ] 03-08-PLAN.md — Settle the GPIO question against the full vendor script, pin `smbus2` behind a linux platform marker, and prove one heartbeat state end to end through real I2C register writes
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 03-09-PLAN.md — The remaining four state colours and the panel-off path, the I2C group/overlay deployment surface, and the runbook's now-false "no physical status LED" sentence
 
 ### Phase 4: Wire Protocol Hardening
 
