@@ -12,4 +12,16 @@ lz4==4.4.5
 mcap==1.4.0
 python-ics==1!26.3.9
 pytest==9.1.1
+# 0.6.1 verified by fetching the artifact (`pip download smbus2==0.6.1
+# --no-deps` retrieved smbus2-0.6.1-py2.py3-none-any.whl), NOT by
+# installing it against this dev box's interpreter -- this file's own
+# header rule ("verified against the version actually installed") is
+# deliberately not met here because the package cannot be installed on
+# this platform at all: smbus2/smbus2.py imports the Unix-only stdlib
+# `fcntl` module at its own top level, confirmed live
+# (`python -c "import fcntl"` raises ModuleNotFoundError here). The
+# marker below is load-bearing, not decoration -- confirmed live via
+# `pip install --dry-run -r requirements.txt` reporting the requirement
+# ignored on this Windows box (03-08-PLAN.md Task 2).
+smbus2==0.6.1 ; sys_platform == "linux"
 zstandard==0.25.0

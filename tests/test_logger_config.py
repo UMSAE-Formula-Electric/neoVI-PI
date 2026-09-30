@@ -12,6 +12,7 @@ if the real file's shape ever drifts out from under them. Mirrors
 import copy
 import dataclasses
 import json
+import re
 
 import pytest
 
@@ -349,22 +350,73 @@ def test_missing_file_raises(tmp_path):
 # cannot drift apart on any package pinned in both.
 # ---------------------------------------------------------------------------
 
+# A PEP 508 environment marker, e.g. `sys_platform == "linux"` -- deliberately
+# narrow (only the comparison operators this project's own manifest actually
+# uses), not a full PEP 508 grammar. Validated so a marker is checked for
+# shape rather than merely split off and ignored (03-08 Task 2).
+_MARKER_PATTERN = re.compile(
+    r'^[a-zA-Z_][a-zA-Z0-9_.]*\s*(==|!=|<=|>=|<|>|in|not in)\s*\S.*$'
+)
+
 
 def _parse_pinned_requirements(path):
     """Parse a requirements file into {package_name: version}, asserting
-    every non-comment, non-blank line is an exact `==` pin."""
+    every non-comment, non-blank line is an exact `==` pin.
+
+    A line may carry a PEP 508 environment marker after `;`
+    (e.g. `smbus2==0.6.1 ; sys_platform == "linux"`, added in 03-08 Task 2
+    for the Linux-only I2C dependency). The marker is split off and
+    validated FIRST, before the exact-pin assertions run on the remaining
+    requirement text -- splitting on the first bare `==` (the prior
+    behaviour) would instead match the marker's OWN `==` on a
+    marked-but-unpinned line (e.g. `smbus2 ; sys_platform == "linux"`),
+    silently parsing `sys_platform` fragments into the version. Splitting
+    on `;` first means that trap can't happen: a marked-but-unpinned line
+    still fails as "not an exact pin", not as a bogus but green parse."""
     pins = {}
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
-        assert "==" in line, f"{path.name}: line {line!r} is not an exact '==' pin"
-        name, _, version = line.partition("==")
+
+        requirement, has_marker, marker = line.partition(";")
+        requirement = requirement.strip()
+        marker = marker.strip()
+        if has_marker:
+            assert marker, f"{path.name}: line {line!r} has an empty marker after ';'"
+            assert _MARKER_PATTERN.match(marker), (
+                f"{path.name}: line {line!r} has an unrecognised marker {marker!r}"
+            )
+
+        assert "==" in requirement, (
+            f"{path.name}: line {line!r} is not an exact '==' pin"
+        )
+        name, _, version = requirement.partition("==")
         name = name.strip()
         version = version.strip()
         assert name and version, f"{path.name}: line {line!r} is not an exact '==' pin"
         pins[name] = version
     return pins
+
+
+# The complete expected package-name set in requirements.txt -- the 8
+# pre-existing pins plus `smbus2` (03-08 Task 2). Asserted explicitly so an
+# unrelated dependency riding along with the intended one-line addition
+# fails loudly here rather than silently widening the runtime dependency
+# set (T-03-29's mitigation).
+_EXPECTED_RUNTIME_PACKAGE_NAMES = frozenset(
+    {
+        "cantools",
+        "cobs",
+        "crccheck",
+        "lz4",
+        "mcap",
+        "python-ics",
+        "pytest",
+        "smbus2",
+        "zstandard",
+    }
+)
 
 
 def test_requirements_pinned(repo_root):
@@ -373,7 +425,15 @@ def test_requirements_pinned(repo_root):
 
     assert runtime_pins, "requirements.txt must not be empty"
     assert dev_pins, "requirements-dev.txt must not be empty"
+    assert set(runtime_pins) == _EXPECTED_RUNTIME_PACKAGE_NAMES, (
+        "requirements.txt's package name set drifted from the expected "
+        f"set -- got {sorted(runtime_pins)}"
+    )
 
+    # The drift cross-check below runs on bare versions -- the marker on
+    # smbus2's line must never leak into this comparison. smbus2 is not
+    # pinned in requirements-dev.txt (a deliberately unchanged Phase 0
+    # record), so it is correctly absent from `shared`, not silently wrong.
     shared = set(runtime_pins) & set(dev_pins)
     assert shared, "expected at least one package pinned in both manifests"
 
@@ -382,3 +442,25 @@ def test_requirements_pinned(repo_root):
             f"{name} is pinned to {runtime_pins[name]!r} in requirements.txt "
             f"but {dev_pins[name]!r} in requirements-dev.txt"
         )
+
+
+def test_parse_pinned_requirements_strips_marker(tmp_path):
+    """A marked, exactly-pinned line returns the bare version, with the
+    marker text stripped off entirely -- not glued onto the version."""
+    path = tmp_path / "req.txt"
+    path.write_text('smbus2==0.6.1 ; sys_platform == "linux"\n', encoding="utf-8")
+
+    pins = _parse_pinned_requirements(path)
+
+    assert pins == {"smbus2": "0.6.1"}
+
+
+def test_parse_pinned_requirements_rejects_marked_but_unpinned(tmp_path):
+    """A marked line with no exact pin must fail as 'not an exact pin' --
+    not silently succeed by matching the marker's own `==` comparison
+    operator (the trap this parser's prior behaviour had)."""
+    path = tmp_path / "req.txt"
+    path.write_text('smbus2 ; sys_platform == "linux"\n', encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="not an exact '=='"):
+        _parse_pinned_requirements(path)
