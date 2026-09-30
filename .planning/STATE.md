@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: unattended-on-car-operation
 status: executing
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-09-30T06:12:02.537Z"
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-09-30T06:23:03.986Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 31
-  completed_plans: 29
+  completed_plans: 30
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 03 (unattended-on-car-operation) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 03 execution started
 
-Progress: [█████████░] 94% (3 of 10 phases complete)
+Progress: [██████████] 97% (3 of 10 phases complete)
 
 ## Performance Metrics
 
@@ -87,6 +87,7 @@ Progress: [█████████░] 94% (3 of 10 phases complete)
 | Phase 03 P03 | 22min | 2 tasks | 5 files |
 | Phase 03 P04 | 45min | 2 tasks | 5 files |
 | Phase 03 P05 | 40min | 2 tasks | 4 files |
+| Phase 03 P06 | 25min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -168,6 +169,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 3-05, 2026-09-30] Evidence line reads the actual extras keys telemetry.logger.cli's capturing closure writes (session_name, frames_per_s, frames_submitted, records_written), not the frames_captured/frames_archived names the plan's read_first prose guessed at -- those keys do not exist on the wire
 - [Phase ?]: [Phase 3-05, 2026-09-30] Corrected telemetry.ops.cli's stdout/stderr split: stdout now carries only the single --json line; the plain-text human report moves to stderr, superseding 03-01's original carve-out
 - [Phase ?]: [Phase 3-05, 2026-09-30] OPS-02 marked Complete in REQUIREMENTS.md after re-grepping every 03-*-PLAN.md's requirements: frontmatter and confirming 03-05 is the last claimant
+- [Phase ?]: [Phase 3-06, 2026-09-30] StartLimitIntervalSec/StartLimitBurst placement verified twice independently -- reproduced 03-RESEARCH.md's WSL systemd-analyze verify finding against the actual shipped file (systemd 259, exit 0, zero warnings) and structurally via the hand-rolled checker's parsed-section assertions
+- [Phase ?]: [Phase 3-06, 2026-09-30] Checker and its tests live in one file (tests/test_deploy_unit_file.py), not a separate production module -- no ops/ package concern owns deploy/ artifacts; configparser never appears in the file, confirmed via git grep after both RED and GREEN commits
+- [Phase ?]: [Phase 3-06, 2026-09-30] Stop-timeout guard test passes vacuously against the shipped unit (declares no TimeoutStopSec) by design -- guards a future edit against a value shorter than 2x _SHUTDOWN_JOIN_TIMEOUT_S, docstring states this explicitly so vacuous passage is never mistaken for proof
 
 ### Pending Todos
 
@@ -217,8 +221,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-30T06:12:02.515Z
-Stopped at: Completed 03-05-PLAN.md
+Last session: 2026-09-30T06:23:03.966Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-execute-phase 3`. Expect a blocking package checkpoint early in wave 2

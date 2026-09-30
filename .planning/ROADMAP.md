@@ -165,7 +165,7 @@ Plans:
   3. Remaining NVMe space is surfaced while there is still time to act on it, not discovered when a session fails to write
   4. A team member who did not build the system can start a session, confirm it is healthy, and retrieve the data using only the written runbook
 
-**Plans**: 5/7 plans executed
+**Plans**: 6/7 plans executed
 
 Plans:
 **Wave 1**
@@ -184,7 +184,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 03-05-PLAN.md — Five-state `telemetry-status` rendering with staleness ahead of state; closes OPS-02
-- [ ] 03-06-PLAN.md — systemd unit, install script, and a hand-rolled structural lint
+- [x] 03-06-PLAN.md — systemd unit, install script, and a hand-rolled structural lint
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -298,7 +298,7 @@ Phase 9 is hardware-gated and may slip past any later work without blocking it. 
 | 0. Compression Ratio Gate | 7/7 | Complete    | 2026-08-01 |
 | 1. Dual-Path Capture — Durable Archive and Thin Live Link | 13/13 | In Progress|  |
 | 2. Python Ground Station and Dashboard Cutover | 4/4 | Complete    | 2026-08-08 |
-| 3. Unattended On-Car Operation | 5/7 | In Progress|  |
+| 3. Unattended On-Car Operation | 6/7 | In Progress|  |
 | 4. Wire Protocol Hardening | 0/TBD | Not started | - |
 | 5. Transmit Shaping and Loss-Resilience Test Suite | 0/TBD | Not started | - |
 | 6. Live Plots and Link Health | 0/TBD | Not started | - |
