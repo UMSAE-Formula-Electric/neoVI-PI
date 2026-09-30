@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 03
 current_phase_name: unattended-on-car-operation
-status: executing
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-09-30T06:23:03.986Z"
+status: verifying
+stopped_at: Completed 03-07-PLAN.md (final plan of phase 03-unattended-on-car-operation)
+last_updated: "2026-09-30T06:36:04.493Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 31
-  completed_plans: 30
+  completed_plans: 31
 ---
 
 # Project State
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 
 Phase: 03 (unattended-on-car-operation) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-29 — Phase 03 execution started
 
-Progress: [██████████] 97% (3 of 10 phases complete)
+Progress: [██████████] 100% (3 of 10 phases complete)
 
 ## Performance Metrics
 
@@ -88,6 +88,7 @@ Progress: [██████████] 97% (3 of 10 phases complete)
 | Phase 03 P04 | 45min | 2 tasks | 5 files |
 | Phase 03 P05 | 40min | 2 tasks | 4 files |
 | Phase 03 P06 | 25min | 2 tasks | 3 files |
+| Phase 03 P07 | 50min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -172,6 +173,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 3-06, 2026-09-30] StartLimitIntervalSec/StartLimitBurst placement verified twice independently -- reproduced 03-RESEARCH.md's WSL systemd-analyze verify finding against the actual shipped file (systemd 259, exit 0, zero warnings) and structurally via the hand-rolled checker's parsed-section assertions
 - [Phase ?]: [Phase 3-06, 2026-09-30] Checker and its tests live in one file (tests/test_deploy_unit_file.py), not a separate production module -- no ops/ package concern owns deploy/ artifacts; configparser never appears in the file, confirmed via git grep after both RED and GREEN commits
 - [Phase ?]: [Phase 3-06, 2026-09-30] Stop-timeout guard test passes vacuously against the shipped unit (declares no TimeoutStopSec) by design -- guards a future edit against a value shorter than 2x _SHUTDOWN_JOIN_TIMEOUT_S, docstring states this explicitly so vacuous passage is never mistaken for proof
+- [Phase ?]: OPS-01 left Pending after this phase's final plan (03-07) -- its software side (systemd unit, install script, structural lint from 03-06) is complete, but nothing runnable off real hardware can prove a car boots into it unattended. Mirrors ARCH-03's precedent against docs/power-pull-test.md; the Pi bring-up procedure lives in docs/runbook.md.
+- [Phase ?]: OPS-03 and OPS-07 marked Complete in 03-07 after a recorded re-grep gate confirmed sole/last claimant status -- docs/runbook.md ships all eight required sections plus a drift-proof coverage test (tests/test_runbook_coverage.py) that derives every expected string from source rather than hardcoding any of them.
 
 ### Pending Todos
 
@@ -221,8 +224,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-30T06:23:03.966Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-09-30T06:36:04.472Z
+Stopped at: Completed 03-07-PLAN.md (final plan of phase 03-unattended-on-car-operation)
 Resume file: None
 
 **Resume with:** `/gsd-execute-phase 3`. Expect a blocking package checkpoint early in wave 2

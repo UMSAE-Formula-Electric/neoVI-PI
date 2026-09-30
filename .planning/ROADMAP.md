@@ -165,7 +165,7 @@ Plans:
   3. Remaining NVMe space is surfaced while there is still time to act on it, not discovered when a session fails to write
   4. A team member who did not build the system can start a session, confirm it is healthy, and retrieve the data using only the written runbook
 
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans executed
 
 Plans:
 **Wave 1**
@@ -188,7 +188,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 03-07-PLAN.md — `docs/runbook.md` and its drift-proof coverage test; closes OPS-03 and OPS-07, holds OPS-01 open on the single Pi bring-up item
+- [x] 03-07-PLAN.md — `docs/runbook.md` and its drift-proof coverage test; closes OPS-03 and OPS-07, holds OPS-01 open on the single Pi bring-up item
 
 ### Phase 4: Wire Protocol Hardening
 
@@ -298,7 +298,7 @@ Phase 9 is hardware-gated and may slip past any later work without blocking it. 
 | 0. Compression Ratio Gate | 7/7 | Complete    | 2026-08-01 |
 | 1. Dual-Path Capture — Durable Archive and Thin Live Link | 13/13 | In Progress|  |
 | 2. Python Ground Station and Dashboard Cutover | 4/4 | Complete    | 2026-08-08 |
-| 3. Unattended On-Car Operation | 6/7 | In Progress|  |
+| 3. Unattended On-Car Operation | 7/7 | In Progress|  |
 | 4. Wire Protocol Hardening | 0/TBD | Not started | - |
 | 5. Transmit Shaping and Loss-Resilience Test Suite | 0/TBD | Not started | - |
 | 6. Live Plots and Link Health | 0/TBD | Not started | - |
