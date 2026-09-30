@@ -45,10 +45,50 @@ class UnitFileParseError(ValueError):
 
 
 def parse_unit_file(text: str) -> Dict[str, List[Tuple[str, str]]]:
-    """RED phase placeholder -- not implemented yet on purpose, so every
-    test that exercises the checker fails before the real implementation
-    lands (this task's own TDD gate)."""
-    raise NotImplementedError
+    """Hand-rolled, line-based structural parser for a systemd unit file.
+
+    Returns a mapping from section name to an ORDERED LIST of (key, value)
+    pairs -- a list, not a dict, so a key repeated within one section
+    (valid, common systemd syntax) survives intact rather than being
+    silently collapsed to its last occurrence.
+
+    Skips blank lines and comment lines (`#` or `;` as the first non-space
+    character, per systemd's own unit-file comment syntax). Every other
+    non-blank line must either open a section (`[Name]`) or be a
+    `Key=Value` pair; a `Key=Value` line appearing before any section
+    header, or a line matching neither shape, raises UnitFileParseError
+    naming the 1-based line number -- never a silent skip.
+
+    Deliberately does not attempt semantic validation of any kind (no
+    dependency-graph resolution, no directive-specific type checking) --
+    see the module docstring.
+    """
+    sections: Dict[str, List[Tuple[str, str]]] = {}
+    current_section = None
+    for lineno, raw_line in enumerate(text.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line[0] in "#;":
+            continue
+        section_match = _SECTION_RE.match(line)
+        if section_match:
+            current_section = section_match.group("name")
+            sections.setdefault(current_section, [])
+            continue
+        if "=" not in line:
+            raise UnitFileParseError(
+                f"line {lineno}: not a section header or Key=Value pair: "
+                f"{raw_line!r}"
+            )
+        if current_section is None:
+            raise UnitFileParseError(
+                f"line {lineno}: Key=Value line before any [Section] "
+                f"header: {raw_line!r}"
+            )
+        key, _, value = line.partition("=")
+        sections[current_section].append((key.strip(), value.strip()))
+    return sections
 
 
 # ---------------------------------------------------------------------------
