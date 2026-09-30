@@ -128,7 +128,11 @@ def test_running_logger_reports_capturing_via_a_separate_status_process(tmp_path
 
         human_result = _run_status_cli(heartbeat_path, as_json=False)
         assert human_result.returncode == 0
-        assert "capturing" in human_result.stdout
+        # 03-05 corrects the two-outputs split: stdout is reserved solely
+        # for the single `--json` line, so the plain-text report -- like
+        # every other log line this process emits -- goes to stderr.
+        assert human_result.stdout == ""
+        assert "capturing" in human_result.stderr
     finally:
         # Popen.terminate() on Windows never reaches a Python signal
         # handler (recorded project fact, tests/test_logger_cli_smoke.py's
