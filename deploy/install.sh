@@ -50,6 +50,30 @@ if [ ! -d "${DEPLOY_ROOT}/src/telemetry" ] || [ ! -f "${DEPLOY_ROOT}/config/logg
   exit 1
 fi
 
+# --- Addition 3 (beyond Pattern 2): archive root + heartbeat directory -----
+# The logger runs unprivileged (User=telemetry in the unit). Without this,
+# first boot fails on a permission error at the archive or heartbeat path
+# that looks nothing like its actual cause. config/logger.json is the source
+# of truth for both paths on the real deployment; this script does not parse
+# JSON, so it creates the conventional locations documented in the runbook
+# (03-07) and confirmed during the same Pi bring-up item as the account and
+# layout assumptions above.
+#
+# THIS BLOCK MUST STAY ABOVE `systemctl enable --now`. It originally sat
+# below it (CR-01, 03-REVIEW.md): the service was started before the
+# directories it writes to existed or were owned by the service account, so
+# every fresh install threw a permission failure into the journal before
+# Restart=always papered over it ~2s later. That inverted this block's own
+# stated purpose, and it is the first thing a new team member following the
+# runbook would have seen. `tests/test_deploy_unit_file.py` now pins the
+# ordering so it cannot silently regress.
+ARCHIVE_ROOT="${DEPLOY_ROOT}/sessions"
+HEARTBEAT_DIR="${DEPLOY_ROOT}/var"
+
+sudo mkdir -p "${ARCHIVE_ROOT}"
+sudo mkdir -p "${HEARTBEAT_DIR}"
+sudo chown "${SERVICE_USER}:${SERVICE_USER}" "${ARCHIVE_ROOT}" "${HEARTBEAT_DIR}"
+
 # --- Pattern 2, verified: install the unit, reload, enable -----------------
 # install -m 644 sets permission bits explicitly instead of trusting whatever
 # the source file carried through a copy -- this also avoids the spurious
@@ -63,21 +87,6 @@ fi
 sudo install -m 644 "${SCRIPT_DIR}/${UNIT_NAME}" "/etc/systemd/system/${UNIT_NAME}"
 sudo systemctl daemon-reload
 sudo systemctl enable --now "${UNIT_NAME}"
-
-# --- Addition 3 (beyond Pattern 2): archive root + heartbeat directory -----
-# The logger runs unprivileged (User=telemetry above). Without this, first
-# boot fails on a permission error at the archive or heartbeat path that
-# looks nothing like its actual cause. config/logger.json is the source of
-# truth for both paths on the real deployment; this script does not parse
-# JSON, so it creates the conventional locations documented in the runbook
-# (03-07) and confirmed during the same Pi bring-up item as the account and
-# layout assumptions above.
-ARCHIVE_ROOT="${DEPLOY_ROOT}/sessions"
-HEARTBEAT_DIR="${DEPLOY_ROOT}/var"
-
-sudo mkdir -p "${ARCHIVE_ROOT}"
-sudo mkdir -p "${HEARTBEAT_DIR}"
-sudo chown "${SERVICE_USER}:${SERVICE_USER}" "${ARCHIVE_ROOT}" "${HEARTBEAT_DIR}"
 
 echo "Installed and started ${UNIT_NAME}. Check status with:"
 echo "  systemctl status ${UNIT_NAME}"

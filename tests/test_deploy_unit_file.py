@@ -107,6 +107,27 @@ def install_text() -> str:
 
 
 @pytest.fixture(scope="module")
+def install_commands() -> str:
+    """`install.sh` with comment-only lines stripped.
+
+    Ordering assertions MUST use this, never `install_text`. `str.index()`
+    finds the first occurrence anywhere in the file, so a command name
+    mentioned in a comment above the code satisfies an ordering check that
+    the actual commands violate -- measured live: adding a comment reading
+    "MUST STAY ABOVE `systemctl enable --now`" above the directory block made
+    a correct script fail its own ordering test. The pre-existing
+    daemon-reload ordering test passed only because those two strings happen
+    to appear in the intended order inside a header comment, which is luck,
+    not coverage.
+
+    Strips whole-line comments only; a trailing `# ...` after a real command
+    is left alone, since the command itself is what the assertions match.
+    """
+    lines = INSTALL_PATH.read_text(encoding="utf-8").splitlines()
+    return "\n".join(line for line in lines if not line.lstrip().startswith("#"))
+
+
+@pytest.fixture(scope="module")
 def parsed_unit(unit_text) -> Dict[str, List[Tuple[str, str]]]:
     return parse_unit_file(unit_text)
 
@@ -279,7 +300,39 @@ def test_install_script_uses_mode_setting_install_invocation(install_text):
     assert re.search(r"install\s+-m\s+644", install_text)
 
 
-def test_install_script_daemon_reload_precedes_enable(install_text):
-    reload_offset = install_text.index("daemon-reload")
-    enable_offset = install_text.index("enable --now")
+def test_install_script_daemon_reload_precedes_enable(install_commands):
+    reload_offset = install_commands.index("daemon-reload")
+    enable_offset = install_commands.index("enable --now")
     assert reload_offset < enable_offset
+
+
+# The CR-01 regression (03-REVIEW.md). `systemctl enable --now` STARTS the
+# service. The archive root and heartbeat directory must therefore exist and
+# be owned by the unprivileged service account BEFORE that line runs, or the
+# logger's first write fails on a permission error and the failure lands in
+# the journal of every fresh install -- papered over ~2s later by
+# Restart=always, which makes it easy to dismiss and hard to explain.
+#
+# This reuses the `.index()` ordering technique the daemon-reload test above
+# already established. That technique existed and simply was not applied to
+# this pair, which is why a fully green suite shipped the inverted order --
+# the same "content-checked but behaviour-unproven" gap that let Phase 2 ship
+# a dead UI affordance.
+def test_install_script_creates_and_chowns_directories_before_starting_service(
+    install_commands,
+):
+    mkdir_offset = install_commands.index("mkdir -p")
+    chown_offset = install_commands.index("chown")
+    enable_offset = install_commands.index("enable --now")
+
+    assert mkdir_offset < enable_offset, (
+        "install.sh creates the archive/heartbeat directories AFTER "
+        "`systemctl enable --now` starts the service -- the service will fail "
+        "its first write. See CR-01 in 03-REVIEW.md."
+    )
+    assert chown_offset < enable_offset, (
+        "install.sh chowns the archive/heartbeat directories to the service "
+        "account AFTER `systemctl enable --now` starts the service -- the "
+        "unprivileged service will fail its first write. See CR-01 in "
+        "03-REVIEW.md."
+    )
