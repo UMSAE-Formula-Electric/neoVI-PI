@@ -967,6 +967,17 @@ def main(
             # error: no session was ever created, so remove the status
             # file (absence, not a sixth state, says "not running") and
             # return without calling _run_session at all.
+            #
+            # WR-06 (03-REVIEW.md), closed here: join() BEFORE remove(),
+            # matching _run_session's own established order (and the
+            # reason recorded above its join, ~line 767) -- so this path
+            # darkens the panel exactly like every other clean stop,
+            # instead of leaving it lit on whatever colour _on_waiting's
+            # last publish_now set (blue, waiting-for-hardware). Safe to
+            # call here even though publisher.start() is never reached on
+            # this path: join() tolerates a never-started thread (see its
+            # own docstring, T-03-41) and closes the indicator either way.
+            publisher.join(timeout=_SHUTDOWN_JOIN_TIMEOUT_S)
             publisher.remove()
             return
 

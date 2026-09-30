@@ -1001,3 +1001,128 @@ def test_end_to_end_membrane_kind_produces_real_register_writes_through_main(
         "the bus through the real main() -> HeartbeatPublisher -> "
         "MembraneLedIndicator chain"
     )
+
+
+# ---------------------------------------------------------------------------
+# WR-06 (03-REVIEW.md), pulled forward into 03-09 Task 1 by explicit user
+# decision (2026-09-30): EVERY clean-stop path must darken the panel,
+# including the one where the operator stops a logger that never saw
+# hardware. Before 03-08, NullLedIndicator.close() being a no-op made the
+# missing publisher.join() on this path cosmetic; a real panel makes it a
+# false "still running" signal to a human standing at the car.
+# ---------------------------------------------------------------------------
+
+
+class _RecordingBusWithFileOrderCheck:
+    """Same recording shape as `_RecordingBusForEndToEnd`, plus one extra
+    fact this test needs and a plain call log cannot express on its own:
+    whether the heartbeat file was still present at the moment the LAST
+    off-sequence write landed (`close()`'s own bus.close() call, always
+    the final call `MembraneLedIndicator.close()` makes). That is what
+    proves the panel-off writes happen BEFORE the status file is removed
+    -- the established order from `_run_session`'s own shutdown -- without
+    mocking or patching any real code path."""
+
+    def __init__(self, heartbeat_path):
+        self.calls = []
+        self._heartbeat_path = heartbeat_path
+        self.heartbeat_file_existed_at_bus_close = None
+
+    def write_byte_data(self, address, register, value):
+        self.calls.append(("write_byte_data", address, register, value))
+
+    def write_i2c_block_data(self, address, register, data):
+        self.calls.append(("write_i2c_block_data", address, register, list(data)))
+
+    def close(self):
+        self.heartbeat_file_existed_at_bus_close = self._heartbeat_path.exists()
+        self.calls.append(("close", None, None, None))
+
+
+def test_hardware_wait_clean_stop_darkens_the_panel_wr06(tmp_path):
+    """Runs the real `main()` chain with `--source hardware`,
+    `--led-kind membrane`, and an injected fake-bus factory. The injected
+    `wait_for_hardware_fn` reports the operator stopped the logger before
+    hardware ever appeared -- `main()`'s `if not hardware_present:` branch,
+    which historically called `publisher.remove()` with no
+    `publisher.join()`, so `HeartbeatPublisher._close_led()` never ran and
+    the panel stayed lit on whatever colour `_on_waiting` last set (blue,
+    `waiting-for-hardware`).
+
+    Asserts the RECORDED BUS CALLS show the full panel-off sequence --
+    not that `join()` was called, which would be a call-order assertion
+    about this code's internals rather than an assertion about its
+    observable effect on the bus."""
+    archive_root = tmp_path / "sessions"
+    heartbeat_path = tmp_path / "status.json"
+
+    fake_bus = _RecordingBusWithFileOrderCheck(heartbeat_path)
+
+    def _fake_led_factory(kind, *, bus=None):
+        if kind == LED_KIND_MEMBRANE:
+            return MembraneLedIndicator(bus=fake_bus)
+        return NullLedIndicator()
+
+    def _fake_wait_then_stop(*, stop_event, on_waiting):
+        on_waiting(1, 0.01)
+        stop_event.set()  # the operator stops the logger while it waits
+        return False
+
+    argv = [
+        "--source",
+        "hardware",
+        "--archive-root",
+        str(archive_root),
+        "--heartbeat-path",
+        str(heartbeat_path),
+        "--led-kind",
+        LED_KIND_MEMBRANE,
+    ]
+
+    # Must not raise -- in particular must not raise
+    # `RuntimeError: cannot join thread before it is started` (T-03-41):
+    # `publisher.start()` is never reached on this path, so a bare
+    # `publisher.join(...)` added naively would convert this clean
+    # operator stop into an uncaught traceback.
+    main(
+        argv,
+        check_disk_space_fn=_constant_disk_check(DISK_OK),
+        wait_for_hardware_fn=_fake_wait_then_stop,
+        build_led_indicator_fn=_fake_led_factory,
+    )
+
+    # Calls 0-2 are MembraneLedIndicator's own construction sequence
+    # (shared with every other test in this file). Calls 3-4 are the
+    # `booting` (white) snapshot main() publishes immediately after
+    # constructing the publisher, before the hardware wait begins -- also
+    # shared with every other `--led-kind membrane` test. Calls 5-6 are
+    # this path's own first distinguishing behaviour: `_on_waiting`'s
+    # waiting-for-hardware (blue) snapshot. Call 7 onward is the
+    # panel-off sequence this test exists to pin (4 calls: all-zero
+    # block, update pulse, return to shutdown, bus close).
+    booting_block = [255] * 30
+    waiting_for_hardware_block = [0] * 30
+    for led_index in range(10):
+        waiting_for_hardware_block[3 * led_index + 2] = 255  # blue
+
+    assert fake_bus.calls[3:7] == [
+        ("write_i2c_block_data", DEFAULT_LED_ADDRESS, 0x01, booting_block),
+        ("write_byte_data", DEFAULT_LED_ADDRESS, 0x25, 0x00),
+        ("write_i2c_block_data", DEFAULT_LED_ADDRESS, 0x01, waiting_for_hardware_block),
+        ("write_byte_data", DEFAULT_LED_ADDRESS, 0x25, 0x00),
+    ]
+
+    panel_off_calls = fake_bus.calls[7:]
+    assert panel_off_calls == [
+        ("write_i2c_block_data", DEFAULT_LED_ADDRESS, 0x01, [0] * 30),
+        ("write_byte_data", DEFAULT_LED_ADDRESS, 0x25, 0x00),
+        ("write_byte_data", DEFAULT_LED_ADDRESS, 0x00, 0x00),
+        ("close", None, None, None),
+    ]
+
+    # The same run still removes the status file...
+    assert not heartbeat_path.exists()
+    # ...and the panel-off writes landed BEFORE that removal -- the
+    # established order from `_run_session`'s own shutdown (join, i.e.
+    # close the led, THEN remove the file).
+    assert fake_bus.heartbeat_file_existed_at_bus_close is True

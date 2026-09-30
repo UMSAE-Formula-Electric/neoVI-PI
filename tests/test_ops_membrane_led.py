@@ -31,6 +31,7 @@ from telemetry.ops.membrane_led import (
     LED_KIND_MEMBRANE,
     LED_KIND_NULL,
     MembraneLedIndicator,
+    _STATE_TO_COLOUR,
     build_led_indicator,
 )
 
@@ -180,6 +181,71 @@ def test_close_writes_all_zero_block_shuts_down_and_is_safe_to_call_twice():
     bus.calls.clear()
     indicator.close()  # safe to call twice -- no second round of writes
     assert bus.calls == []
+
+
+def test_set_state_after_close_does_not_raise():
+    bus = _RecordingBus()
+    indicator = MembraneLedIndicator(bus=bus)
+    indicator.close()
+    bus.calls.clear()
+
+    indicator.set_state(STATE_CAPTURING)  # must not raise -- bus is closed
+
+    assert bus.calls == [], "no write should reach the already-closed bus"
+
+
+@pytest.mark.parametrize(
+    "state",
+    [STATE_BOOTING, STATE_WAITING_FOR_HARDWARE, STATE_DEGRADED, STATE_STOPPED_ERROR],
+)
+def test_set_state_writes_its_own_distinct_pwm_block_for_every_non_capturing_state(state):
+    """03-08 only asserted `capturing`'s block (the tracer). These are the
+    other four -- parameterised over the driver's own table rather than
+    hand-listing four near-identical test bodies, so a future colour edit
+    updates the expectation for free instead of leaving a case untested."""
+    bus = _RecordingBus()
+    indicator = MembraneLedIndicator(bus=bus)
+    bus.calls.clear()
+
+    indicator.set_state(state)
+
+    red, green, blue = _STATE_TO_COLOUR[state].rgb
+    expected_block = _full_scale_block(red=red, green=green, blue=blue)
+    assert bus.calls == [
+        (
+            "write_i2c_block_data",
+            DEFAULT_LED_ADDRESS,
+            _PWM_PORT_OFFSET_REG,
+            expected_block,
+        ),
+        ("write_byte_data", DEFAULT_LED_ADDRESS, _PWM_UPDATE_REG, 0x00),
+    ]
+
+
+def test_no_two_heartbeat_states_share_the_same_pwm_block():
+    """Set-size check over the driver's own table -- a future colour edit
+    that accidentally collides two states fails here instead of on the
+    car, where the two would be indistinguishable to a human standing at
+    it."""
+    rgb_triples = [colour.rgb for colour in _STATE_TO_COLOUR.values()]
+    assert len(set(rgb_triples)) == len(rgb_triples)
+
+
+def test_every_colour_has_a_name_and_no_two_names_collide():
+    names = [colour.name for colour in _STATE_TO_COLOUR.values()]
+    assert all(isinstance(name, str) and name for name in names)
+    assert len(set(names)) == len(names)
+
+
+def test_set_state_raises_naming_the_offending_value_for_an_unknown_state():
+    bus = _RecordingBus()
+    indicator = MembraneLedIndicator(bus=bus)
+    bus.calls.clear()
+
+    with pytest.raises(ValueError, match="bogus-unknown-state"):
+        indicator.set_state("bogus-unknown-state")
+
+    assert bus.calls == [], "an unknown state must raise, never write"
 
 
 def test_import_time_guard_fails_loudly_on_a_missing_colour(monkeypatch):

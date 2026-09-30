@@ -94,6 +94,7 @@ already applied.
 """
 
 import logging
+from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
 from telemetry.ops.heartbeat import (
@@ -152,16 +153,36 @@ _PWM_UPDATE_PULSE_VALUE = 0x00
 _PWM_FULL_SCALE = 255
 _PWM_OFF = 0
 
-_COLOUR_CAPTURING = (_PWM_OFF, _PWM_FULL_SCALE, _PWM_OFF)  # green
-_COLOUR_WAITING_FOR_HARDWARE = (_PWM_OFF, _PWM_OFF, _PWM_FULL_SCALE)  # blue
-_COLOUR_BOOTING = (_PWM_FULL_SCALE, _PWM_FULL_SCALE, _PWM_FULL_SCALE)  # white
-_COLOUR_DEGRADED = (_PWM_FULL_SCALE, 191, _PWM_OFF)  # amber
-_COLOUR_STOPPED_ERROR = (_PWM_FULL_SCALE, _PWM_OFF, _PWM_OFF)  # red
+@dataclass(frozen=True)
+class LedColour:
+    """One heartbeat state's physical colour: the RGB triple written to
+    every one of the ten RGB positions, and a human-readable `name` that
+    `docs/runbook.md` (03-09 Task 3) quotes directly at test-run time
+    rather than restating as a second string literal -- restating instead
+    of importing is exactly what WR-04 was in this same subsystem, two
+    plans ago. A frozen dataclass, not a bare tuple and not a second
+    parallel dict keyed the same way `_STATE_TO_COLOUR` is: either of
+    those could drift out of step with the RGB values they are supposed
+    to describe."""
+
+    rgb: Tuple[int, int, int]
+    name: str
+
+
+_COLOUR_CAPTURING = LedColour(rgb=(_PWM_OFF, _PWM_FULL_SCALE, _PWM_OFF), name="green")
+_COLOUR_WAITING_FOR_HARDWARE = LedColour(
+    rgb=(_PWM_OFF, _PWM_OFF, _PWM_FULL_SCALE), name="blue"
+)
+_COLOUR_BOOTING = LedColour(
+    rgb=(_PWM_FULL_SCALE, _PWM_FULL_SCALE, _PWM_FULL_SCALE), name="white"
+)
+_COLOUR_DEGRADED = LedColour(rgb=(_PWM_FULL_SCALE, 191, _PWM_OFF), name="amber")
+_COLOUR_STOPPED_ERROR = LedColour(rgb=(_PWM_FULL_SCALE, _PWM_OFF, _PWM_OFF), name="red")
 
 # Keyed by the imported state constants, not retyped string literals --
 # see module docstring; restating instead of importing is exactly what
 # WR-04 was in this same subsystem, two plans ago.
-_STATE_TO_COLOUR: Dict[str, Tuple[int, int, int]] = {
+_STATE_TO_COLOUR: Dict[str, LedColour] = {
     STATE_BOOTING: _COLOUR_BOOTING,
     STATE_WAITING_FOR_HARDWARE: _COLOUR_WAITING_FOR_HARDWARE,
     STATE_CAPTURING: _COLOUR_CAPTURING,
@@ -231,11 +252,34 @@ class MembraneLedIndicator:
         written -- the publisher calls this at 1 Hz, and most ticks see
         no transition. A raising write clears the skip cache (so the next
         tick retries) and propagates -- see the module docstring for why
-        this deliberately does NOT catch."""
+        this deliberately does NOT catch.
+
+        A no-op once `close()` has run (mirrors `NullLedIndicator`'s
+        "safe in any order, any number of times" contract) -- the bus is
+        already closed at that point, so writing to it would raise an
+        error unrelated to the state transition itself.
+
+        Raises `ValueError`, naming the offending value, for a state not
+        present in the table -- never a silent no-op, which would
+        reproduce the exact "exists and drives nothing" defect this
+        driver exists to close. Every name in `HEARTBEAT_STATES` is
+        already guaranteed present by the import-time completeness guard
+        above; this only fires for a caller passing something else
+        entirely."""
+        if self._closed:
+            return
         if state == self._last_state:
             return
+        try:
+            colour = _STATE_TO_COLOUR[state]
+        except KeyError:
+            raise ValueError(
+                f"telemetry.ops.membrane_led.MembraneLedIndicator.set_state "
+                f"received unknown state {state!r} -- not one of "
+                f"{sorted(_STATE_TO_COLOUR)}"
+            ) from None
 
-        red, green, blue = _STATE_TO_COLOUR[state]
+        red, green, blue = colour.rgb
         pwm_block = [0] * _NUMBER_OF_LEDS
         for led_index in range(_NUMBER_OF_RGB_LEDS):
             pwm_block[3 * led_index + _RED_OFFSET] = red

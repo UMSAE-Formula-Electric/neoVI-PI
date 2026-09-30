@@ -347,3 +347,46 @@ def test_join_calls_led_close_exactly_once(tmp_path):
     publisher.join(timeout=5.0)  # calling again must not double-close
 
     assert led.close_count == 1
+
+
+def test_join_on_a_never_started_publisher_does_not_raise_and_still_closes_led(tmp_path):
+    """WR-06 (03-REVIEW.md), closed in 03-09 Task 1 (T-03-41): `main()`'s
+    hardware-wait clean-stop path never calls `start()` -- that call
+    lives inside `_run_session`, which that path returns before ever
+    invoking. A bare `Thread.join()` on a thread that was never started
+    raises `RuntimeError: cannot join thread before it is started`,
+    which would convert a clean operator stop into an uncaught traceback
+    -- strictly worse than the lit-panel defect the fix targets. Asserts
+    both halves directly: the call returns normally, and the indicator's
+    `close()` still ran."""
+    path = tmp_path / "status.json"
+    led = _RecordingLed()
+    publisher = HeartbeatPublisher(
+        path=path,
+        interval_s=1.0,
+        stop_event=threading.Event(),
+        snapshot_fn=lambda: HeartbeatSnapshot(state="capturing", detail=None, extras={}),
+        led=led,
+    )
+
+    # start() deliberately never called.
+    publisher.join(timeout=5.0)  # must not raise
+
+    assert led.close_count == 1
+
+
+def test_join_on_a_never_started_publisher_called_twice_closes_led_exactly_once(tmp_path):
+    path = tmp_path / "status.json"
+    led = _RecordingLed()
+    publisher = HeartbeatPublisher(
+        path=path,
+        interval_s=1.0,
+        stop_event=threading.Event(),
+        snapshot_fn=lambda: HeartbeatSnapshot(state="capturing", detail=None, extras={}),
+        led=led,
+    )
+
+    publisher.join(timeout=5.0)
+    publisher.join(timeout=5.0)  # calling again must not double-close
+
+    assert led.close_count == 1

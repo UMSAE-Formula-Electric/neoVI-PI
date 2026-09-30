@@ -312,8 +312,10 @@ class HeartbeatPublisher:
         self.led_error_count = 0
         self.led_error_log_suppressed_count = 0
         self._thread = threading.Thread(target=self._run, name=name, daemon=True)
+        self._started = False
 
     def start(self) -> None:
+        self._started = True
         self._thread.start()
 
     def publish_now(self, snapshot: HeartbeatSnapshot) -> None:
@@ -347,7 +349,27 @@ class HeartbeatPublisher:
             )
 
     def join(self, timeout: Optional[float] = None) -> None:
-        self._thread.join(timeout=timeout)
+        """Join the periodic thread (if it was ever started) and close the
+        physical indicator either way.
+
+        **Deliberately callable on a publisher whose `start()` was never
+        called (WR-06, 03-REVIEW.md, closed in 03-09 Task 1).**
+        `Thread.join()` raises `RuntimeError: cannot join thread before it
+        is started` on a thread object that exists but was never started
+        -- measured live against this project's own interpreter, not
+        inferred from the docs -- and `main()`'s hardware-wait clean-stop
+        path (`telemetry.logger.cli`) returns before ever calling
+        `start()` (that call lives inside `_run_session`, which that path
+        never reaches). Guarding on `self._started` (set only inside
+        `start()`) rather than `self._thread.is_alive()` is required, not
+        a style choice: `is_alive()` also reads `False` for a thread that
+        was started and has already finished, which would skip the join
+        and, worse, invert the guard's purpose on the one path it exists
+        for. `_close_led()` runs unconditionally regardless of whether a
+        join happened, so every shutdown path -- started or not -- can
+        call `join()` and get the same guarantee: the panel goes dark."""
+        if self._started:
+            self._thread.join(timeout=timeout)
         self._close_led()
 
     def _close_led(self) -> None:
