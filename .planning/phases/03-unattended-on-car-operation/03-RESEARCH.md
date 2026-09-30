@@ -134,6 +134,90 @@ The reference script also names a `MULTI_BUTTON` (GPIO pin 4) and `TRIG_BUTTON` 
 3. **Build the `LedIndicator` Protocol now** (2–3 methods, mirroring `Link`/`FrameSource`'s minimal-surface convention), ship a `NullLedIndicator` default that satisfies it and does nothing, and wire the heartbeat writer to call it unconditionally (so the call site exists and is tested, even though the concrete implementation is a no-op). This satisfies CONTEXT.md's exact instruction: *"if a usable LED exists, it is driven through the abstraction, not instead of the status file"* — a usable LED does exist, but "driven through the abstraction" does not require the abstraction be non-trivial *this phase*.
 4. **What remains genuinely unconfirmed**: whether standard CM4 carrier-board LEDs (`/sys/class/leds/*`, e.g. an ACT/PWR LED path some Pi HATs expose) are wired on the neoVI PI's specific carrier board at all — no evidence either way was found, and it is very likely **not** applicable, since Intrepid built a bespoke I2C-driven membrane LED panel instead of relying on any generic Pi `/sys/class/leds` entries. Do not implement a `/sys/class/leds` code path speculatively.
 
+### Full vendor script read — settled 2026-09-30 (03-08 Task 1)
+
+`[VERIFIED: github.com/intrepidcs/neoVI_PI-docs, raw fetch of the complete
+static/downloads/membrane.py this session — all 148 lines read verbatim,
+not the first-30-lines excerpt cited above, and not a summarizing fetch.]`
+This supersedes the "strongly indicated, not proven" language in the
+Package Legitimacy Audit below with a settled verdict.
+
+**A. The GPIO verdict: CONFIRMED `RPi.GPIO` is resolved-not-needed.** Every
+`GPIO.` call in the full script, enumerated exhaustively:
+
+| Call | Pin/argument | Purpose |
+|------|--------------|---------|
+| `GPIO.setmode(GPIO.BCM)` | — | numbering scheme only |
+| `GPIO.setup(MULTI_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)` | pin 4 | input pull-up |
+| `GPIO.setup(TRIG_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)` | pin 5 | input pull-up |
+| `GPIO.add_event_detect(MULTI_BUTTON, GPIO.RISING, callback=IncrementMultiState, bouncetime=100)` | pin 4 | rising-edge callback |
+
+That is the complete set — four calls, zero of them touching an LED. Every
+LED write in the script (`StartLEDUpdaterThread`, `SetMembraneRGBLED`,
+`SetAllRGBLEDs`, and the module-level init block under `if __name__ ==
+'__main__':`) goes exclusively through `i2c.write_byte_data`/
+`i2c.write_i2c_block_data` — none of the four `GPIO.` calls appears inside
+or adjacent to any LED-writing function. **This directly confirms the
+prior session's summarizing-fetch corroboration** (recorded above as
+"strongly indicated, not proven"); that corroboration is now upgraded to a
+verbatim, byte-for-byte read of the whole file, not a second corroboration.
+Provenance is still a full read of the *vendor's reference script*, not a
+measurement against this project's own real hardware — no neoVI PI with an
+LED panel has been touched by this project. `RPi.GPIO` is **not** added to
+`requirements.txt` by Task 2 as a result.
+
+**B. The initialisation write sequence**, in order, straight out of the
+script's `if __name__ == '__main__':` block (lines 111-120 of the fetched
+file):
+
+1. `i2c = smbus.SMBus(I2C_ID)` — opens bus 10.
+2. `i2c.write_byte_data(LED_ADDRESS, LED_DRIVER_SHUTDOWN_REG, 0x01)` — takes
+   the driver out of shutdown. Register `0x00`, value `0x01`.
+3. `i2c.write_i2c_block_data(LED_ADDRESS, LED_DRIVER_LED_CONTROL_REG,
+   led_ctrl)` — writes the 30-entry `led_ctrl` block to register `0x26`.
+   `led_ctrl = [LED_ON | LED_SL_HALF_CURRENT] * NUMBER_OF_LEDS` — literal
+   value per entry is `0x01 | 0x02 = 0x03`, literal length `30`
+   (`NUMBER_OF_LEDS`). The constants alone (recorded above) do not give
+   this combined value; this is the first read of the actual combination.
+4. `i2c.write_byte_data(LED_ADDRESS, LED_DRIVER_PWM_UPDATE_REG, 0x00)` —
+   pulses the update register. Register `0x25`, value `0x00`.
+
+**C. The set-colour write sequence.** `SetMembraneRGBLED(ledNumber, red,
+green, blue)` mutates a module-level flat array, `led_map` (initialised
+`[0x00] * NUMBER_OF_LEDS`, length **30**, confirmed), at
+`led_map[3*ledNumber + RED_OFFSET(0)]`, `led_map[3*ledNumber +
+GREEN_OFFSET(1)]`, `led_map[3*ledNumber + BLUE_OFFSET(2)]`. `SetAllRGBLEDs`
+calls that once per RGB LED (`range(0, 10)` — all ten). The actual bus
+write happens separately, in `StartLEDUpdaterThread` (a 0.1 s
+`threading.Timer` loop in the vendor script, not invoked synchronously
+after a colour is set):
+
+1. `i2c.write_i2c_block_data(LED_ADDRESS, LED_DRIVER_PWM_PORT_OFFSET,
+   led_map)` — writes the whole 30-entry array to register `0x01`.
+2. `i2c.write_byte_data(LED_ADDRESS, LED_DRIVER_PWM_UPDATE_REG, 0x00)` —
+   pulses the update register again. Register `0x25`, value `0x00`.
+
+The vendor's own timer-thread indirection is a UI-polling detail of its
+multi-button colour-wheel demo (`multiState`/`Color_Wheel`), irrelevant to
+this project's single-state indicator; Task 3's driver performs these same
+two writes synchronously right after mutating its own array, which changes
+when the bus is written, not the register sequence or payload shape being
+recorded here.
+
+**D. `smbus2` call-surface check — re-confirmed.** `class SMBus` in the
+downloaded `smbus2-0.6.1-py2.py3-none-any.whl` exposes `open`, `close`,
+`write_byte_data`, and `write_i2c_block_data` — the exact four calls B and
+C above use (`SMBus(I2C_ID)` maps to `open` at construction). Recorded as
+verified-against-the-wheel per the prior session's check; this session's
+Task 1 did not need to re-run it, since the call names above are unchanged
+from what B/C already needed.
+
+**Not re-confirmed this session, still carried forward unverified:** the
+`LS31FL3236A`/`IS31FL3236A` part-number comment in the script, and the
+LED-driver chip's real part number — this read looked only at Python
+control flow, not at chip datasheets, and does not upgrade that claim's
+certainty beyond what the section above already states.
+
 ## Standard Stack
 
 ### Core
