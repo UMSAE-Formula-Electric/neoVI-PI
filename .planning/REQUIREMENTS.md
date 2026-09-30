@@ -77,7 +77,7 @@ Requirements for the current milestone. Each maps to exactly one roadmap phase.
 ### Operations
 
 - [ ] **OPS-01**: The logger starts automatically on power-up with no keyboard, screen, or login
-- [ ] **OPS-02**: The logger exposes a heartbeat indicating it is alive and capturing
+- [x] **OPS-02**: The logger exposes a heartbeat indicating it is alive and capturing
 - [ ] **OPS-03**: Remaining disk space is monitored and surfaced before it becomes critical
 - [x] **OPS-04**: Captured data is segmented into discrete sessions rather than one unbounded file
 - [x] **OPS-05**: Channels, DBC path, alarm limits, and link settings are read from configuration, not hardcoded
@@ -183,7 +183,7 @@ Populated during roadmap creation (2026-07-30). Every v1 requirement maps to exa
 | ALRM-04 | Phase 7 | Pending |
 | ALRM-05 | Phase 7 | Pending |
 | OPS-01 | Phase 3 | Pending |
-| OPS-02 | Phase 3 | Pending |
+| OPS-02 | Phase 3 | Complete |
 | OPS-03 | Phase 3 | Pending |
 | OPS-04 | Phase 1 | Complete |
 | OPS-05 | Phase 1 | Complete |
