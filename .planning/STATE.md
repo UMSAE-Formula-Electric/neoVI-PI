@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 03
 current_phase_name: unattended-on-car-operation
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-09-30T05:45:05.267Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-09-30T06:12:02.537Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 31
-  completed_plans: 28
+  completed_plans: 29
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-08-01)
 ## Current Position
 
 Phase: 03 (unattended-on-car-operation) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-09-29 — Phase 03 execution started
 
-Progress: [█████████░] 90% (3 of 10 phases complete)
+Progress: [█████████░] 94% (3 of 10 phases complete)
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Progress: [█████████░] 90% (3 of 10 phases complete)
 | Phase 03 P02 | 25min | 2 tasks | 4 files |
 | Phase 03 P03 | 22min | 2 tasks | 5 files |
 | Phase 03 P04 | 45min | 2 tasks | 5 files |
+| Phase 03 P05 | 40min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 3-04, 2026-09-30] wait_for_hardware runs in main(), strictly after the disk gate and before _run_session -- _run_session calls new_session() first and HardwareFrameSource.captured_frames() lazily calls open(), which fails fast with no retry
 - [Phase ?]: [Phase 3-04, 2026-09-30] Terminal-state detail names every failing condition that fired (capture_loop_exception, archive_not_closed_cleanly, archive_write_failure, archive_overflow), not just the first; publisher thread is joined before the terminal write in both branches so a periodic tick can never race ahead of it
 - [Phase ?]: [Phase 3-04, 2026-09-30] Rule 1 fix: tests/test_ops_tracer.py's --duration-s 120 deterministically overflowed the shipped queue_depth=50000 in under 2s (SyntheticFrameSource has no per-frame throttle); raised that test's queue_depth to 2,000,000 so the run legitimately takes ~11s instead of overflowing -- previously masked because a bad ending left the heartbeat file showing a stale prior state
+- [Phase ?]: [Phase 3-05, 2026-09-30] Evidence line reads the actual extras keys telemetry.logger.cli's capturing closure writes (session_name, frames_per_s, frames_submitted, records_written), not the frames_captured/frames_archived names the plan's read_first prose guessed at -- those keys do not exist on the wire
+- [Phase ?]: [Phase 3-05, 2026-09-30] Corrected telemetry.ops.cli's stdout/stderr split: stdout now carries only the single --json line; the plain-text human report moves to stderr, superseding 03-01's original carve-out
+- [Phase ?]: [Phase 3-05, 2026-09-30] OPS-02 marked Complete in REQUIREMENTS.md after re-grepping every 03-*-PLAN.md's requirements: frontmatter and confirming 03-05 is the last claimant
 
 ### Pending Todos
 
@@ -213,8 +217,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-09-30T05:45:05.248Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-09-30T06:12:02.515Z
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None
 
 **Resume with:** `/gsd-execute-phase 3`. Expect a blocking package checkpoint early in wave 2
