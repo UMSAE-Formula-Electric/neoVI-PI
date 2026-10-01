@@ -1,3 +1,24 @@
 # Ignore log files and testing directories
 /logs*
 /testing*
+__pycache__
+*.json
+# Ignore virtual environment directories
+venv/
+env/
+# Ignore compiled Python files
+*.pyc
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+# Ignore data files
+*.csv
+*.xlsx
+*.h5
+*.hdf5
+*.pkl
+*.zip
+*.tar.gz
+# Ignore Node.js modules
+node_modules/
+# Ignore IDE specific files
+.vscode/
