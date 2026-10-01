@@ -21,7 +21,16 @@ Type=simple
 User=telemetry
 WorkingDirectory=/opt/telemetry
 Environment=PYTHONPATH=src
-ExecStart=/usr/bin/python3 -m telemetry.logger.cli
+# --led-kind membrane selects the real I2C membrane LED panel driver
+# (03-09, OPS-02 gap closure). This is a hardware-presence choice, not a
+# config/logger.json field -- structurally identical to --source
+# hardware|synthetic: it says what THIS machine has physically attached,
+# and the version-controlled unit file is the right place to record that,
+# not a JSON field shared by every deployment target. Without this flag
+# the CLI defaults to the no-op indicator and the panel stays dark no
+# matter how correct the driver is -- the same "exists and drives
+# nothing" failure 03-VERIFICATION.md's gap already found once.
+ExecStart=/usr/bin/python3 -m telemetry.logger.cli --led-kind membrane
 Restart=always
 RestartSec=2
 

@@ -74,6 +74,85 @@ sudo mkdir -p "${ARCHIVE_ROOT}"
 sudo mkdir -p "${HEARTBEAT_DIR}"
 sudo chown "${SERVICE_USER}:${SERVICE_USER}" "${ARCHIVE_ROOT}" "${HEARTBEAT_DIR}"
 
+# --- Addition 4 (beyond Pattern 2): grant the service account I2C access ---
+# The unit runs as a non-root system account (Addition 1), so it cannot open
+# the I2C bus device the membrane LED panel (03-09) sits on without group
+# membership -- ASVS V4's explicit-grant requirement for an unprivileged
+# process, not root. Idempotent: checks membership first and says so when
+# already present, mirroring how Addition 1 handles the account itself.
+#
+# If the "i2c" group does not exist yet on this machine, this block DOES
+# NOT fail the install -- it prints a clear message and continues. The
+# logger's job is to not lose a session's data; a status light that isn't
+# wired up yet is never a reason to refuse to log. THIS IS DELIBERATE --
+# do not "fix" it into a hard failure (T-03-40, 03-09-PLAN.md).
+#
+# THIS BLOCK, LIKE ADDITION 5 BELOW, MUST STAY ABOVE `systemctl enable
+# --now` -- the same CR-01 ordering hazard Addition 3's own comment already
+# records: the service starts essentially immediately once enabled, and
+# granting access after it has already tried to open the bus guarantees a
+# spurious failure in the journal on every fresh install.
+I2C_GROUP="i2c"
+if getent group "${I2C_GROUP}" >/dev/null 2>&1; then
+  if id -nG "${SERVICE_USER}" | tr ' ' '\n' | grep -qx "${I2C_GROUP}"; then
+    echo "'${SERVICE_USER}' is already a member of group '${I2C_GROUP}' -- not re-adding."
+  else
+    echo "Adding '${SERVICE_USER}' to group '${I2C_GROUP}'..."
+    sudo usermod -aG "${I2C_GROUP}" "${SERVICE_USER}"
+  fi
+else
+  echo "NOTE: group '${I2C_GROUP}' does not exist on this machine -- skipping the I2C" \
+       "group grant. The logger will still run and archive normally; only the" \
+       "physical status light is unavailable until the i2c_vc overlay below is" \
+       "enabled and this machine is rebooted (on most Raspberry Pi OS images, the" \
+       "overlay is what creates this group's device node in the first place)."
+fi
+
+# --- Addition 5 (beyond Pattern 2): enable the i2c_vc device-tree overlay ---
+# The bus the LED driver sits on (I2C bus 10) is not exposed until this
+# overlay is enabled in the boot config, and that only takes effect after a
+# reboot. Uses the path the user confirmed against THIS car's own hardware
+# at plan 03-03's checkpoint (03-RESEARCH.md "THE LED/GPIO QUESTION --
+# Resolved") -- Intrepid's own published instructions name /boot/config.txt,
+# the pre-Bookworm location, which is wrong for this image.
+#
+# Appending to the Pi's boot configuration is not the same class of change
+# as anything else in this script: a malformed boot config on the one
+# computer bolted to the car can leave it unable to boot at all, and
+# recovering then means pulling the storage, not editing over SSH. Three
+# requirements guard that, in order:
+#   - only act if the boot config file actually exists (a dev box, a
+#     container, and CI have none; this is also the only part of this
+#     entire script that touches anything outside /opt/telemetry and
+#     /etc/systemd/system)
+#   - back up the file, timestamped, before any write -- the cheapest
+#     possible insurance against the one failure mode in this whole plan
+#     that could stop the car's computer from booting
+#   - append the overlay line only if it is not already present, so
+#     re-running this script cannot accumulate duplicate lines
+BOOT_CONFIG_PATH="/boot/firmware/config.txt"
+OVERLAY_LINE="dtparam=i2c_vc=on"
+
+if [ -f "${BOOT_CONFIG_PATH}" ]; then
+  if grep -qxF "${OVERLAY_LINE}" "${BOOT_CONFIG_PATH}"; then
+    echo "'${OVERLAY_LINE}' is already present in ${BOOT_CONFIG_PATH} -- not re-adding."
+  else
+    BACKUP_PATH="${BOOT_CONFIG_PATH}.bak-$(date +%Y%m%dT%H%M%S)"
+    echo "Backing up ${BOOT_CONFIG_PATH} to ${BACKUP_PATH} before appending the i2c_vc overlay..."
+    sudo cp "${BOOT_CONFIG_PATH}" "${BACKUP_PATH}"
+    echo "Appending '${OVERLAY_LINE}' to ${BOOT_CONFIG_PATH}..."
+    echo "${OVERLAY_LINE}" | sudo tee -a "${BOOT_CONFIG_PATH}" >/dev/null
+  fi
+  echo "NOTE: a REBOOT of this machine is required before the I2C bus device appears" \
+       "and the LED panel can be driven. The logger runs and archives normally in the" \
+       "meantime -- only the physical status light is inert until the reboot happens."
+else
+  echo "NOTE: ${BOOT_CONFIG_PATH} does not exist on this machine -- skipping the" \
+       "i2c_vc overlay (a dev box, a container, and CI have no boot config). The" \
+       "logger will still run and archive normally; only the physical status light" \
+       "is unavailable."
+fi
+
 # --- Pattern 2, verified: install the unit, reload, enable -----------------
 # install -m 644 sets permission bits explicitly instead of trusting whatever
 # the source file carried through a copy -- this also avoids the spurious

@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-10-01T00:59:04.184Z",
+  "phase": "03",
+  "phase_name": "03-unattended-on-car-operation",
+  "phase_dir": ".planning/phases/03-unattended-on-car-operation",
+  "plan": 9,
+  "task": 2,
+  "total_tasks": 3,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "The other four states, the off-path on EVERY clean stop (WR-06), and colour names the runbook can be held to",
+      "status": "done",
+      "commit": "18300b7"
+    },
+    {
+      "id": 2,
+      "name": "The deployment surface the I2C bus needs -- selected in the unit, granted by the installer",
+      "status": "in_progress",
+      "progress": "deploy/telemetry-logger.service edited (--led-kind membrane added to ExecStart); deploy/install.sh edited (Addition 4: idempotent I2C group grant, tolerates missing group; Addition 5: i2c_vc overlay append to /boot/firmware/config.txt, presence-checked, timestamped-backup-before-write, idempotent -- both placed above `systemctl enable --now`). `bash -n deploy/install.sh` passes. tests/test_deploy_unit_file.py NOT YET EDITED -- no new assertions written, nothing run, nothing committed."
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 2,
+      "name": "Finish Task 2: extend tests/test_deploy_unit_file.py",
+      "status": "in_progress"
+    },
+    {
+      "id": 3,
+      "name": "Retire the runbook's now-false sentence, and fold the LED into the one hardware item",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "async_jobs": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {
+      "decision": "WR-06 fixed via a started-flag guard on HeartbeatPublisher.join() (not Thread.is_alive()) plus join-before-remove at the cli.py call site, rather than the review's parenthetical alternative of calling publisher._close_led() directly from the CLI.",
+      "rationale": "Reaching into a private member from the CLI would leave the two shutdown paths structurally different, which is the actual defect, not the symptom. Thread.is_alive() also reads False for a thread that ran and finished, which would wrongly skip the join on a different path.",
+      "phase": "03"
+    },
+    {
+      "decision": "I2C group name is 'i2c'; boot config path is /boot/firmware/config.txt; overlay line is 'dtparam=i2c_vc=on'.",
+      "rationale": "Boot config path user-confirmed against this car's own hardware at 03-03's checkpoint (03-RESEARCH.md), explicitly NOT the vendor's own /boot/config.txt instructions which are wrong for Bookworm. Group name 'i2c' is 03-RESEARCH.md's own ASVS V4 note.",
+      "phase": "03"
+    }
+  ],
+  "uncommitted_files": [
+    "deploy/install.sh",
+    "deploy/telemetry-logger.service"
+  ],
+  "next_action": "Extend tests/test_deploy_unit_file.py per 03-09-PLAN.md Task 2's full assertion list (ExecStart carries --led-kind membrane; I2C group grant offset < enable offset via install_commands fixture; overlay append offset < enable offset; backup-copy offset < append offset; presence-check offset < append offset; boot-config path /boot/firmware/config.txt asserted positively; idempotence guard on group grant exists mirroring Addition 1's style). Then run `bash -n deploy/install.sh && python -m pytest tests/test_deploy_unit_file.py -x -q --tb=short`, commit all three files atomically, then proceed to Task 3 (docs/runbook.md + tests/test_runbook_coverage.py), then write 03-09-SUMMARY.md, update STATE.md/ROADMAP.md, and make the final docs commit.",
+  "context_notes": "Plan 03-09 is the LAST plan of phase 03, autonomous, 3 tasks, gap_closure=true. Task 1 is fully done and committed (18300b7) -- WR-06's RED proof was observed failing pre-fix with verbatim output already captured for the SUMMARY: the assertion `panel_off_calls == [...]` failed with `AssertionError: assert [] == [(...)]` -- panel_off_calls was empty pre-fix because main()'s hardware-wait clean-stop path called publisher.remove() with no publisher.join(), so _close_led() never ran. Full suite was 477 passing at plan start, 488 passing after Task 1. Do NOT mark any requirement in .planning/REQUIREMENTS.md (OPS-01 stays Pending, OPS-02/07 already Complete). Out of scope, do not touch: WR-02, WR-03, WR-05, IN-01, IN-02, IN-03, broken-windows id=4. The phase must retain exactly ONE Pi bring-up hardware-verification heading in docs/runbook.md -- Task 3 extends it, never adds a second. Pause was triggered by an explicit user /gsd-pause-work command mid-autonomous-execution, not a fabricated stop -- the executor agent's own instructions this session explicitly forbade fabricating pauses, and this one is genuine."
+}
