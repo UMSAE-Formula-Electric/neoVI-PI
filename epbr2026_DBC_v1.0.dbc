@@ -762,7 +762,7 @@ BO_ 263 Diagnostic_Codes_Std: 8 EMUS_BMS
  SG_ DiagnosticCodes_CellOverVoltage : 1|1@0+ (1,0) [0|1] "" Vector__XXX
  SG_ DiagnosticCodes_CellUnderVoltage : 0|1@0+ (1,0) [0|1] "" Vector__XXX
 
-BO_ 446 Battery_Volt_2_Overall_Param_Std: 8 EMUS_BMS
+BO_ 265 Battery_Volt_2_Overall_Param_Std: 8 EMUS_BMS
  SG_ VoltOverallParams_TotalVolt : 31|32@0+ (0.01,0) [0|42949672.95] "V" Vector__XXX
  SG_ VoltOverallParam_AvrgCellVoltage : 23|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
  SG_ VoltOverallParam_MaxCellVoltage : 15|8@0+ (0.01,2) [2|4.55] "V" Vector__XXX
@@ -1121,7 +1121,7 @@ CM_ BO_ 534 "Individual Cell Balancing Rates Standard Option B";
 CM_ SG_ 534 IndividualCellBalancRate_Data_8 "Individual Cells Group Value for CAN Option B";
 CM_ BO_ 256 "Overall Parameters Standard";
 CM_ BO_ 263 "Diagnostic Codes Standard";
-CM_ BO_ 446 "Battery Voltage Overall Parameters Standard";
+CM_ BO_ 265 "Battery Voltage Overall Parameters Standard";
 CM_ BO_ 258 "Cell Module Overall Parameters Standard";
 CM_ BO_ 264 "Cell Temperature Overall Params Standard";
 CM_ BO_ 259 "Cell Bancing Rate Overall Params Standard";
